@@ -6,3 +6,9 @@ dist/
 test.db
 
 .aider*
+
+# project-local config may hold connection URLs + SSH bastion host/user/key path
+.lazysql.toml
+
+# built binary
+/lazysql

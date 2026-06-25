@@ -3,7 +3,10 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/jorgerojas26/lazysql/models"
 )
 
 func TestExpandEnvVars(t *testing.T) {
@@ -470,5 +473,70 @@ DefaultPageSize = 500
 	}
 	if App.config.AppConfig.MaxQueryHistoryPerConnection != 100 {
 		t.Errorf("MaxQueryHistoryPerConnection = %d, want 100 (default)", App.config.AppConfig.MaxQueryHistoryPerConnection)
+	}
+}
+
+func TestSaveConnectionsBlanksSSHSecretsAndMode(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+
+	App.config = &Config{ConfigFile: cfgPath}
+
+	conns := []models.Connection{
+		{
+			Name:          "ssh-conn",
+			Provider:      "mysql",
+			URL:           "mysql://u:p@db.internal:3306/app",
+			UseSSH:        true,
+			SSHHost:       "bastion.example.com",
+			SSHUser:       "alice",
+			SSHKeyFile:    "~/.ssh/id_ed25519",
+			SSHPassphrase: "topsecret",
+			SSHPassword:   "alsosecret",
+		},
+		{Name: "plain", Provider: "mysql", URL: "mysql://u:p@h:3306/db"},
+	}
+
+	if err := App.config.SaveConnections(conns); err != nil {
+		t.Fatalf("SaveConnections: %v", err)
+	}
+
+	// In-memory connections keep secrets for same-session reconnect.
+	if got := App.config.Connections[0].SSHPassphrase; got != "topsecret" {
+		t.Errorf("in-memory SSHPassphrase = %q, want topsecret", got)
+	}
+	if got := App.config.Connections[0].SSHPassword; got != "alsosecret" {
+		t.Errorf("in-memory SSHPassword = %q, want alsosecret", got)
+	}
+
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	content := string(data)
+
+	// Secrets must never hit disk.
+	if strings.Contains(content, "topsecret") || strings.Contains(content, "alsosecret") {
+		t.Errorf("on-disk config leaked an SSH secret:\n%s", content)
+	}
+	if strings.Contains(content, "ssh_passphrase") || strings.Contains(content, "ssh_password") {
+		t.Errorf("on-disk config contains a blanked-secret key:\n%s", content)
+	}
+	// Non-secret SSH metadata persists.
+	if !strings.Contains(content, "bastion.example.com") {
+		t.Errorf("on-disk config missing ssh_host:\n%s", content)
+	}
+	// Non-SSH connection stays clean — no spurious ssh_* keys (omitempty).
+	if strings.Contains(content, "ssh_port") {
+		t.Errorf("non-SSH connection emitted ssh_port:\n%s", content)
+	}
+
+	// Owner-only file mode.
+	info, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("config file mode = %o, want 600", perm)
 	}
 }

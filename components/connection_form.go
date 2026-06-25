@@ -28,6 +28,13 @@ func NewConnectionForm(connectionPages *models.ConnectionPages) *ConnectionForm 
 	addForm.AddInputField("Name", "", 0, nil, nil)
 	addForm.AddInputField("URL", "", 0, nil, nil)
 	addForm.AddCheckbox("Read-Only", false, nil)
+	addForm.AddCheckbox("Use SSH Tunnel", false, nil)
+	addForm.AddInputField("SSH Host", "", 0, nil, nil)
+	addForm.AddInputField("SSH Port", "22", 0, nil, nil)
+	addForm.AddInputField("SSH User", "", 0, nil, nil)
+	addForm.AddInputField("SSH Key File", "", 0, nil, nil)
+	addForm.AddPasswordField("SSH Passphrase", "", 0, '*', nil)
+	addForm.AddPasswordField("SSH Password", "", 0, '*', nil)
 
 	buttonsWrapper := tview.NewFlex().SetDirection(tview.FlexColumn)
 
@@ -81,16 +88,14 @@ func (form *ConnectionForm) inputCapture(connectionPages *models.ConnectionPages
 		if event.Key() == tcell.KeyEsc {
 			connectionPages.SwitchToPage(pageNameConnectionSelection)
 		} else if event.Key() == tcell.KeyF1 || event.Key() == tcell.KeyEnter {
-			connectionName := form.GetFormItem(0).(*tview.InputField).GetText()
+			parsedDatabaseData := form.readConnection()
 
-			if connectionName == "" {
+			if parsedDatabaseData.Name == "" {
 				form.StatusText.SetText("Connection name is required").SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 				return event
 			}
 
-			connectionString := form.GetFormItem(1).(*tview.InputField).GetText()
-
-			parsed, err := helpers.ParseConnectionString(connectionString)
+			parsed, err := helpers.ParseConnectionString(parsedDatabaseData.URL)
 			if err != nil {
 				form.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 				return event
@@ -105,15 +110,8 @@ func (form *ConnectionForm) inputCapture(connectionPages *models.ConnectionPages
 				DBName = ""
 			}
 
-			readOnly := form.GetFormItem(2).(*tview.Checkbox).IsChecked()
-
-			parsedDatabaseData := models.Connection{
-				Name:     connectionName,
-				Provider: parsed.Driver,
-				DBName:   DBName,
-				URL:      connectionString,
-				ReadOnly: readOnly,
-			}
+			parsedDatabaseData.Provider = parsed.Driver
+			parsedDatabaseData.DBName = DBName
 
 			switch form.Action {
 			case actionNewConnection:
@@ -159,21 +157,36 @@ func (form *ConnectionForm) inputCapture(connectionPages *models.ConnectionPages
 			connectionPages.SwitchToPage(pageNameConnectionSelection)
 
 		} else if event.Key() == tcell.KeyF2 {
-			connectionString := form.GetFormItem(1).(*tview.InputField).GetText()
-			go form.testConnection(connectionString)
+			go form.testConnection(form.readConnection())
 		}
 		return event
 	}
 }
 
-func (form *ConnectionForm) testConnection(connectionString string) {
-	parsed, err := helpers.ParseConnectionString(connectionString)
+func (form *ConnectionForm) testConnection(connection models.Connection) {
+	parsed, err := helpers.ParseConnectionString(connection.URL)
 	if err != nil {
 		form.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 		return
 	}
 
 	form.StatusText.SetText("Connecting...").SetTextColor(app.Styles.TertiaryTextColor)
+
+	urlstr := connection.URL
+	if connection.UseSSH {
+		sshCfg, err := sshConfigFromConnection(connection)
+		if err != nil {
+			form.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
+			return
+		}
+		rewritten, tunnel, err := helpers.OpenTunnelForURL(app.App.Context(), sshCfg, connection.URL, defaultDBPort(parsed.Driver))
+		if err != nil {
+			form.StatusText.SetText("SSH tunnel: " + err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
+			return
+		}
+		defer tunnel.Close()
+		urlstr = rewritten
+	}
 
 	var db drivers.Driver
 
@@ -186,9 +199,12 @@ func (form *ConnectionForm) testConnection(connectionString string) {
 		db = &drivers.SQLite{}
 	case drivers.DriverMSSQL:
 		db = &drivers.MSSQL{}
+	default:
+		form.StatusText.SetText("Unsupported database provider: " + parsed.Driver).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
+		return
 	}
 
-	err = db.TestConnection(connectionString)
+	err = db.TestConnection(urlstr)
 
 	if err != nil {
 		form.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
@@ -202,8 +218,59 @@ func (form *ConnectionForm) SetAction(action string) {
 	form.Action = action
 }
 
+// readConnection pulls every form field into a models.Connection. Name/URL/
+// Read-Only are read positionally (legacy), SSH fields by label.
+func (form *ConnectionForm) readConnection() models.Connection {
+	useSSH := form.GetFormItemByLabel("Use SSH Tunnel").(*tview.Checkbox).IsChecked()
+
+	// Don't persist the display default "22" (tunnel defaults to 22 when unset),
+	// and drop the port entirely when SSH is off, so non-SSH configs stay clean.
+	sshPort := form.GetFormItemByLabel("SSH Port").(*tview.InputField).GetText()
+	if !useSSH || sshPort == "22" {
+		sshPort = ""
+	}
+
+	return models.Connection{
+		Name:          form.GetFormItem(0).(*tview.InputField).GetText(),
+		URL:           form.GetFormItem(1).(*tview.InputField).GetText(),
+		ReadOnly:      form.GetFormItem(2).(*tview.Checkbox).IsChecked(),
+		UseSSH:        useSSH,
+		SSHHost:       form.GetFormItemByLabel("SSH Host").(*tview.InputField).GetText(),
+		SSHPort:       sshPort,
+		SSHUser:       form.GetFormItemByLabel("SSH User").(*tview.InputField).GetText(),
+		SSHKeyFile:    form.GetFormItemByLabel("SSH Key File").(*tview.InputField).GetText(),
+		SSHPassphrase: form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).GetText(),
+		SSHPassword:   form.GetFormItemByLabel("SSH Password").(*tview.InputField).GetText(),
+	}
+}
+
+// ResetFields clears every field to its default (used by the New action).
+func (form *ConnectionForm) ResetFields() {
+	form.GetFormItem(0).(*tview.InputField).SetText("")
+	form.GetFormItem(1).(*tview.InputField).SetText("")
+	form.GetFormItem(2).(*tview.Checkbox).SetChecked(false)
+	form.GetFormItemByLabel("Use SSH Tunnel").(*tview.Checkbox).SetChecked(false)
+	form.GetFormItemByLabel("SSH Host").(*tview.InputField).SetText("")
+	form.GetFormItemByLabel("SSH Port").(*tview.InputField).SetText("22")
+	form.GetFormItemByLabel("SSH User").(*tview.InputField).SetText("")
+	form.GetFormItemByLabel("SSH Key File").(*tview.InputField).SetText("")
+	form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).SetText("")
+	form.GetFormItemByLabel("SSH Password").(*tview.InputField).SetText("")
+}
+
 func (form *ConnectionForm) SetConnectionData(conn models.Connection) {
 	form.GetFormItem(0).(*tview.InputField).SetText(conn.Name)
 	form.GetFormItem(1).(*tview.InputField).SetText(conn.URL)
 	form.GetFormItem(2).(*tview.Checkbox).SetChecked(conn.ReadOnly)
+	form.GetFormItemByLabel("Use SSH Tunnel").(*tview.Checkbox).SetChecked(conn.UseSSH)
+	form.GetFormItemByLabel("SSH Host").(*tview.InputField).SetText(conn.SSHHost)
+	sshPort := conn.SSHPort
+	if sshPort == "" {
+		sshPort = "22"
+	}
+	form.GetFormItemByLabel("SSH Port").(*tview.InputField).SetText(sshPort)
+	form.GetFormItemByLabel("SSH User").(*tview.InputField).SetText(conn.SSHUser)
+	form.GetFormItemByLabel("SSH Key File").(*tview.InputField).SetText(conn.SSHKeyFile)
+	form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).SetText(conn.SSHPassphrase)
+	form.GetFormItemByLabel("SSH Password").(*tview.InputField).SetText(conn.SSHPassword)
 }

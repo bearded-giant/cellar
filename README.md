@@ -215,7 +215,7 @@ With this local config, `DefaultPageSize` overrides the global value, and only t
 
 Environment variables (`${env:VAR_NAME}`) work in local config files just like in the global config.
 
-Note: When a local `.lazysql.toml` is found, the full config is saved to the local file when you modify connections from the UI.
+Note: When a local `.lazysql.toml` is found, the full config is saved to the local file when you modify connections from the UI. This includes connection URLs and SSH bastion details (host, user, key-file path) — SSH passphrase and password are never written to disk, but you should still add `.lazysql.toml` to your project's `.gitignore` so these don't get committed.
 
 
 ## Usage

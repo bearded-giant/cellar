@@ -125,8 +125,7 @@ func NewConnectionSelection(connectionForm *ConnectionForm, connectionPages *mod
 		switch command {
 		case commands.NewConnection:
 			connectionForm.SetAction(actionNewConnection)
-			connectionForm.GetFormItemByLabel("Name").(*tview.InputField).SetText("")
-			connectionForm.GetFormItemByLabel("URL").(*tview.InputField).SetText("")
+			connectionForm.ResetFields()
 			connectionForm.StatusText.SetText("")
 			connectionPages.SwitchToPage(pageNameConnectionForm)
 		case commands.Quit:
@@ -225,6 +224,26 @@ func (cs *ConnectionSelection) Connect(connection models.Connection) *tview.Appl
 		}
 	}
 
+	var sshTunnel *helpers.Tunnel
+	if connection.UseSSH {
+		cs.StatusText.SetText("Opening SSH tunnel...").SetTextColor(app.Styles.TertiaryTextColor)
+		App.Draw()
+
+		sshCfg, err := sshConfigFromConnection(connection)
+		if err != nil {
+			cs.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
+			return App.Draw()
+		}
+
+		rewritten, tunnel, err := helpers.OpenTunnelForURL(App.Context(), sshCfg, connection.URL, defaultDBPort(connection.Provider))
+		if err != nil {
+			cs.StatusText.SetText("SSH tunnel: " + err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
+			return App.Draw()
+		}
+		sshTunnel = tunnel
+		connection.URL = rewritten
+	}
+
 	cs.StatusText.SetText("Connecting...").SetTextColor(app.Styles.TertiaryTextColor)
 	App.Draw()
 
@@ -247,8 +266,21 @@ func (cs *ConnectionSelection) Connect(connection models.Connection) *tview.Appl
 
 	err := newDBDriver.Connect(connection.URL)
 	if err != nil {
+		if sshTunnel != nil {
+			_ = sshTunnel.Close()
+		}
 		cs.StatusText.SetText(err.Error()).SetTextStyle(tcell.StyleDefault.Foreground(tcell.ColorRed))
 		return App.Draw()
+	}
+
+	if sshTunnel != nil {
+		tunnel := sshTunnel
+		// ponytail: app-exit teardown only — upstream has no per-connection close
+		// path. One watcher per live connection; failed connects close above.
+		go func() {
+			<-App.Context().Done()
+			_ = tunnel.Close()
+		}()
 	}
 
 	selectedRow, selectedCol := connectionsTable.GetSelection()
@@ -295,4 +327,34 @@ func setupOutputVariableCommand(variables map[string]string, command *models.Com
 	}
 
 	return onCommandDone, captureVariable
+}
+
+func sshConfigFromConnection(connection models.Connection) (*helpers.SSHConfig, error) {
+	port := 0
+	if connection.SSHPort != "" {
+		p, err := strconv.Atoi(connection.SSHPort)
+		if err != nil {
+			return nil, fmt.Errorf("invalid SSH port %q: %w", connection.SSHPort, err)
+		}
+		port = p
+	}
+	return &helpers.SSHConfig{
+		Host:           connection.SSHHost,
+		Port:           port,
+		User:           connection.SSHUser,
+		Password:       connection.SSHPassword,
+		PrivateKeyPath: connection.SSHKeyFile,
+		Passphrase:     connection.SSHPassphrase,
+	}, nil
+}
+
+func defaultDBPort(provider string) string {
+	switch provider {
+	case drivers.DriverPostgres:
+		return "5432"
+	case drivers.DriverMSSQL:
+		return "1433"
+	default:
+		return "3306"
+	}
 }

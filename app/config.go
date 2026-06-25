@@ -209,13 +209,30 @@ func (c *Config) SaveConnections(connections []models.Connection) error {
 		return err
 	}
 
-	file, err := os.Create(configFile)
+	file, err := os.OpenFile(configFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	return toml.NewEncoder(file).Encode(c)
+	// Owner-only: file holds DB URL creds + SSH host/user/key path. O_CREATE
+	// mode only applies on first create, so chmod covers pre-existing files.
+	if err := file.Chmod(0o600); err != nil {
+		return err
+	}
+
+	// SSH passphrase/password are secrets — blanked in the on-disk copy only.
+	// In-memory connections keep them so same-session reconnects still work.
+	// Re-entered per session or supplied via ssh-agent.
+	out := *c
+	out.Connections = make([]models.Connection, len(connections))
+	for i, conn := range connections {
+		conn.SSHPassphrase = ""
+		conn.SSHPassword = ""
+		out.Connections[i] = conn
+	}
+
+	return toml.NewEncoder(file).Encode(&out)
 }
 
 // parseConfigURL automatically generates the URL from the connection struct
