@@ -72,11 +72,16 @@ var Keymaps = KeymapSystem{
 		},
 		ConnectionGroup: {
 			Bind{Key: Key{Char: 'n'}, Cmd: cmd.NewConnection, Description: "Create a new database connection"},
+			Bind{Key: Key{Char: 'N'}, Cmd: cmd.NewConnection, Description: "Create a new database connection"},
 			Bind{Key: Key{Char: 'c'}, Cmd: cmd.Connect, Description: "Connect to database"},
+			Bind{Key: Key{Char: 'C'}, Cmd: cmd.Connect, Description: "Connect to database"},
 			Bind{Key: Key{Code: tcell.KeyEnter}, Cmd: cmd.Connect, Description: "Connect to database"},
 			Bind{Key: Key{Char: 'e'}, Cmd: cmd.EditConnection, Description: "Edit a database connection"},
+			Bind{Key: Key{Char: 'E'}, Cmd: cmd.EditConnection, Description: "Edit a database connection"},
 			Bind{Key: Key{Char: 'd'}, Cmd: cmd.DeleteConnection, Description: "Delete a database connection"},
+			Bind{Key: Key{Char: 'D'}, Cmd: cmd.DeleteConnection, Description: "Delete a database connection"},
 			Bind{Key: Key{Char: 'q'}, Cmd: cmd.Quit, Description: "Quit"},
+			Bind{Key: Key{Char: 'Q'}, Cmd: cmd.Quit, Description: "Quit"},
 		},
 		TreeGroup: {
 			Bind{Key: Key{Char: 'g'}, Cmd: cmd.GotoTop, Description: "Go to top"},
