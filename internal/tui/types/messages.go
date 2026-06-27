@@ -39,3 +39,7 @@ type TestResultMsg struct {
 type SSHTestMsg struct {
 	Err error
 }
+
+type LazysqlExitedMsg struct {
+	Err error
+}

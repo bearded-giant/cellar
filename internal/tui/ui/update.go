@@ -30,6 +30,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleTestResultMsg(msg)
 	case types.SSHTestMsg:
 		return m.handleSSHTestMsg(msg)
+	case types.LazysqlExitedMsg:
+		return m.handleLazysqlExitedMsg(msg)
 	}
 
 	return m, nil
@@ -147,8 +149,8 @@ func (m Model) handleConnectedMsg(msg types.ConnectedMsg) (tea.Model, tea.Cmd) {
 	m.ActiveTunnel = msg.Tunnel
 	stored := msg.Connection
 	m.CurrentConn = &stored
-	m.StatusMsg = "Connected to " + msg.Connection.Name
-	return m, nil
+	m.StatusMsg = "Connected — opening lazysql..."
+	return m, handoffToLazysql(msg.Connection, msg.URL)
 }
 
 func (m Model) handleTestResultMsg(msg types.TestResultMsg) (tea.Model, tea.Cmd) {
