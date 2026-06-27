@@ -184,27 +184,19 @@ func (m Model) renderConnCard(conn models.Connection, selected bool) string {
 	fmt.Fprintf(&card, " %s %s", icon, nameStyle.Render(conn.Name))
 	card.WriteString("\n")
 
-	target := conn.URL
-	if target == "" && conn.Hostname != "" {
-		target = conn.Hostname
-		if conn.Port != "" {
-			target += ":" + conn.Port
-		}
-	}
-	card.WriteString(dimStyle.Render("   " + target))
-
+	// Type + SSH/RO badges only — never the URL (it carries the DB password).
+	card.WriteString("   ")
+	var badges []string
 	if conn.Provider != "" {
-		card.WriteString("  ")
-		card.WriteString(badge(conn.Provider, "236", "245"))
+		badges = append(badges, badge(conn.Provider, "236", "245"))
 	}
 	if conn.UseSSH {
-		card.WriteString(" ")
-		card.WriteString(badge("SSH", "22", "46"))
+		badges = append(badges, badge("SSH", "22", "46"))
 	}
 	if conn.ReadOnly {
-		card.WriteString(" ")
-		card.WriteString(badge("RO", "52", "214"))
+		badges = append(badges, badge("RO", "52", "214"))
 	}
+	card.WriteString(strings.Join(badges, " "))
 
 	style := connCardStyle
 	if selected {

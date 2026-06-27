@@ -65,6 +65,7 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			conn := m.Connections[m.SelectedConnIdx]
 			m.Loading = true
 			m.TestResult = ""
+			m.TestReturnScreen = types.ScreenConnections
 			m.Screen = types.ScreenTestConnection
 			return m, m.Cmds.TestConnection(conn)
 		}
@@ -159,6 +160,7 @@ func (m Model) handleConnFormScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+t":
 		m.Loading = true
 		m.TestResult = ""
+		m.TestReturnScreen = m.Screen
 		m.Screen = types.ScreenTestConnection
 		conn := m.convertCurrentInputsToConnection(m.ConnInputs, ActionTest)
 		return m, m.Cmds.TestConnection(conn)
@@ -223,14 +225,7 @@ func (m Model) updateConnInputs(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleTestConnectionScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "enter":
-		switch {
-		case m.EditingConnection != nil:
-			m.Screen = types.ScreenEditConnection
-		case m.DuplicatingFrom != nil:
-			m.Screen = types.ScreenAddConnection
-		default:
-			m.Screen = types.ScreenConnections
-		}
+		m.Screen = m.TestReturnScreen
 	}
 	return m, nil
 }

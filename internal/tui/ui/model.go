@@ -17,6 +17,10 @@ type Model struct {
 	Version string
 	Screen  types.Screen
 
+	// TestReturnScreen is the screen to restore when leaving the test-result
+	// screen (the list, or the add/edit form the test was launched from).
+	TestReturnScreen types.Screen
+
 	Connections     []models.Connection
 	SelectedConnIdx int
 

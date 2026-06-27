@@ -14,6 +14,52 @@ func newTestModel() Model {
 	return New(commands.New(nil))
 }
 
+func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
+	t.Run("from add form returns to add form, not the list", func(t *testing.T) {
+		m := newTestModel()
+		m.Screen = types.ScreenAddConnection
+		res, _ := m.handleConnFormScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+		m = res.(Model)
+		if m.Screen != types.ScreenTestConnection {
+			t.Fatalf("after ctrl+t Screen = %v, want TestConnection", m.Screen)
+		}
+		if m.TestReturnScreen != types.ScreenAddConnection {
+			t.Fatalf("TestReturnScreen = %v, want AddConnection", m.TestReturnScreen)
+		}
+		res, _ = m.handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		if got := res.(Model).Screen; got != types.ScreenAddConnection {
+			t.Errorf("after esc Screen = %v, want AddConnection (form, not list)", got)
+		}
+	})
+
+	t.Run("from edit form returns to edit form", func(t *testing.T) {
+		m := newTestModel()
+		conn := models.Connection{Name: "a", URL: "postgres://x"}
+		m.EditingConnection = &conn
+		m.Screen = types.ScreenEditConnection
+		res, _ := m.handleConnFormScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+		res, _ = res.(Model).handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		if got := res.(Model).Screen; got != types.ScreenEditConnection {
+			t.Errorf("after esc Screen = %v, want EditConnection", got)
+		}
+	})
+
+	t.Run("from list returns to list", func(t *testing.T) {
+		m := newTestModel()
+		m.Connections = []models.Connection{{Name: "a", URL: "postgres://x"}}
+		m.Screen = types.ScreenConnections
+		res, _ := m.handleConnectionsScreen(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+		m = res.(Model)
+		if m.Screen != types.ScreenTestConnection {
+			t.Fatalf("after t Screen = %v, want TestConnection", m.Screen)
+		}
+		res, _ = m.handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		if got := res.(Model).Screen; got != types.ScreenConnections {
+			t.Errorf("after esc Screen = %v, want Connections", got)
+		}
+	})
+}
+
 func TestConnInputIndex(t *testing.T) {
 	const inputCount = 3
 	tests := []struct {
