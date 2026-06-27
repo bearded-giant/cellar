@@ -55,6 +55,7 @@ func main() {
 
 	cmds := commands.New(cfg)
 	m := ui.New(cmds)
+	m.Version = version
 
 	sendFunc := func(tea.Msg) {}
 	m.SendFunc = &sendFunc
