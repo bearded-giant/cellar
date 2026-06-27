@@ -35,13 +35,14 @@ type Connection struct {
 
 	// Native SSH tunnel. When UseSSH is set, the DB connection is forwarded
 	// through SSHHost before dialing. Passphrase/password are never persisted.
-	UseSSH        bool   `toml:"use_ssh,omitempty"`
-	SSHHost       string `toml:"ssh_host,omitempty"`
-	SSHPort       string `toml:"ssh_port,omitempty"`
-	SSHUser       string `toml:"ssh_user,omitempty"`
-	SSHKeyFile    string `toml:"ssh_key_file,omitempty"`
-	SSHPassphrase string `toml:"ssh_passphrase,omitempty"`
-	SSHPassword   string `toml:"ssh_password,omitempty"`
+	UseSSH          bool   `toml:"use_ssh,omitempty"`
+	SSHHost         string `toml:"ssh_host,omitempty"`
+	SSHPort         string `toml:"ssh_port,omitempty"`
+	SSHUser         string `toml:"ssh_user,omitempty"`
+	SSHKeyFile      string `toml:"ssh_key_file,omitempty"`
+	SSHProxyCommand string `toml:"ssh_proxy_command,omitempty"`
+	SSHPassphrase   string `toml:"ssh_passphrase,omitempty"`
+	SSHPassword     string `toml:"ssh_password,omitempty"`
 
 	// Schemas filters the schemas shown in the tree (PostgreSQL/MSSQL only).
 	// If empty, all schemas are shown.

@@ -33,6 +33,7 @@ func NewConnectionForm(connectionPages *models.ConnectionPages) *ConnectionForm 
 	addForm.AddInputField("SSH Port", "22", 0, nil, nil)
 	addForm.AddInputField("SSH User", "", 0, nil, nil)
 	addForm.AddInputField("SSH Key File", "", 0, nil, nil)
+	addForm.AddInputField("SSH Proxy Command", "", 0, nil, nil)
 	addForm.AddPasswordField("SSH Passphrase", "", 0, '*', nil)
 	addForm.AddPasswordField("SSH Password", "", 0, '*', nil)
 
@@ -231,16 +232,17 @@ func (form *ConnectionForm) readConnection() models.Connection {
 	}
 
 	return models.Connection{
-		Name:          form.GetFormItem(0).(*tview.InputField).GetText(),
-		URL:           form.GetFormItem(1).(*tview.InputField).GetText(),
-		ReadOnly:      form.GetFormItem(2).(*tview.Checkbox).IsChecked(),
-		UseSSH:        useSSH,
-		SSHHost:       form.GetFormItemByLabel("SSH Host").(*tview.InputField).GetText(),
-		SSHPort:       sshPort,
-		SSHUser:       form.GetFormItemByLabel("SSH User").(*tview.InputField).GetText(),
-		SSHKeyFile:    form.GetFormItemByLabel("SSH Key File").(*tview.InputField).GetText(),
-		SSHPassphrase: form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).GetText(),
-		SSHPassword:   form.GetFormItemByLabel("SSH Password").(*tview.InputField).GetText(),
+		Name:            form.GetFormItem(0).(*tview.InputField).GetText(),
+		URL:             form.GetFormItem(1).(*tview.InputField).GetText(),
+		ReadOnly:        form.GetFormItem(2).(*tview.Checkbox).IsChecked(),
+		UseSSH:          useSSH,
+		SSHHost:         form.GetFormItemByLabel("SSH Host").(*tview.InputField).GetText(),
+		SSHPort:         sshPort,
+		SSHUser:         form.GetFormItemByLabel("SSH User").(*tview.InputField).GetText(),
+		SSHKeyFile:      form.GetFormItemByLabel("SSH Key File").(*tview.InputField).GetText(),
+		SSHProxyCommand: form.GetFormItemByLabel("SSH Proxy Command").(*tview.InputField).GetText(),
+		SSHPassphrase:   form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).GetText(),
+		SSHPassword:     form.GetFormItemByLabel("SSH Password").(*tview.InputField).GetText(),
 	}
 }
 
@@ -254,6 +256,7 @@ func (form *ConnectionForm) ResetFields() {
 	form.GetFormItemByLabel("SSH Port").(*tview.InputField).SetText("22")
 	form.GetFormItemByLabel("SSH User").(*tview.InputField).SetText("")
 	form.GetFormItemByLabel("SSH Key File").(*tview.InputField).SetText("")
+	form.GetFormItemByLabel("SSH Proxy Command").(*tview.InputField).SetText("")
 	form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).SetText("")
 	form.GetFormItemByLabel("SSH Password").(*tview.InputField).SetText("")
 }
@@ -271,6 +274,7 @@ func (form *ConnectionForm) SetConnectionData(conn models.Connection) {
 	form.GetFormItemByLabel("SSH Port").(*tview.InputField).SetText(sshPort)
 	form.GetFormItemByLabel("SSH User").(*tview.InputField).SetText(conn.SSHUser)
 	form.GetFormItemByLabel("SSH Key File").(*tview.InputField).SetText(conn.SSHKeyFile)
+	form.GetFormItemByLabel("SSH Proxy Command").(*tview.InputField).SetText(conn.SSHProxyCommand)
 	form.GetFormItemByLabel("SSH Passphrase").(*tview.InputField).SetText(conn.SSHPassphrase)
 	form.GetFormItemByLabel("SSH Password").(*tview.InputField).SetText(conn.SSHPassword)
 }

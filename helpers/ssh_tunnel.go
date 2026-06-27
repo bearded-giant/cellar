@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,8 +9,10 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +27,11 @@ const (
 	defaultTunnelLoopback = "127.0.0.1"
 )
 
+// proxyHandshakeTimeout bounds the SSH handshake over a ProxyCommand (e.g. an
+// SSM session that stalls on bad credentials). Seam for tests. Generous because
+// spawning the proxy + negotiating the session is slower than a raw TCP dial.
+var proxyHandshakeTimeout = 30 * time.Second
+
 // SSHConfig describes a bastion to tunnel a DB connection through.
 type SSHConfig struct {
 	Host           string
@@ -32,6 +40,7 @@ type SSHConfig struct {
 	Password       string
 	PrivateKeyPath string
 	Passphrase     string
+	ProxyCommand   string
 	LocalPort      int
 }
 
@@ -121,11 +130,173 @@ func dialSSH(cfg *SSHConfig) (*ssh.Client, error) {
 	}
 
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(port))
+	if cfg.ProxyCommand != "" {
+		return dialSSHViaProxyCommand(cfg, addr, clientCfg)
+	}
 	client, err := sshDialFunc("tcp", addr, clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("ssh dial %s: %w", addr, err)
 	}
 	return client, nil
+}
+
+// expandProxyTokens substitutes the OpenSSH ProxyCommand placeholders:
+// %h host, %p port, %r remote user, %% literal percent.
+func expandProxyTokens(command, host string, port int, user string) string {
+	return strings.NewReplacer(
+		"%%", "%",
+		"%h", host,
+		"%p", strconv.Itoa(port),
+		"%r", user,
+	).Replace(command)
+}
+
+// proxyConn adapts a ProxyCommand subprocess's stdio to a net.Conn so SSH can
+// run over it, mirroring OpenSSH's ProxyCommand (e.g. an SSM or jump-host
+// bastion with no directly dialable TCP port). Host-key verification is
+// unchanged — it still runs against known_hosts via the client config.
+type proxyConn struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout io.ReadCloser
+	local  net.Addr
+	remote net.Addr
+	once   sync.Once
+}
+
+func (p *proxyConn) Read(b []byte) (int, error)  { return p.stdout.Read(b) }
+func (p *proxyConn) Write(b []byte) (int, error) { return p.stdin.Write(b) }
+
+// Close is idempotent and concurrency-safe: ssh.NewClientConn closes the conn on
+// handshake error while the timeout branch / tunnel teardown may also close it,
+// so cmd.Wait must run exactly once.
+func (p *proxyConn) Close() error {
+	p.once.Do(func() {
+		_ = p.stdin.Close()
+		_ = p.stdout.Close()
+		killProxyProcess(p.cmd)
+		_ = p.cmd.Wait()
+	})
+	return nil
+}
+
+func (p *proxyConn) LocalAddr() net.Addr              { return p.local }
+func (p *proxyConn) RemoteAddr() net.Addr             { return p.remote }
+func (p *proxyConn) SetDeadline(time.Time) error      { return nil }
+func (p *proxyConn) SetReadDeadline(time.Time) error  { return nil }
+func (p *proxyConn) SetWriteDeadline(time.Time) error { return nil }
+
+type stringAddr struct {
+	network string
+	addr    string
+}
+
+func (a stringAddr) Network() string { return a.network }
+func (a stringAddr) String() string  { return a.addr }
+
+// capWriter keeps only the first max bytes (enough to surface a proxy error)
+// and never blocks the writer, so a long-lived proxy can't grow it unbounded.
+type capWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+	max int
+}
+
+func (w *capWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if rem := w.max - w.buf.Len(); rem > 0 {
+		if len(p) > rem {
+			w.buf.Write(p[:rem])
+		} else {
+			w.buf.Write(p)
+		}
+	}
+	return len(p), nil
+}
+
+func (w *capWriter) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.String()
+}
+
+// dialSSHViaProxyCommand runs cfg.ProxyCommand and speaks SSH over its stdio.
+func dialSSHViaProxyCommand(cfg *SSHConfig, addr string, clientCfg *ssh.ClientConfig) (*ssh.Client, error) {
+	port := cfg.Port
+	if port == 0 {
+		port = defaultSSHPort
+	}
+	command := expandProxyTokens(cfg.ProxyCommand, cfg.Host, port, cfg.User)
+
+	// Explicit pipes (not cmd.StdoutPipe) so Close can abort an in-flight read
+	// without the "Wait before reads complete" hazard on the long-lived conn.
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		return nil, fmt.Errorf("proxy command pipe: %w", err)
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		_ = inR.Close()
+		_ = inW.Close()
+		return nil, fmt.Errorf("proxy command pipe: %w", err)
+	}
+
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Stdin = inR
+	cmd.Stdout = outW
+	stderr := &capWriter{max: 8192}
+	cmd.Stderr = stderr
+	setProxyProcessGroup(cmd)
+
+	if err := cmd.Start(); err != nil {
+		_ = inR.Close()
+		_ = inW.Close()
+		_ = outR.Close()
+		_ = outW.Close()
+		return nil, fmt.Errorf("start proxy command: %w", err)
+	}
+	// The child holds its own dups; drop the parent's copies of the child ends.
+	_ = inR.Close()
+	_ = outW.Close()
+
+	pc := &proxyConn{
+		cmd:    cmd,
+		stdin:  inW,
+		stdout: outR,
+		local:  stringAddr{network: "pipe", addr: "127.0.0.1:0"},
+		remote: stringAddr{network: "tcp", addr: addr},
+	}
+
+	type handshake struct {
+		conn  ssh.Conn
+		chans <-chan ssh.NewChannel
+		reqs  <-chan *ssh.Request
+		err   error
+	}
+	resultCh := make(chan handshake, 1)
+	go func() {
+		conn, chans, reqs, err := ssh.NewClientConn(pc, addr, clientCfg)
+		resultCh <- handshake{conn, chans, reqs, err}
+	}()
+
+	select {
+	case res := <-resultCh:
+		if res.err != nil {
+			_ = pc.Close()
+			if msg := strings.TrimSpace(stderr.String()); msg != "" {
+				return nil, fmt.Errorf("ssh handshake over proxy command failed: %w (proxy output: %s)", res.err, msg)
+			}
+			return nil, fmt.Errorf("ssh handshake over proxy command failed: %w", res.err)
+		}
+		return ssh.NewClient(res.conn, res.chans, res.reqs), nil
+	case <-time.After(proxyHandshakeTimeout):
+		_ = pc.Close()
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("ssh handshake over proxy command timed out after %s (proxy output: %s)", proxyHandshakeTimeout, msg)
+		}
+		return nil, fmt.Errorf("ssh handshake over proxy command timed out after %s", proxyHandshakeTimeout)
+	}
 }
 
 func buildAuthMethods(cfg *SSHConfig) ([]ssh.AuthMethod, io.Closer, error) {

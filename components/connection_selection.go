@@ -345,6 +345,7 @@ func sshConfigFromConnection(connection models.Connection) (*helpers.SSHConfig, 
 		Password:       connection.SSHPassword,
 		PrivateKeyPath: connection.SSHKeyFile,
 		Passphrase:     connection.SSHPassphrase,
+		ProxyCommand:   connection.SSHProxyCommand,
 	}, nil
 }
 

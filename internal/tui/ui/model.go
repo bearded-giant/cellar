@@ -87,9 +87,9 @@ func createConnectionInputs() []textinput.Model {
 }
 
 // SSH form inputs:
-// 0 host, 1 port (22), 2 user, 3 key path, 4 passphrase, 5 password.
+// 0 host, 1 port (22), 2 user, 3 key path, 4 passphrase, 5 password, 6 proxy command.
 func createSSHInputs() []textinput.Model {
-	inputs := make([]textinput.Model, 6)
+	inputs := make([]textinput.Model, 7)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Bastion Host"
@@ -118,6 +118,10 @@ func createSSHInputs() []textinput.Model {
 	inputs[5].Placeholder = "SSH Password (optional)"
 	inputs[5].Width = 50
 	inputs[5].EchoMode = textinput.EchoPassword
+
+	inputs[6] = textinput.New()
+	inputs[6].Placeholder = `Proxy command, e.g. sh -c "aws ssm start-session ..." (optional)`
+	inputs[6].Width = 50
 
 	return inputs
 }
@@ -202,6 +206,7 @@ func (m *Model) convertCurrentInputsToConnection(inputs []textinput.Model, actio
 		conn.SSHKeyFile = m.PendingSSH.SSHKeyFile
 		conn.SSHPassphrase = m.PendingSSH.SSHPassphrase
 		conn.SSHPassword = m.PendingSSH.SSHPassword
+		conn.SSHProxyCommand = m.PendingSSH.SSHProxyCommand
 	}
 	// Match the tview app: never persist the display default "22" (the tunnel
 	// defaults to 22 when unset), and drop the port when SSH is off, so the
@@ -261,6 +266,7 @@ func (m *Model) populateSSHInputs(staged *models.Connection) {
 	m.SSHInputs[3].SetValue(staged.SSHKeyFile)
 	m.SSHInputs[4].SetValue(staged.SSHPassphrase)
 	m.SSHInputs[5].SetValue(staged.SSHPassword)
+	m.SSHInputs[6].SetValue(staged.SSHProxyCommand)
 }
 
 // convertSSHInputs stages the SSH form into a models.Connection holding only the
@@ -275,11 +281,12 @@ func (m *Model) convertSSHInputs() *models.Connection {
 		port = "22"
 	}
 	return &models.Connection{
-		SSHHost:       host,
-		SSHPort:       port,
-		SSHUser:       m.SSHInputs[2].Value(),
-		SSHKeyFile:    m.SSHInputs[3].Value(),
-		SSHPassphrase: m.SSHInputs[4].Value(),
-		SSHPassword:   m.SSHInputs[5].Value(),
+		SSHHost:         host,
+		SSHPort:         port,
+		SSHUser:         m.SSHInputs[2].Value(),
+		SSHKeyFile:      m.SSHInputs[3].Value(),
+		SSHPassphrase:   m.SSHInputs[4].Value(),
+		SSHPassword:     m.SSHInputs[5].Value(),
+		SSHProxyCommand: m.SSHInputs[6].Value(),
 	}
 }

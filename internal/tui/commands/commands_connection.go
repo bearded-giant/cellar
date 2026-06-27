@@ -30,6 +30,7 @@ func sshConfigFromConnection(conn models.Connection) (*helpers.SSHConfig, error)
 		Password:       conn.SSHPassword,
 		PrivateKeyPath: conn.SSHKeyFile,
 		Passphrase:     conn.SSHPassphrase,
+		ProxyCommand:   conn.SSHProxyCommand,
 	}, nil
 }
 

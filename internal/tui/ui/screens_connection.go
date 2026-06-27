@@ -254,11 +254,11 @@ func (m Model) handleConfirmDeleteScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // SSH tunnel sub-screen. Reached via Ctrl+S from Add/Edit connection.
 //
-//	0 host, 1 port, 2 user, 3 key path, 4 passphrase, 5 password
+//	0 host, 1 port, 2 user, 3 key path, 4 passphrase, 5 password, 6 proxy command
 //
-// Plus a focusable "SSH enabled" toggle at index 6.
-const sshFieldCount = 7
-const sshToggleIdx = 6
+// Plus a focusable "SSH enabled" toggle at index 7.
+const sshFieldCount = 8
+const sshToggleIdx = 7
 
 func (m Model) handleSSHTunnelScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -316,7 +316,7 @@ func (m Model) handleSSHTunnelScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func sshInputIndex(focusIdx int) int {
-	if focusIdx >= 0 && focusIdx <= 5 {
+	if focusIdx >= 0 && focusIdx <= 6 {
 		return focusIdx
 	}
 	return -1

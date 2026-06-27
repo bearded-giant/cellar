@@ -353,6 +353,7 @@ func (m Model) viewSSHTunnel() string {
 	labels := []string{
 		"Bastion Host", "Bastion Port", "SSH User",
 		"Private Key Path", "Passphrase", "SSH Password",
+		"Proxy Command (SSM/jump)",
 	}
 	for i, label := range labels {
 		b.WriteString(focusedLabelStyle(m.SSHFocusIdx == i).Render(label + ":"))

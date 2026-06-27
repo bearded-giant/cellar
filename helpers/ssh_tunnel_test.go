@@ -306,6 +306,124 @@ func TestDialSSH_DefaultPort(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// ProxyCommand bastion (SSM / jump host)
+// ---------------------------------------------------------------------------
+
+func TestExpandProxyTokens(t *testing.T) {
+	got := expandProxyTokens(`ssh -W %h:%p as %r 100%%`, "db.internal", 5432, "bryan")
+	want := `ssh -W db.internal:5432 as bryan 100%`
+	if got != want {
+		t.Errorf("expandProxyTokens = %q, want %q", got, want)
+	}
+}
+
+// TestSSHProxyHelperProcess is not a real test: TestDialSSH_ViaProxyCommand
+// re-execs it as the ProxyCommand subprocess, bridging stdio to the TCP addr in
+// LAZYSQL_PROXY_HELPER_ADDR (avoids depending on nc, which is GNU netcat here).
+func TestSSHProxyHelperProcess(t *testing.T) {
+	addr := os.Getenv("LAZYSQL_PROXY_HELPER_ADDR")
+	if addr == "" {
+		return
+	}
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		os.Exit(3)
+	}
+	done := make(chan struct{}, 2)
+	go func() { _, _ = io.Copy(conn, os.Stdin); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(os.Stdout, conn); done <- struct{}{} }()
+	<-done
+	_ = conn.Close()
+	os.Exit(0)
+}
+
+func TestDialSSH_ViaProxyCommand(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "")
+
+	srv := newTestSSHServer(t)
+	defer srv.Close()
+	srv.allowedUser = "bryan"
+	srv.allowedPassword = "secret"
+
+	// echo server stands in for the DB behind the bastion.
+	echo, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("echo listen: %v", err)
+	}
+	defer echo.Close()
+	go func() {
+		c, err := echo.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		_, _ = io.Copy(c, c)
+	}()
+
+	// "bastion.invalid" has no TCP route; reachable ONLY via the ProxyCommand,
+	// which re-execs the helper to dial the in-process sshd. Proves the proxy
+	// path, with host-key verification still enforced against known_hosts.
+	cleanup := withTempKnownHosts(t, "bastion.invalid:22", srv.HostPublicKey())
+	defer cleanup()
+	t.Setenv("LAZYSQL_PROXY_HELPER_ADDR", srv.addr)
+
+	cfg := &SSHConfig{
+		Host:         "bastion.invalid",
+		User:         "bryan",
+		Password:     "secret",
+		ProxyCommand: os.Args[0] + " -test.run=TestSSHProxyHelperProcess",
+	}
+
+	tun, err := OpenSSHTunnel(context.Background(), cfg, echo.Addr().String())
+	if err != nil {
+		t.Fatalf("OpenSSHTunnel via proxy command: %v", err)
+	}
+	defer tun.Close()
+
+	conn, err := net.Dial("tcp", tun.LocalAddr())
+	if err != nil {
+		t.Fatalf("dial local forward: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	if _, err := conn.Write([]byte("ping")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	buf := make([]byte, 4)
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if string(buf) != "ping" {
+		t.Errorf("echo via proxy tunnel = %q, want ping", string(buf))
+	}
+}
+
+func TestDialSSH_ProxyCommandTimeout(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "")
+	orig := proxyHandshakeTimeout
+	proxyHandshakeTimeout = 200 * time.Millisecond
+	defer func() { proxyHandshakeTimeout = orig }()
+
+	cleanup := withTempKnownHosts(t, "bastion.invalid:22", mustGenerateHostKey(t).PublicKey())
+	defer cleanup()
+
+	cfg := &SSHConfig{
+		Host:         "bastion.invalid",
+		User:         "bryan",
+		Password:     "secret",
+		ProxyCommand: "sleep 5",
+	}
+	start := time.Now()
+	_, err := dialSSH(cfg)
+	if err == nil || !strings.Contains(err.Error(), "timed out") {
+		t.Fatalf("dialSSH proxy timeout err = %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("proxy timeout took %s, expected ~200ms", elapsed)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // loadPrivateKey
 // ---------------------------------------------------------------------------
 
