@@ -10,5 +10,6 @@ test.db
 # project-local config may hold connection URLs + SSH bastion host/user/key path
 .lazysql.toml
 
-# built binary
+# built binaries
 /lazysql
+/lazytea
