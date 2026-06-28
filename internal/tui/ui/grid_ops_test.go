@@ -60,6 +60,25 @@ func TestSetValue_StagesTypedEdit(t *testing.T) {
 	}
 }
 
+func TestSetValue_OnInsertRow(t *testing.T) {
+	m := gridModel()
+	res, _ := m.appendInsertRow()
+	m = res.(Model)
+	m.Browse.ColCursor = 1
+
+	res, _ = m.openSetValue()
+	m = res.(Model)
+	if m.Screen != types.ScreenSetValue {
+		t.Fatal("SetValue should be allowed on an insert row now")
+	}
+	res, _ = m.handleSetValueScreen(keyMsg('n'))
+	m = res.(Model)
+	idx := m.Browse.RowCursor - len(m.Browse.Rows)
+	if m.Browse.Inserts[idx][1].typ != models.Null {
+		t.Errorf("insert cell should be NULL-typed, got %v", m.Browse.Inserts[idx][1].typ)
+	}
+}
+
 func TestBuildDMLChanges_TypedNull(t *testing.T) {
 	cols := []string{"id", "name"}
 	rows := [][]string{{"1", "alpha"}}

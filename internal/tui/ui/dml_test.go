@@ -61,13 +61,13 @@ func TestAppendInsertRow_DefaultsThenEdit(t *testing.T) {
 	if m.Browse.RowCursor != 2 { // appended after the 2 existing rows
 		t.Errorf("cursor should move to the new row (idx 2), got %d", m.Browse.RowCursor)
 	}
-	if !m.Browse.Inserts[0][0].isDefault {
+	if m.Browse.Inserts[0][0].typ != models.Default {
 		t.Error("new insert cells should default to DB-default")
 	}
 	// editing an insert-row cell records a literal value
 	m.Browse.EditCol = 0
 	m.applyCellEdit("99")
-	if m.Browse.Inserts[0][0].isDefault || m.Browse.Inserts[0][0].val != "99" {
+	if m.Browse.Inserts[0][0].typ != models.String || m.Browse.Inserts[0][0].val != "99" {
 		t.Errorf("insert cell edit not applied: %+v", m.Browse.Inserts[0][0])
 	}
 }
@@ -108,7 +108,7 @@ func TestBuildDMLChanges_DeleteAndInsert(t *testing.T) {
 	cols := []string{"id", "name"}
 	rows := [][]string{{"1", "a"}}
 	del := map[int]bool{0: true}
-	ins := [][]insertCell{{{val: "5"}, {isDefault: true}}}
+	ins := [][]insertCell{{{val: "5", typ: models.String}, {typ: models.Default}}}
 	changes := buildDMLChanges("app", "widgets", cols, rows, []string{"id"}, nil, del, ins)
 	if len(changes) != 2 {
 		t.Fatalf("want delete+insert = 2 changes, got %d", len(changes))
@@ -174,7 +174,7 @@ func TestDML_SQLiteRoundTrip(t *testing.T) {
 	changes := buildDMLChanges("", "widgets", cols, rows, []string{"id"},
 		map[[2]int]string{{0, 1}: "ALPHA"}, // update row0 name -> ALPHA
 		map[int]bool{1: true},              // delete row1 (id=2)
-		[][]insertCell{{{isDefault: true}, {val: "gamma"}}}, // insert (name=gamma)
+		[][]insertCell{{{typ: models.Default}, {val: "gamma", typ: models.String}}}, // insert (name=gamma)
 	)
 	if err := driver.ExecutePendingChanges(changes); err != nil {
 		t.Fatalf("ExecutePendingChanges: %v", err)

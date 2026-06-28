@@ -14,11 +14,24 @@ import (
 
 const readOnlyEditMsg = "Cannot modify data: Connection is in read-only mode"
 
-// insertCell is one cell of a staged INSERT row. A default (untouched) cell
-// lets the DB fill its own default; an edited cell carries a literal value.
+// insertCell is one cell of a staged INSERT row. typ selects the value kind:
+// Default (untouched -> DB default), String (literal), Null, or Empty.
 type insertCell struct {
-	val       string
-	isDefault bool
+	val string
+	typ models.CellValueType
+}
+
+func insertCellDisplay(c insertCell) string {
+	switch c.typ {
+	case models.Default:
+		return "DEFAULT"
+	case models.Null:
+		return "NULL"
+	case models.Empty:
+		return ""
+	default:
+		return c.val
+	}
 }
 
 func (b browseState) gridRowCount() int { return len(b.Rows) + len(b.Inserts) }
@@ -69,10 +82,7 @@ func (m Model) cellValue(row, col int) string {
 	}
 	ins := m.Browse.Inserts[row-len(m.Browse.Rows)]
 	if col < len(ins) {
-		if ins[col].isDefault {
-			return "DEFAULT"
-		}
-		return ins[col].val
+		return insertCellDisplay(ins[col])
 	}
 	return ""
 }
@@ -132,7 +142,7 @@ func (m *Model) applyCellEdit(val string) {
 	if row >= len(m.Browse.Rows) {
 		idx := row - len(m.Browse.Rows)
 		if idx < len(m.Browse.Inserts) && col < len(m.Browse.Inserts[idx]) {
-			m.Browse.Inserts[idx][col] = insertCell{val: val}
+			m.Browse.Inserts[idx][col] = insertCell{val: val, typ: models.String}
 		}
 		return
 	}
@@ -183,7 +193,7 @@ func (m Model) appendInsertRow() (tea.Model, tea.Cmd) {
 	}
 	row := make([]insertCell, len(m.Browse.Columns))
 	for i := range row {
-		row[i] = insertCell{isDefault: true}
+		row[i] = insertCell{typ: models.Default}
 	}
 	m.Browse.Inserts = append(m.Browse.Inserts, row)
 	m.Browse.RowCursor = m.Browse.gridRowCount() - 1
@@ -285,10 +295,14 @@ func buildDMLChanges(db, table string, columns []string, rows [][]string, pk []s
 			if ci < len(columns) {
 				col = columns[ci]
 			}
-			cv := models.CellValue{Column: col, TableColumnIndex: ci, Type: models.String, Value: cell.val}
-			if cell.isDefault {
-				cv.Type = models.Default
+			cv := models.CellValue{Column: col, TableColumnIndex: ci, Type: cell.typ, Value: cell.val}
+			switch cell.typ {
+			case models.Default:
 				cv.Value = "DEFAULT"
+			case models.Null:
+				cv.Value = nil
+			case models.Empty:
+				cv.Value = ""
 			}
 			vals = append(vals, cv)
 		}

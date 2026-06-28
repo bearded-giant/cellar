@@ -8,6 +8,7 @@ import (
 
 	"github.com/jorgerojas26/lazysql/internal/tui/commands"
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/jorgerojas26/lazysql/models"
 )
 
 // metadata views shown in the grid (metaRecords is the normal editable table).
@@ -156,31 +157,38 @@ func (m Model) openSetValue() (tea.Model, tea.Cmd) {
 		m.StatusMsg = readOnlyEditMsg
 		return m, nil
 	}
-	if m.Browse.RowCursor >= len(m.Browse.Rows) {
-		m.StatusMsg = "Set NULL/EMPTY/DEFAULT applies to existing rows only"
-		return m, nil
-	}
 	m.Browse.EditCol = m.Browse.ColCursor
 	m.Screen = types.ScreenSetValue
 	return m, nil
 }
 
 func (m Model) handleSetValueScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	sentinel := ""
+	var (
+		typ      models.CellValueType
+		sentinel string
+	)
 	switch msg.String() {
 	case "n", "N":
-		sentinel = dmlNull
+		typ, sentinel = models.Null, dmlNull
 	case "e", "E":
-		sentinel = dmlEmpty
+		typ, sentinel = models.Empty, dmlEmpty
 	case "d", "D":
-		sentinel = dmlDefault
+		typ, sentinel = models.Default, dmlDefault
 	case "esc", "q":
 		m.Screen = types.ScreenBrowse
 		return m, nil
 	default:
 		return m, nil
 	}
-	m.Browse.Edited[[2]int{m.Browse.RowCursor, m.Browse.EditCol}] = sentinel
+	row, col := m.Browse.RowCursor, m.Browse.EditCol
+	if row >= len(m.Browse.Rows) { // staged insert row
+		idx := row - len(m.Browse.Rows)
+		if idx < len(m.Browse.Inserts) && col < len(m.Browse.Inserts[idx]) {
+			m.Browse.Inserts[idx][col] = insertCell{typ: typ}
+		}
+	} else {
+		m.Browse.Edited[[2]int{row, col}] = sentinel
+	}
 	m.Screen = types.ScreenBrowse
 	return m, nil
 }
