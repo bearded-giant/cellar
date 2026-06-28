@@ -7,6 +7,7 @@ import (
 
 	"github.com/jorgerojas26/lazysql/drivers"
 	"github.com/jorgerojas26/lazysql/internal/history"
+	"github.com/jorgerojas26/lazysql/internal/saved"
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
 	"github.com/jorgerojas26/lazysql/models"
 )
@@ -86,6 +87,22 @@ func (c *Commands) LoadMeta(driver drivers.Driver, db, table string, kind MetaKi
 			rows, err = driver.GetForeignKeys(db, table)
 		}
 		return types.MetaLoadedMsg{Kind: int(kind), Rows: rows, Err: err}
+	}
+}
+
+// SaveQuery persists a named query for the connection (internal/saved, TOML).
+func (c *Commands) SaveQuery(connIdent, name, query string) tea.Cmd {
+	return func() tea.Msg {
+		err := saved.SaveQuery(connIdent, name, query)
+		return types.SavedQuerySavedMsg{Name: name, Err: err}
+	}
+}
+
+// LoadSavedQueries reads the connection's saved queries.
+func (c *Commands) LoadSavedQueries(connIdent string) tea.Cmd {
+	return func() tea.Msg {
+		items, err := saved.ReadSavedQueries(connIdent)
+		return types.SavedQueriesLoadedMsg{Items: items, Err: err}
 	}
 }
 

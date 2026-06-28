@@ -36,7 +36,8 @@ func (m Model) View() string {
 	case types.ScreenConnections, types.ScreenAddConnection, types.ScreenEditConnection,
 		types.ScreenSSHTunnel, types.ScreenTestConnection, types.ScreenConfirmDelete,
 		types.ScreenExport, types.ScreenCellEdit, types.ScreenHistory,
-		types.ScreenFilter, types.ScreenSetValue:
+		types.ScreenFilter, types.ScreenSetValue,
+		types.ScreenSaveQuery, types.ScreenSavedQueries:
 		vPos = lipgloss.Center
 	}
 
@@ -74,6 +75,10 @@ func (m Model) getScreenView() string {
 		return m.viewFilter()
 	case types.ScreenSetValue:
 		return m.viewSetValue()
+	case types.ScreenSaveQuery:
+		return m.viewSaveQuery()
+	case types.ScreenSavedQueries:
+		return m.viewSavedQueries()
 	default:
 		return m.viewConnections()
 	}

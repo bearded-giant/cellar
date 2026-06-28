@@ -9,7 +9,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/jorgerojas26/lazysql/app"
 	"github.com/jorgerojas26/lazysql/helpers/logger"
 	"github.com/jorgerojas26/lazysql/models"
 )
@@ -20,11 +19,16 @@ const (
 	savedQueriesFileExtension = ".toml"
 )
 
-// GetAppConfigDir returns the application's configuration directory.
+// GetAppConfigDir returns the application's configuration directory. App-free
+// (inlined XDG resolution) so both binaries can persist saved queries.
 func GetAppConfigDir() (string, error) {
-	configDir, err := app.GetConfigPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user config directory: %w", err)
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		dir, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user config directory: %w", err)
+		}
+		configDir = dir
 	}
 	return filepath.Join(configDir, lazysqlConfigDirName), nil
 }

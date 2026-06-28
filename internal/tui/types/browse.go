@@ -7,6 +7,16 @@ type HistoryLoadedMsg struct {
 	Err   error
 }
 
+type SavedQuerySavedMsg struct {
+	Name string
+	Err  error
+}
+
+type SavedQueriesLoadedMsg struct {
+	Items []models.SavedQuery
+	Err   error
+}
+
 // Focus selects which pane in the browse screen receives key input. Bubble Tea
 // has no focus manager, so the browse screen hand-rolls one.
 type Focus int

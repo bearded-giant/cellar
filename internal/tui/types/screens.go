@@ -16,6 +16,8 @@ const (
 	ScreenHistory
 	ScreenFilter
 	ScreenSetValue
+	ScreenSaveQuery
+	ScreenSavedQueries
 )
 
 func (s Screen) String() string {
@@ -33,6 +35,8 @@ func (s Screen) String() string {
 		ScreenHistory:        "Query History",
 		ScreenFilter:         "Filter",
 		ScreenSetValue:       "Set Value",
+		ScreenSaveQuery:      "Save Query",
+		ScreenSavedQueries:   "Saved Queries",
 	}
 	if name, ok := names[s]; ok {
 		return name

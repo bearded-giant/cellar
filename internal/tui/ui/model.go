@@ -66,6 +66,10 @@ type Model struct {
 	HistoryItems  []models.QueryHistoryItem
 	HistoryCursor int
 
+	SaveNameInput textinput.Model
+	SavedItems    []models.SavedQuery
+	SavedCursor   int
+
 	Width  int
 	Height int
 

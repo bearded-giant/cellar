@@ -80,6 +80,8 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.EditorContent = m.EditorArea.Value()
 		m.Screen = types.ScreenBrowse
 		return m, nil
+	case "ctrl+s":
+		return m.openSaveQuery()
 	case "ctrl+r":
 		query := m.EditorArea.Value()
 		m.EditorContent = query
@@ -279,7 +281,7 @@ func (m Model) renderCompletions(width, rows int) []string {
 
 func (m Model) editorFooter() string {
 	kb := []struct{ key, desc string }{
-		{"ctrl+r", "run"}, {"tab", "complete"}, {"ctrl+q", "back"},
+		{"ctrl+r", "run"}, {"tab", "complete"}, {"ctrl+s", "save"}, {"ctrl+q", "back"},
 	}
 	var b strings.Builder
 	for i, k := range kb {

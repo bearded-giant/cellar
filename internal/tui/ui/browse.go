@@ -131,6 +131,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openExport()
 	case "y":
 		return m.openHistory()
+	case "Y":
+		return m.openSavedQueries()
 	case "tab":
 		if m.Focus == types.FocusTree {
 			m.Focus = types.FocusGrid
@@ -266,13 +268,13 @@ func (m Model) browseFooter() string {
 	if m.Focus == types.FocusTree {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"e", "sql"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{
 			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
 			{"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"J", "json"}, {"x", "export"}, {"e", "sql"}, {"y", "hist"}, {"tab", "tree"}, {"q", "quit"},
+			{"J", "json"}, {"x", "export"}, {"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "tree"}, {"q", "quit"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, struct{ key, desc string }{"⌫", "back"})

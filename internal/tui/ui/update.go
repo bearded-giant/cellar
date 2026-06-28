@@ -57,6 +57,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleMetaLoadedMsg(msg)
 	case types.ForeignKeysLoadedMsg:
 		return m.handleForeignKeysLoadedMsg(msg)
+	case types.SavedQuerySavedMsg:
+		return m.handleSavedQuerySavedMsg(msg)
+	case types.SavedQueriesLoadedMsg:
+		return m.handleSavedQueriesLoadedMsg(msg)
 	}
 
 	// forward unhandled msgs (e.g. the textarea cursor-blink tick) to the editor
@@ -103,6 +107,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFilterScreen(msg)
 	case types.ScreenSetValue:
 		return m.handleSetValueScreen(msg)
+	case types.ScreenSaveQuery:
+		return m.handleSaveQueryScreen(msg)
+	case types.ScreenSavedQueries:
+		return m.handleSavedQueriesScreen(msg)
 	}
 	return m, nil
 }
