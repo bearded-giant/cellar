@@ -6,6 +6,14 @@ This doc scopes the work. It is a map + a sequence + an honest risk register, no
 
 ## Status
 
+**2026-06-27 — Phase 2.2 (DML + views + export) landed.** Grid is now editable + has alternate views and export.
+- **DML:** cell cursor (←/→ select column, ↑/↓ row). `c` edit cell (modal), `o` append insert row (DB-default cells until edited), `d` toggle row delete, `ctrl+s` commit (confirm dialog → `ExecutePendingChanges`, one transaction), `u` discard. Pending state is held as maps (`edited[row,col]`, `deleted[row]`, `inserts[]`) that auto-merge — synthesized to `[]models.DBDMLChange` at commit (no port of tview's in-place merge). Per-cell coloring: orange edited, red delete, green insert. Read-only connections blocked. PK fetched on table select (`GetPrimaryKeyColumnNames`; whole-row fallback when none). Paging blocked while edits are staged (row indices would desync).
+- **View toggle:** `J` switches the result page between table and JSON (`recordsToJSON`, column-ordered, NULL→null / EMPTY→"").
+- **Export:** `x` → path modal; extension picks format (`.csv` via `helpers.CSVWriter`+`CleanCellValue`; `.json` via `recordsToJSON`). Exports the loaded page (full-table batch export = follow-up). Default path `~/Downloads/<label>_<ts>.csv`.
+- **Editor:** confirmed multi-line (vimtea full buffer); added a "SQL Query · <conn>" title header.
+- **Built:** `ui/{dml,resultjson,export}.go`, `types.{ScreenCellEdit,ScreenExport,PrimaryKeyLoadedMsg,ChangesCommittedMsg,ExportDoneMsg}`, `commands.{LoadPrimaryKey,CommitChanges}`, grid cell-cursor + per-cell styling. Reused 100%: `models` DML types, `drivers.ExecutePendingChanges`/`GetPrimaryKeyColumnNames`, `helpers.CSVWriter`. All green incl. a real-sqlite update+delete+insert commit round-trip.
+- **Still deferred:** autocomplete (vimtea hides cursor), history recording (`internal/history`→`app`/tview), full-table batch export, SetValue menu (NULL/EMPTY/DEFAULT picker — edits are plain strings for now).
+
 **2026-06-27 — Phase 2.1 (SQL editor) landed.** From browse, `e` opens a vimtea editor (full vim modes + free SQL syntax highlighting via chroma — `query.sql` filename). `ctrl+r` executes: SELECT-ish queries (`select/with/explain/show/describe/desc` prefix) → `ExecuteQuery` → results fill the 2.0 grid (single page, paging disabled); other queries → `ExecuteDMLStatement`, info to the status bar; read-only connections reject DML via `drivers.ValidateQueryForReadOnly`. `ctrl+q` returns to browse (query text persists across opens). All green (build + vet + test).
 
 - **New dep:** `github.com/kujtimiihoxha/vimtea v0.0.2` (+ chroma transitive). Toolchain is go 1.26.4; vimtea needs only 1.23.5 — no bump. `Editor.Update`/`SetSize` return `tea.Model` → always type-assert back to `vimtea.Editor`. vimtea's cursor-blink tick is forwarded via the Update catch-all.

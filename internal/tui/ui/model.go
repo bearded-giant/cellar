@@ -43,6 +43,8 @@ type Model struct {
 
 	ConfirmType string
 	ConfirmData any
+	// ConfirmReturnScreen is where the confirm dialog returns on cancel/finish.
+	ConfirmReturnScreen types.Screen
 
 	Focus  types.Focus
 	Browse browseState
@@ -51,6 +53,9 @@ type Model struct {
 	// EditorContent persists the last query across opens.
 	Editor        vimtea.Editor
 	EditorContent string
+
+	ExportInput textinput.Model
+	CellInput   textinput.Model
 
 	Width  int
 	Height int

@@ -35,10 +35,25 @@ type browseState struct {
 	Offset    int
 	Limit     int
 	RowCursor int
-	ColOffset int
+	ColCursor int
 
 	GridErr     string
 	GridLoading bool
+
+	// ViewJSON renders the current result page as JSON instead of a table.
+	// JSONLines is the cached split of that render; RowCursor scrolls it.
+	ViewJSON  bool
+	JSONLines []string
+
+	// PkColumns is the loaded table's primary key (empty -> whole-row fallback).
+	PkColumns []string
+
+	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
+	// commit. Editable only for a real table (Table != "", not read-only).
+	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
+	Edited  map[[2]int]string // (rowIndex,colIndex) -> new value, existing rows
+	Deleted map[int]bool      // existing-row index -> staged delete
+	Inserts [][]insertCell    // appended new rows (rendered after Rows)
 }
 
 func (m *Model) initBrowse(driver drivers.Driver) {
@@ -51,7 +66,17 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 		TablesByDB: map[string]map[string][]string{},
 		Expanded:   map[string]bool{},
 		Limit:      browsePageSize,
+		Edited:     map[[2]int]string{},
+		Deleted:    map[int]bool{},
 	}
+}
+
+// resetPending clears staged DML state (on table switch or after commit).
+func (m *Model) resetPending() {
+	m.Browse.Edited = map[[2]int]string{}
+	m.Browse.Deleted = map[int]bool{}
+	m.Browse.Inserts = nil
+	m.Browse.ColCursor = 0
 }
 
 func (m *Model) rebuildTree() {
@@ -61,12 +86,23 @@ func (m *Model) rebuildTree() {
 	}
 }
 
+// refreshJSONView recomputes the cached JSON lines when in JSON view mode.
+func (m *Model) refreshJSONView() {
+	if !m.Browse.ViewJSON {
+		m.Browse.JSONLines = nil
+		return
+	}
+	m.Browse.JSONLines = strings.Split(recordsToJSON(m.Browse.Columns, m.Browse.Rows), "\n")
+}
+
 func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
 		return m.disconnectBrowse()
 	case "e":
 		return m.openEditor()
+	case "x":
+		return m.openExport()
 	case "tab":
 		if m.Focus == types.FocusTree {
 			m.Focus = types.FocusGrid
@@ -159,6 +195,7 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 	}
 	m.Browse.Total = msg.Total
 	m.Browse.RowCursor = 0
+	m.refreshJSONView()
 	return m, nil
 }
 
@@ -205,8 +242,8 @@ func (m Model) browseFooter() string {
 		}
 	} else {
 		kb = []struct{ key, desc string }{
-			{"↑/↓", "row"}, {"←/→", "cols"}, {"n/p", "page"},
-			{"e", "sql"}, {"tab", "tree"}, {"q", "disconnect"},
+			{"c", "edit"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
+			{"J", "json"}, {"x", "export"}, {"e", "sql"}, {"tab", "tree"}, {"q", "disconnect"},
 		}
 	}
 	var b strings.Builder

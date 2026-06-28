@@ -15,6 +15,11 @@ var (
 	selectedRowStyle = lipgloss.NewStyle().Background(lipgloss.Color("39")).Foreground(lipgloss.Color("0")).Bold(true)
 	headerRowStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 
+	// DML pending-change cell colors (mirror the tview palette).
+	dmlChangeStyle = lipgloss.NewStyle().Background(lipgloss.Color("214")).Foreground(lipgloss.Color("0")) // edited: orange
+	dmlDeleteStyle = lipgloss.NewStyle().Background(lipgloss.Color("160")).Foreground(lipgloss.Color("15")) // deleted: red
+	dmlInsertStyle = lipgloss.NewStyle().Background(lipgloss.Color("22")).Foreground(lipgloss.Color("15"))  // inserted: green
+
 	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)
 
 	statsBoxStyle = lipgloss.NewStyle().

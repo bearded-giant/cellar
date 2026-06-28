@@ -107,6 +107,7 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
 			m.ConfirmType = "connection"
 			m.ConfirmData = m.Connections[m.SelectedConnIdx]
+			m.ConfirmReturnScreen = types.ScreenConnections
 			m.Screen = types.ScreenConfirmDelete
 		}
 	case "r":
@@ -240,6 +241,10 @@ func (m Model) handleTestConnectionScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleConfirmDeleteScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	cancelScreen := types.ScreenConnections
+	if m.ConfirmReturnScreen != types.ScreenConnections {
+		cancelScreen = m.ConfirmReturnScreen
+	}
 	switch msg.String() {
 	case "y", "Y", "enter":
 		switch m.ConfirmType {
@@ -248,10 +253,12 @@ func (m Model) handleConfirmDeleteScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.Loading = true
 				return m, m.Cmds.DeleteConnection(conn.Name, m.Connections)
 			}
+		case "commit_dml":
+			return m.commitChanges()
 		}
-		m.Screen = types.ScreenConnections
+		m.Screen = cancelScreen
 	case "n", "N", "esc":
-		m.Screen = types.ScreenConnections
+		m.Screen = cancelScreen
 	}
 	return m, nil
 }

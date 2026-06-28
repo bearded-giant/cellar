@@ -11,6 +11,8 @@ const (
 	ScreenConfirmDelete
 	ScreenBrowse
 	ScreenEditor
+	ScreenExport
+	ScreenCellEdit
 )
 
 func (s Screen) String() string {
@@ -23,6 +25,8 @@ func (s Screen) String() string {
 		ScreenConfirmDelete:  "Confirm Delete",
 		ScreenBrowse:         "Browse",
 		ScreenEditor:         "SQL Editor",
+		ScreenExport:         "Export",
+		ScreenCellEdit:       "Edit Cell",
 	}
 	if name, ok := names[s]; ok {
 		return name

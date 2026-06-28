@@ -23,13 +23,13 @@ func newSQLEditor(content string, w, h int) vimtea.Editor {
 	return sized.(vimtea.Editor)
 }
 
-// editorSize reserves two rows (footer + status) below the editor body.
+// editorSize reserves three rows (title + footer + status) around the editor.
 func editorSize(w, h int) (int, int) {
 	bw := w
 	if bw < 10 {
 		bw = 10
 	}
-	bh := h - 2
+	bh := h - 3
 	if bh < 3 {
 		bh = 3
 	}
@@ -90,7 +90,7 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 	m.Browse.TableDB = ""
 	m.Browse.Offset = 0
 	m.Browse.RowCursor = 0
-	m.Browse.ColOffset = 0
+	m.resetPending()
 
 	if msg.Err != nil {
 		m.Browse.GridErr = "Query error: " + msg.Err.Error()
@@ -112,6 +112,7 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 			m.Browse.Rows = nil
 		}
 		m.Browse.Total = msg.Total
+		m.refreshJSONView()
 		m.StatusMsg = fmt.Sprintf("Query OK — %d rows", msg.Total)
 		return m, nil
 	}
@@ -133,7 +134,11 @@ func (m Model) viewEditor() string {
 	if m.Editor == nil {
 		return ""
 	}
-	return m.Editor.View() + "\n" + m.editorFooter() + "\n" + m.getStatusBar()
+	title := accentStyle.Render("SQL Query")
+	if m.CurrentConn != nil {
+		title += dimStyle.Render("  ·  " + m.CurrentConn.Name)
+	}
+	return title + "\n" + m.Editor.View() + "\n" + m.editorFooter() + "\n" + m.getStatusBar()
 }
 
 func (m Model) editorFooter() string {

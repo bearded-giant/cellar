@@ -34,7 +34,8 @@ func (m Model) View() string {
 	vPos := lipgloss.Position(lipgloss.Top)
 	switch m.Screen {
 	case types.ScreenConnections, types.ScreenAddConnection, types.ScreenEditConnection,
-		types.ScreenSSHTunnel, types.ScreenTestConnection, types.ScreenConfirmDelete:
+		types.ScreenSSHTunnel, types.ScreenTestConnection, types.ScreenConfirmDelete,
+		types.ScreenExport, types.ScreenCellEdit:
 		vPos = lipgloss.Center
 	}
 
@@ -62,6 +63,10 @@ func (m Model) getScreenView() string {
 		return m.viewBrowse()
 	case types.ScreenEditor:
 		return m.viewEditor()
+	case types.ScreenExport:
+		return m.viewExport()
+	case types.ScreenCellEdit:
+		return m.viewCellEdit()
 	default:
 		return m.viewConnections()
 	}
@@ -425,10 +430,13 @@ func (m Model) viewConfirmDelete() string {
 	b.WriteString(warningStyle.Render("Confirm Delete"))
 	b.WriteString("\n\n")
 
-	if m.ConfirmType == "connection" {
+	switch m.ConfirmType {
+	case "connection":
 		if conn, ok := m.ConfirmData.(models.Connection); ok {
 			b.WriteString(normalStyle.Render(fmt.Sprintf("Delete connection '%s'?", conn.Name)))
 		}
+	case "commit_dml":
+		b.WriteString(normalStyle.Render(fmt.Sprintf("Execute %d pending change(s)?", m.pendingCount())))
 	}
 
 	b.WriteString("\n\n")

@@ -131,21 +131,26 @@ func TestColWidths(t *testing.T) {
 	}
 }
 
-func TestVisibleCols(t *testing.T) {
-	widths := []int{10, 10, 10} // each needs 10+3 sep = 13
-	s, e := visibleCols(widths, 0, 30) // fits 2 (13+13=26, third would be 39)
+func TestVisibleColsForCursor(t *testing.T) {
+	widths := []int{10, 10, 10} // each needs 10 (+3 sep)
+	s, e := visibleColsForCursor(widths, 0, 30)
 	if s != 0 || e != 2 {
-		t.Errorf("visibleCols fit = (%d,%d), want (0,2)", s, e)
+		t.Errorf("cursor 0 = (%d,%d), want (0,2)", s, e)
 	}
-	// always at least one column even if it overflows
-	s, e = visibleCols([]int{100}, 0, 5)
+	// a cursor at the end pulls earlier columns into view
+	s, e = visibleColsForCursor(widths, 2, 30)
+	if s != 1 || e != 3 {
+		t.Errorf("cursor 2 = (%d,%d), want (1,3)", s, e)
+	}
+	// always at least one column, even when it overflows the width
+	s, e = visibleColsForCursor([]int{100}, 0, 5)
 	if s != 0 || e != 1 {
 		t.Errorf("single overflowing col = (%d,%d), want (0,1)", s, e)
 	}
-	// offset clamps
-	s, e = visibleCols(widths, 5, 30)
-	if s != 2 || e != 3 {
-		t.Errorf("offset-clamped = (%d,%d), want (2,3)", s, e)
+	// cursor is always inside the returned window
+	s, e = visibleColsForCursor(widths, 2, 5)
+	if !(s <= 2 && 2 < e) {
+		t.Errorf("cursor 2 not in window (%d,%d)", s, e)
 	}
 }
 

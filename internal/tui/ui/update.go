@@ -45,6 +45,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRecordsLoadedMsg(msg)
 	case types.QueryExecutedMsg:
 		return m.handleQueryExecutedMsg(msg)
+	case types.ExportDoneMsg:
+		return m.handleExportDoneMsg(msg)
+	case types.PrimaryKeyLoadedMsg:
+		return m.handlePrimaryKeyLoadedMsg(msg)
+	case types.ChangesCommittedMsg:
+		return m.handleChangesCommittedMsg(msg)
 	}
 
 	// forward unhandled msgs (e.g. vimtea's cursor-blink tick) to the editor
@@ -81,6 +87,10 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleBrowseScreen(msg)
 	case types.ScreenEditor:
 		return m.handleEditorScreen(msg)
+	case types.ScreenExport:
+		return m.handleExportScreen(msg)
+	case types.ScreenCellEdit:
+		return m.handleCellEditScreen(msg)
 	}
 	return m, nil
 }

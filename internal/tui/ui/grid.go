@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
 )
 
 const maxCellWidth = 40
@@ -96,33 +94,38 @@ func visibleWindow(total, cursor, height int) (start, end int) {
 	return start, end
 }
 
-// visibleCols returns the [start,end) column range that fits in `avail` cells
-// starting at colOffset. Always yields at least one column.
-func visibleCols(widths []int, colOffset, avail int) (start, end int) {
+// visibleColsForCursor returns the [start,end) column range that fits in
+// `avail` cells and is guaranteed to include `cursor`. It packs columns right
+// of the cursor first, then fills any remaining width to the left.
+func visibleColsForCursor(widths []int, cursor, avail int) (start, end int) {
 	n := len(widths)
 	if n == 0 {
 		return 0, 0
 	}
-	if colOffset >= n {
-		colOffset = n - 1
+	if cursor < 0 {
+		cursor = 0
 	}
-	if colOffset < 0 {
-		colOffset = 0
+	if cursor >= n {
+		cursor = n - 1
 	}
 	const sep = 3 // " │ "
-	start = colOffset
-	end = start
-	used := 0
+	start, end = cursor, cursor+1
+	used := widths[cursor]
 	for end < n {
 		next := widths[end] + sep
-		if used+next > avail && end > start {
+		if used+next > avail {
 			break
 		}
 		used += next
 		end++
 	}
-	if end == start {
-		end = start + 1
+	for start > 0 {
+		prev := widths[start-1] + sep
+		if used+prev > avail {
+			break
+		}
+		used += prev
+		start--
 	}
 	return start, end
 }
@@ -139,43 +142,79 @@ func gridRowText(cells []string, widths []int, start, end int) string {
 	return strings.Join(parts, " │ ")
 }
 
+// gridCursorMax is the last selectable index: JSON line, or data+insert row.
+func (m Model) gridCursorMax() int {
+	if m.Browse.ViewJSON {
+		return len(m.Browse.JSONLines) - 1
+	}
+	return m.Browse.gridRowCount() - 1
+}
+
 func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "J":
+		m.Browse.ViewJSON = !m.Browse.ViewJSON
+		m.Browse.RowCursor = 0
+		m.Browse.ColCursor = 0
+		m.refreshJSONView()
+		return m, nil
 	case "up", "k":
 		if m.Browse.RowCursor > 0 {
 			m.Browse.RowCursor--
 		}
 	case "down", "j":
-		if m.Browse.RowCursor < len(m.Browse.Rows)-1 {
+		if m.Browse.RowCursor < m.gridCursorMax() {
 			m.Browse.RowCursor++
 		}
 	case "left", "h":
-		if m.Browse.ColOffset > 0 {
-			m.Browse.ColOffset--
+		if !m.Browse.ViewJSON && m.Browse.ColCursor > 0 {
+			m.Browse.ColCursor--
 		}
 	case "right", "l":
-		if m.Browse.ColOffset < len(m.Browse.Columns)-1 {
-			m.Browse.ColOffset++
+		if !m.Browse.ViewJSON && m.Browse.ColCursor < len(m.Browse.Columns)-1 {
+			m.Browse.ColCursor++
 		}
 	case "g", "home":
 		m.Browse.RowCursor = 0
 	case "G", "end":
-		m.Browse.RowCursor = max(len(m.Browse.Rows)-1, 0)
+		m.Browse.RowCursor = max(m.gridCursorMax(), 0)
 	case "n", "ctrl+f", "pgdown":
-		// only paginate real tables; query results are a single page
-		if m.Browse.Table != "" && m.Browse.Offset+m.Browse.Limit < m.Browse.Total {
-			m.Browse.Offset += m.Browse.Limit
-			m.Browse.GridLoading = true
-			return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
-		}
+		return m.pageRecords(+1)
 	case "p", "ctrl+b", "pgup":
-		if m.Browse.Table != "" && m.Browse.Offset > 0 {
-			m.Browse.Offset = max(m.Browse.Offset-m.Browse.Limit, 0)
-			m.Browse.GridLoading = true
-			return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
-		}
+		return m.pageRecords(-1)
+	case "c":
+		return m.openCellEdit()
+	case "d":
+		return m.toggleDeleteRow()
+	case "o":
+		return m.appendInsertRow()
+	case "ctrl+s":
+		return m.openCommitConfirm()
+	case "u":
+		return m.discardPending()
 	}
 	return m, nil
+}
+
+// pageRecords moves a real table's page window (dir +1/-1). Query results and
+// tables with staged edits do not paginate.
+func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
+	if m.Browse.Table == "" {
+		return m, nil
+	}
+	if m.pendingCount() > 0 {
+		m.StatusMsg = "Commit or discard changes before paging"
+		return m, nil
+	}
+	if dir > 0 && m.Browse.Offset+m.Browse.Limit < m.Browse.Total {
+		m.Browse.Offset += m.Browse.Limit
+	} else if dir < 0 && m.Browse.Offset > 0 {
+		m.Browse.Offset = max(m.Browse.Offset-m.Browse.Limit, 0)
+	} else {
+		return m, nil
+	}
+	m.Browse.GridLoading = true
+	return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
 }
 
 func (m Model) renderGridLines(width, height int) []string {
@@ -191,6 +230,9 @@ func (m Model) renderGridLines(width, height int) []string {
 	}
 
 	title := m.Browse.Label
+	if m.Browse.ViewJSON {
+		title += "  [json]"
+	}
 	if m.Browse.GridLoading {
 		title += "  loading…"
 	}
@@ -205,8 +247,20 @@ func (m Model) renderGridLines(width, height int) []string {
 		return lines
 	}
 
+	if m.Browse.ViewJSON {
+		bodyH := height - 1 // title
+		if bodyH < 1 {
+			bodyH = 1
+		}
+		start, end := visibleWindow(len(m.Browse.JSONLines), m.Browse.RowCursor, bodyH)
+		for i := start; i < end; i++ {
+			add(m.Browse.JSONLines[i], func(s string) string { return normalStyle.Render(s) })
+		}
+		return lines
+	}
+
 	widths := colWidths(m.Browse.Columns, m.Browse.Rows, maxCellWidth)
-	cs, ce := visibleCols(widths, m.Browse.ColOffset, width)
+	cs, ce := visibleColsForCursor(widths, m.Browse.ColCursor, width)
 
 	add(gridRowText(m.Browse.Columns, widths, cs, ce), func(s string) string { return headerRowStyle.Render(s) })
 	add(strings.Repeat("─", width), dim)
@@ -215,14 +269,10 @@ func (m Model) renderGridLines(width, height int) []string {
 	if bodyH < 1 {
 		bodyH = 1
 	}
-	start, end := visibleWindow(len(m.Browse.Rows), m.Browse.RowCursor, bodyH)
+	total := m.Browse.gridRowCount()
+	start, end := visibleWindow(total, m.Browse.RowCursor, bodyH)
 	for i := start; i < end; i++ {
-		txt := gridRowText(m.Browse.Rows[i], widths, cs, ce)
-		if i == m.Browse.RowCursor && m.Focus == types.FocusGrid {
-			lines = append(lines, selectedRowStyle.Render(padRunes(txt, width)))
-		} else {
-			lines = append(lines, normalStyle.Render(padRunes(txt, width)))
-		}
+		lines = append(lines, m.renderStyledRow(i, widths, cs, ce, width))
 	}
 
 	from := m.Browse.Offset + 1
@@ -230,7 +280,31 @@ func (m Model) renderGridLines(width, height int) []string {
 	if len(m.Browse.Rows) == 0 {
 		from = 0
 	}
-	add(fmt.Sprintf("rows %d-%d of %d   cols %d-%d/%d",
-		from, to, m.Browse.Total, cs+1, ce, len(m.Browse.Columns)), dim)
+	status := fmt.Sprintf("rows %d-%d of %d   cols %d-%d/%d",
+		from, to, m.Browse.Total, cs+1, ce, len(m.Browse.Columns))
+	if n := m.pendingCount(); n > 0 {
+		status += fmt.Sprintf("   %d pending (ctrl+s commit · u discard)", n)
+	}
+	add(status, dim)
 	return lines
+}
+
+// renderStyledRow renders one grid row (existing or insert) with per-cell DML
+// styling, padded to the full pane width.
+func (m Model) renderStyledRow(row int, widths []int, cs, ce, width int) string {
+	parts := make([]string, 0, ce-cs)
+	visible := 0
+	for c := cs; c < ce && c < len(widths); c++ {
+		plain := padRunes(displayCell(m.cellValue(row, c)), widths[c])
+		parts = append(parts, m.cellStyle(row, c).Render(plain))
+		visible += widths[c]
+	}
+	if n := ce - cs; n > 1 {
+		visible += 3 * (n - 1)
+	}
+	line := strings.Join(parts, " │ ")
+	if visible < width {
+		line += strings.Repeat(" ", width-visible)
+	}
+	return line
 }

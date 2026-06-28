@@ -33,6 +33,23 @@ type RecordsLoadedMsg struct {
 	Err    error
 }
 
+type ExportDoneMsg struct {
+	Path string
+	Rows int
+	Err  error
+}
+
+type PrimaryKeyLoadedMsg struct {
+	Table   string
+	Columns []string
+	Err     error
+}
+
+type ChangesCommittedMsg struct {
+	Count int
+	Err   error
+}
+
 // QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish
 // queries fill Rows (Rows[0] = header) + Total; DML fills Info.
 type QueryExecutedMsg struct {
