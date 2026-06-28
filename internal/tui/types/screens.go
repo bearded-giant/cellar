@@ -19,6 +19,7 @@ const (
 	ScreenSaveQuery
 	ScreenSavedQueries
 	ScreenCommitPreview
+	ScreenYank
 )
 
 func (s Screen) String() string {
@@ -39,6 +40,7 @@ func (s Screen) String() string {
 		ScreenSaveQuery:      "Save Query",
 		ScreenSavedQueries:   "Saved Queries",
 		ScreenCommitPreview:  "Commit Preview",
+		ScreenYank:           "Copy",
 	}
 	if name, ok := names[s]; ok {
 		return name

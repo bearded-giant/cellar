@@ -113,6 +113,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSavedQueriesScreen(msg)
 	case types.ScreenCommitPreview:
 		return m.handleCommitPreviewScreen(msg)
+	case types.ScreenYank:
+		return m.handleYankScreen(msg)
 	}
 	return m, nil
 }
