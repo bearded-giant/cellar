@@ -200,6 +200,10 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openFilter()
 	case "i":
 		return m.cycleMeta()
+	case "enter":
+		return m.jumpFK()
+	case "backspace":
+		return m.popCrumb()
 	}
 	return m, nil
 }

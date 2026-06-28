@@ -63,6 +63,12 @@ type MetaLoadedMsg struct {
 	Err  error
 }
 
+type ForeignKeysLoadedMsg struct {
+	Table string
+	FKs   [][]string
+	Err   error
+}
+
 // QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish
 // queries fill Rows (Rows[0] = header) + Total; DML fills Info.
 type QueryExecutedMsg struct {

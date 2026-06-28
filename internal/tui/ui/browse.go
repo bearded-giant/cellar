@@ -52,6 +52,9 @@ type browseState struct {
 	Where    string // WHERE clause incl. keyword (empty = none)
 	MetaKind int    // metaRecords (editable) or a read-only metadata view
 
+	FKMap  map[string]fkRef // local column -> FK target, for FK jump
+	Crumbs []crumb          // FK-jump breadcrumb stack
+
 	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
 	// commit. Editable only for a real table (Table != "", not read-only).
 	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
@@ -82,6 +85,8 @@ func (m *Model) resetPending() {
 	m.Browse.Sort = ""
 	m.Browse.Where = ""
 	m.Browse.MetaKind = metaRecords
+	m.Browse.FKMap = nil
+	m.Browse.Crumbs = nil
 }
 
 // clearStagedEdits drops staged DML but keeps the view (sort/filter/meta) —
@@ -266,8 +271,11 @@ func (m Model) browseFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
-			{"s", "sort"}, {"/", "filter"}, {"i", "inspect"}, {"J", "json"}, {"x", "export"},
-			{"e", "sql"}, {"y", "hist"}, {"tab", "tree"}, {"q", "quit"},
+			{"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
+			{"J", "json"}, {"x", "export"}, {"e", "sql"}, {"y", "hist"}, {"tab", "tree"}, {"q", "quit"},
+		}
+		if len(m.Browse.Crumbs) > 0 {
+			kb = append(kb, struct{ key, desc string }{"⌫", "back"})
 		}
 	}
 	var b strings.Builder

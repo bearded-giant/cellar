@@ -89,6 +89,18 @@ func (c *Commands) LoadMeta(driver drivers.Driver, db, table string, kind MetaKi
 	}
 }
 
+// LoadForeignKeys fetches a table's foreign keys (for FK jump). Row 0 is the
+// header; column names vary by driver and are parsed in the UI layer.
+func (c *Commands) LoadForeignKeys(driver drivers.Driver, db, table string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil {
+			return types.ForeignKeysLoadedMsg{Table: table}
+		}
+		fks, err := driver.GetForeignKeys(db, table)
+		return types.ForeignKeysLoadedMsg{Table: table, FKs: fks, Err: err}
+	}
+}
+
 // LoadRecords fetches one page of rows. table must be schema-qualified
 // ("schema.table") for schema drivers, bare otherwise — the tree builds it.
 // Rows[0] is the header row; Total is the unpaginated row count.

@@ -129,6 +129,8 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Browse.RowCursor = 0
 			m.Browse.PkColumns = nil
 			m.Browse.ViewJSON = false
+			m.Browse.FKMap = nil
+			m.Browse.Crumbs = nil
 			m.resetPending()
 			m.Browse.GridErr = ""
 			m.Browse.GridLoading = true
@@ -136,6 +138,7 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(
 				m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit),
 				m.Cmds.LoadPrimaryKey(m.ActiveDriver, node.DB, node.Table),
+				m.Cmds.LoadForeignKeys(m.ActiveDriver, node.DB, node.Table),
 			)
 		case kindDB:
 			if m.Browse.Expanded[node.Key] {
