@@ -3,11 +3,12 @@ package ui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kujtimiihoxha/vimtea"
 
 	"github.com/jorgerojas26/lazysql/drivers"
+	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
 	"github.com/jorgerojas26/lazysql/helpers"
 	"github.com/jorgerojas26/lazysql/internal/tui/commands"
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
@@ -49,13 +50,21 @@ type Model struct {
 	Focus  types.Focus
 	Browse browseState
 
-	// Editor is the vimtea SQL editor, created fresh on entering ScreenEditor.
-	// EditorContent persists the last query across opens.
-	Editor        vimtea.Editor
+	// SQL editor (textarea) + autocomplete. EditorContent persists the last
+	// query across opens.
+	EditorArea    textarea.Model
 	EditorContent string
+	Completer     *sqlmeta.Autocompleter
+	Completions   []sqlmeta.CompletionItem
+	CompCursor    int
+	CompVisible   bool
 
 	ExportInput textinput.Model
 	CellInput   textinput.Model
+	FilterInput textinput.Model
+
+	HistoryItems  []models.QueryHistoryItem
+	HistoryCursor int
 
 	Width  int
 	Height int

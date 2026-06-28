@@ -6,6 +6,13 @@ This doc scopes the work. It is a map + a sequence + an honest risk register, no
 
 ## Status
 
+**2026-06-27 — Phase 2.3 (history + autocomplete + DML polish) landed.**
+- **Query history (sever + record + recall):** `internal/history` no longer imports `app` (inlined the XDG config-path; cap is now `history.MaxPerConnection`, a package var both binaries set from config). `RunQuery` + `CommitChanges` record to history. `y` in browse opens a recall modal → Enter loads a past query into the editor.
+- **SQL autocomplete:** replaced vimtea with `bubbles/textarea` (exposes the cursor) so the completer can extract a prefix. Ported the tview completer/lexer tcell-free into `internal/tui/sqlmeta` (Autocompleter, `Complete(text,cursor)`, Tokenize, ColorFor). Editor now: type → completion popup (keywords + table/column names), `tab` accepts, `ctrl+r` runs, `ctrl+q` back. Lost vim modes + chroma highlight (textarea limitation); `sqlmeta.Tokenize`/`ColorFor` are ready for a future custom-render highlight pass.
+- **DML polish:** `s` sort current column (none→ASC→DESC), `/` filter (WHERE modal), `C` set NULL/EMPTY/DEFAULT (typed edit), `i` cycle metadata views (columns/constraints/indexes/foreign-keys, read-only) — all reuse the grid. Sort/filter survive commit reload.
+- **Built:** `internal/tui/sqlmeta/*`, `ui/{history,grid_ops}.go`, textarea editor, `commands.{LoadHistory,LoadMeta}` + history recording. Removed dep `vimtea`. All green incl. autocomplete + sort/filter/SetValue/meta tests.
+- **Still deferred:** FK jump (most complex — filter context + breadcrumb), inline syntax highlight in the new editor, full-table batch export, multi-tab.
+
 **2026-06-27 — Phase 2.2 (DML + views + export) landed.** Grid is now editable + has alternate views and export.
 - **DML:** cell cursor (←/→ select column, ↑/↓ row). `c` edit cell (modal), `o` append insert row (DB-default cells until edited), `d` toggle row delete, `ctrl+s` commit (confirm dialog → `ExecutePendingChanges`, one transaction), `u` discard. Pending state is held as maps (`edited[row,col]`, `deleted[row]`, `inserts[]`) that auto-merge — synthesized to `[]models.DBDMLChange` at commit (no port of tview's in-place merge). Per-cell coloring: orange edited, red delete, green insert. Read-only connections blocked. PK fetched on table select (`GetPrimaryKeyColumnNames`; whole-row fallback when none). Paging blocked while edits are staged (row indices would desync).
 - **View toggle:** `J` switches the result page between table and JSON (`recordsToJSON`, column-ordered, NULL→null / EMPTY→"").

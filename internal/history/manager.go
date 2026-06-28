@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jorgerojas26/lazysql/app"
 	"github.com/jorgerojas26/lazysql/helpers/logger"
 	"github.com/jorgerojas26/lazysql/models"
 )
@@ -21,11 +20,22 @@ const (
 	historyFileExtension = ".json"
 )
 
-// GetAppConfigDir returns the application's configuration directory.
+// MaxPerConnection caps stored history entries per connection. Each binary
+// sets it from config at startup; defaults to 100 when unset. Kept app-free so
+// both the tview app and the bubbletea TUI can record history.
+var MaxPerConnection = 100
+
+// GetAppConfigDir returns the application's configuration directory. Resolves
+// the config root the same way app.GetConfigPath does (XDG_CONFIG_HOME, else
+// os.UserConfigDir) so both binaries share one history directory.
 func GetAppConfigDir() (string, error) {
-	configDir, err := app.GetConfigPath()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user config directory: %w", err)
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		dir, err := os.UserConfigDir()
+		if err != nil {
+			return "", fmt.Errorf("failed to get user config directory: %w", err)
+		}
+		configDir = dir
 	}
 	return filepath.Join(configDir, lazysqlConfigDirName), nil
 }
@@ -161,10 +171,9 @@ func AddQueryToHistory(connectionIdentifier string, queryText string) error {
 	})
 
 	// Enforce history limit
-	limit := app.App.Config().MaxQueryHistoryPerConnection
+	limit := MaxPerConnection
 	if limit <= 0 { // Ensure a positive limit, fallback to a default
 		limit = 100
-		logger.Info("MaxQueryHistoryPerConnection is not set or invalid, using default limit.", map[string]any{"defaultLimit": limit, "connection": connectionIdentifier})
 	}
 
 	if len(items) > limit {

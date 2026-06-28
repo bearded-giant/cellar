@@ -12,6 +12,7 @@ import (
 	"github.com/jorgerojas26/lazysql/app"
 	"github.com/jorgerojas26/lazysql/components"
 	"github.com/jorgerojas26/lazysql/helpers/logger"
+	"github.com/jorgerojas26/lazysql/internal/history"
 )
 
 var version = "dev"
@@ -65,6 +66,9 @@ func main() {
 	// First load the config.
 	if err = app.LoadConfig(*configFile); err != nil {
 		log.Fatalf("Error loading config: %v", err)
+	}
+	if n := app.App.Config().MaxQueryHistoryPerConnection; n > 0 {
+		history.MaxPerConnection = n
 	}
 
 	// Now we can initialize the main pages.

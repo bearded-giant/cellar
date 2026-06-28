@@ -13,6 +13,9 @@ const (
 	ScreenEditor
 	ScreenExport
 	ScreenCellEdit
+	ScreenHistory
+	ScreenFilter
+	ScreenSetValue
 )
 
 func (s Screen) String() string {
@@ -27,6 +30,9 @@ func (s Screen) String() string {
 		ScreenEditor:         "SQL Editor",
 		ScreenExport:         "Export",
 		ScreenCellEdit:       "Edit Cell",
+		ScreenHistory:        "Query History",
+		ScreenFilter:         "Filter",
+		ScreenSetValue:       "Set Value",
 	}
 	if name, ok := names[s]; ok {
 		return name

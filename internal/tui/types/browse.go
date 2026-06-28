@@ -1,5 +1,12 @@
 package types
 
+import "github.com/jorgerojas26/lazysql/models"
+
+type HistoryLoadedMsg struct {
+	Items []models.QueryHistoryItem
+	Err   error
+}
+
 // Focus selects which pane in the browse screen receives key input. Bubble Tea
 // has no focus manager, so the browse screen hand-rolls one.
 type Focus int
@@ -48,6 +55,12 @@ type PrimaryKeyLoadedMsg struct {
 type ChangesCommittedMsg struct {
 	Count int
 	Err   error
+}
+
+type MetaLoadedMsg struct {
+	Kind int
+	Rows [][]string
+	Err  error
 }
 
 // QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish

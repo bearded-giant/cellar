@@ -48,6 +48,10 @@ type browseState struct {
 	// PkColumns is the loaded table's primary key (empty -> whole-row fallback).
 	PkColumns []string
 
+	Sort     string // ORDER BY arg, e.g. "id DESC" (empty = none)
+	Where    string // WHERE clause incl. keyword (empty = none)
+	MetaKind int    // metaRecords (editable) or a read-only metadata view
+
 	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
 	// commit. Editable only for a real table (Table != "", not read-only).
 	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
@@ -73,10 +77,27 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 
 // resetPending clears staged DML state (on table switch or after commit).
 func (m *Model) resetPending() {
+	m.clearStagedEdits()
+	m.Browse.ColCursor = 0
+	m.Browse.Sort = ""
+	m.Browse.Where = ""
+	m.Browse.MetaKind = metaRecords
+}
+
+// clearStagedEdits drops staged DML but keeps the view (sort/filter/meta) —
+// used after a successful commit so the reload stays in context.
+func (m *Model) clearStagedEdits() {
 	m.Browse.Edited = map[[2]int]string{}
 	m.Browse.Deleted = map[int]bool{}
 	m.Browse.Inserts = nil
-	m.Browse.ColCursor = 0
+}
+
+// connIdent is the per-connection key for query history (the connection name).
+func (m Model) connIdent() string {
+	if m.CurrentConn != nil {
+		return m.CurrentConn.Name
+	}
+	return ""
 }
 
 func (m *Model) rebuildTree() {
@@ -103,6 +124,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openEditor()
 	case "x":
 		return m.openExport()
+	case "y":
+		return m.openHistory()
 	case "tab":
 		if m.Focus == types.FocusTree {
 			m.Focus = types.FocusGrid
@@ -242,8 +265,9 @@ func (m Model) browseFooter() string {
 		}
 	} else {
 		kb = []struct{ key, desc string }{
-			{"c", "edit"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
-			{"J", "json"}, {"x", "export"}, {"e", "sql"}, {"tab", "tree"}, {"q", "disconnect"},
+			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
+			{"s", "sort"}, {"/", "filter"}, {"i", "inspect"}, {"J", "json"}, {"x", "export"},
+			{"e", "sql"}, {"y", "hist"}, {"tab", "tree"}, {"q", "quit"},
 		}
 	}
 	var b strings.Builder

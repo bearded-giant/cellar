@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jorgerojas26/lazysql/internal/history"
 	"github.com/jorgerojas26/lazysql/internal/tui/commands"
 	"github.com/jorgerojas26/lazysql/internal/tui/config"
 	"github.com/jorgerojas26/lazysql/internal/tui/ui"
@@ -51,6 +52,9 @@ func main() {
 	cfg, err := config.LoadConfig(path)
 	if err != nil {
 		log.Fatalf("load config: %v", err)
+	}
+	if cfg.AppConfig != nil && cfg.AppConfig.MaxQueryHistoryPerConnection > 0 {
+		history.MaxPerConnection = cfg.AppConfig.MaxQueryHistoryPerConnection
 	}
 
 	cmds := commands.New(cfg)

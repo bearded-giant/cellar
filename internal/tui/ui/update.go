@@ -4,7 +4,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/kujtimiihoxha/vimtea"
 
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
 )
@@ -14,9 +13,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
-		if m.Screen == types.ScreenEditor && m.Editor != nil {
-			sized, _ := m.Editor.SetSize(editorSize(msg.Width, msg.Height))
-			m.Editor = sized.(vimtea.Editor)
+		if m.Screen == types.ScreenEditor {
+			bw, bh := editorSize(msg.Width, msg.Height)
+			m.EditorArea.SetWidth(bw)
+			m.EditorArea.SetHeight(bh)
 		}
 		return m, nil
 
@@ -51,10 +51,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handlePrimaryKeyLoadedMsg(msg)
 	case types.ChangesCommittedMsg:
 		return m.handleChangesCommittedMsg(msg)
+	case types.HistoryLoadedMsg:
+		return m.handleHistoryLoadedMsg(msg)
+	case types.MetaLoadedMsg:
+		return m.handleMetaLoadedMsg(msg)
 	}
 
-	// forward unhandled msgs (e.g. vimtea's cursor-blink tick) to the editor
-	if m.Screen == types.ScreenEditor && m.Editor != nil {
+	// forward unhandled msgs (e.g. the textarea cursor-blink tick) to the editor
+	if m.Screen == types.ScreenEditor {
 		return m.forwardToEditor(msg)
 	}
 	return m, nil
@@ -91,6 +95,12 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleExportScreen(msg)
 	case types.ScreenCellEdit:
 		return m.handleCellEditScreen(msg)
+	case types.ScreenHistory:
+		return m.handleHistoryScreen(msg)
+	case types.ScreenFilter:
+		return m.handleFilterScreen(msg)
+	case types.ScreenSetValue:
+		return m.handleSetValueScreen(msg)
 	}
 	return m, nil
 }

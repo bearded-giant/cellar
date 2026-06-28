@@ -24,9 +24,23 @@ type insertCell struct {
 func (b browseState) gridRowCount() int { return len(b.Rows) + len(b.Inserts) }
 
 // editable reports whether the grid currently allows DML: a real table is
-// loaded (not a query result) and we are in table view.
+// loaded (not a query result or metadata view) and we are in table view.
 func (m Model) editable() bool {
-	return m.Browse.Table != "" && !m.Browse.ViewJSON && len(m.Browse.Columns) > 0
+	return m.Browse.Table != "" && !m.Browse.ViewJSON &&
+		len(m.Browse.Columns) > 0 && m.Browse.MetaKind == metaRecords
+}
+
+// displaySentinel renders a typed-edit sentinel as its display text.
+func displaySentinel(v string) string {
+	switch v {
+	case dmlNull:
+		return "NULL"
+	case dmlEmpty:
+		return ""
+	case dmlDefault:
+		return "DEFAULT"
+	}
+	return v
 }
 
 func (m Model) readOnly() bool {
@@ -46,7 +60,7 @@ func (m Model) pendingCount() int {
 func (m Model) cellValue(row, col int) string {
 	if row < len(m.Browse.Rows) {
 		if v, ok := m.Browse.Edited[[2]int{row, col}]; ok {
-			return v
+			return displaySentinel(v)
 		}
 		if col < len(m.Browse.Rows[row]) {
 			return m.Browse.Rows[row][col]
@@ -213,7 +227,7 @@ func (m Model) commitChanges() (tea.Model, tea.Cmd) {
 	}
 	m.Browse.GridLoading = true
 	m.StatusMsg = "Committing..."
-	return m, m.Cmds.CommitChanges(m.ActiveDriver, changes)
+	return m, m.Cmds.CommitChanges(m.ActiveDriver, changes, m.connIdent())
 }
 
 func (m Model) handleChangesCommittedMsg(msg types.ChangesCommittedMsg) (tea.Model, tea.Cmd) {
@@ -223,9 +237,9 @@ func (m Model) handleChangesCommittedMsg(msg types.ChangesCommittedMsg) (tea.Mod
 		m.StatusMsg = "Commit failed"
 		return m, nil // keep pending so the user can fix or discard
 	}
-	m.resetPending()
+	m.clearStagedEdits()
 	m.StatusMsg = fmt.Sprintf("Committed %d change(s)", msg.Count)
-	return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
+	return m.reloadRecords()
 }
 
 func (m Model) handlePrimaryKeyLoadedMsg(msg types.PrimaryKeyLoadedMsg) (tea.Model, tea.Cmd) {
@@ -262,9 +276,21 @@ func buildDMLChanges(db, table string, columns []string, rows [][]string, pk []s
 		if deleted[row] {
 			continue // a row staged for delete ignores its edits
 		}
-		editsByRow[row] = append(editsByRow[row], models.CellValue{
-			Value: v, Column: columns[col], TableColumnIndex: col, TableRowIndex: row, Type: models.String,
-		})
+		cv := models.CellValue{Column: columns[col], TableColumnIndex: col, TableRowIndex: row}
+		switch v {
+		case dmlNull:
+			cv.Type = models.Null
+		case dmlEmpty:
+			cv.Type = models.Empty
+			cv.Value = ""
+		case dmlDefault:
+			cv.Type = models.Default
+			cv.Value = "DEFAULT"
+		default:
+			cv.Type = models.String
+			cv.Value = v
+		}
+		editsByRow[row] = append(editsByRow[row], cv)
 	}
 	for _, row := range sortedIntKeys(editsByRow) {
 		vals := editsByRow[row]

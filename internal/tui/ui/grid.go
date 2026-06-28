@@ -184,6 +184,8 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.pageRecords(-1)
 	case "c":
 		return m.openCellEdit()
+	case "C":
+		return m.openSetValue()
 	case "d":
 		return m.toggleDeleteRow()
 	case "o":
@@ -192,6 +194,12 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openCommitConfirm()
 	case "u":
 		return m.discardPending()
+	case "s":
+		return m.cycleSort()
+	case "/":
+		return m.openFilter()
+	case "i":
+		return m.cycleMeta()
 	}
 	return m, nil
 }
@@ -199,7 +207,7 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // pageRecords moves a real table's page window (dir +1/-1). Query results and
 // tables with staged edits do not paginate.
 func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
-	if m.Browse.Table == "" {
+	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords {
 		return m, nil
 	}
 	if m.pendingCount() > 0 {
@@ -213,8 +221,7 @@ func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
 	} else {
 		return m, nil
 	}
-	m.Browse.GridLoading = true
-	return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
+	return m.reloadRecords()
 }
 
 func (m Model) renderGridLines(width, height int) []string {
@@ -230,6 +237,15 @@ func (m Model) renderGridLines(width, height int) []string {
 	}
 
 	title := m.Browse.Label
+	if m.Browse.MetaKind != metaRecords {
+		title += "  · " + metaNames[m.Browse.MetaKind]
+	}
+	if m.Browse.Sort != "" {
+		title += "  ↕ " + m.Browse.Sort
+	}
+	if m.Browse.Where != "" {
+		title += "  ⧩ filtered"
+	}
 	if m.Browse.ViewJSON {
 		title += "  [json]"
 	}

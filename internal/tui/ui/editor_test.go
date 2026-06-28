@@ -65,16 +65,76 @@ func TestEditor_OpenAndClose(t *testing.T) {
 
 	res, cmd := m.openEditor()
 	m = res.(Model)
-	if m.Screen != types.ScreenEditor || m.Editor == nil {
-		t.Fatal("openEditor should switch to ScreenEditor with a live editor")
+	if m.Screen != types.ScreenEditor {
+		t.Fatal("openEditor should switch to ScreenEditor")
 	}
 	if cmd == nil {
-		t.Error("openEditor should return the editor Init cmd (cursor blink)")
+		t.Error("openEditor should return the textarea Focus cmd (cursor blink)")
 	}
 
 	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlQ})
 	if res2.(Model).Screen != types.ScreenBrowse {
 		t.Error("ctrl+q should return from the editor to browse")
+	}
+}
+
+func TestEditor_AutocompleteKeyword(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	m.EditorArea.SetValue("SEL")
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+
+	if !m.CompVisible || len(m.Completions) == 0 {
+		t.Fatal("typing 'SEL' should surface completions")
+	}
+	var sawSelect bool
+	for _, it := range m.Completions {
+		if it.Text == "SELECT" {
+			sawSelect = true
+		}
+	}
+	if !sawSelect {
+		t.Errorf("completions should include SELECT, got %+v", m.Completions)
+	}
+}
+
+func TestEditor_AcceptCompletion(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	m.EditorArea.SetValue("SEL")
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if !m.CompVisible {
+		t.Fatal("expected completions for 'SEL'")
+	}
+	want := m.Completions[m.CompCursor].Text
+	m.acceptCompletion()
+	if m.EditorArea.Value() != want {
+		t.Errorf("after accept, value = %q, want %q", m.EditorArea.Value(), want)
+	}
+	if m.CompVisible {
+		t.Error("popup should hide after accepting")
+	}
+}
+
+func TestEditor_NoPopupWithoutPrefix(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	m.EditorArea.SetValue("SELECT * FROM ")
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if m.CompVisible {
+		t.Error("no trailing word -> no popup")
 	}
 }
 
