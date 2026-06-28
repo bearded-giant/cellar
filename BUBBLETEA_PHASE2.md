@@ -6,6 +6,12 @@ This doc scopes the work. It is a map + a sequence + an honest risk register, no
 
 ## Status
 
+**2026-06-28 — feature burn (doit list `lazysql`).** 10 features landed, 3 open. Commits `f79f507..959d0e1` are LOCAL on `feat/native-ssh-tunnel` (NOT pushed; origin is at `fe455e0`). All green (build + vet + `go test ./...`, both binaries link).
+- Done: FK jump, saved queries, full-table batch export, commit-preview modal, clipboard yank, cell value viewer, tree fuzzy search, NULL/EMPTY on insert rows, mouse support, client-side query-result paging.
+- Open (handoff context in the `lazysql` doit list): #3 inline syntax highlight (needs editor rewrite or textarea fork; `sqlmeta.Tokenize`/`ColorFor` ready), #6 multi-tab (split `browseState` tree-vs-grid into `gridTab`), #13 retire hand-off (gated on #3+#6+interactive parity validation).
+- New since 2.3: `internal/tui/sqlmeta` (tcell-free completer/lexer), `internal/tui/ui/{fk,saved,dml_preview,yank,cellview,treefilter,mouse,grid_ops,export}.go`. `internal/saved` severed from `app` (like `internal/history`).
+- Next session: read the `lazysql` doit list (done items carry commit shas; open items carry HANDOFF blocks). Decide push vs keep-local.
+
 **2026-06-27 — Phase 2.3 (history + autocomplete + DML polish) landed.**
 - **Query history (sever + record + recall):** `internal/history` no longer imports `app` (inlined the XDG config-path; cap is now `history.MaxPerConnection`, a package var both binaries set from config). `RunQuery` + `CommitChanges` record to history. `y` in browse opens a recall modal → Enter loads a past query into the editor.
 - **SQL autocomplete:** replaced vimtea with `bubbles/textarea` (exposes the cursor) so the completer can extract a prefix. Ported the tview completer/lexer tcell-free into `internal/tui/sqlmeta` (Autocompleter, `Complete(text,cursor)`, Tokenize, ColorFor). Editor now: type → completion popup (keywords + table/column names), `tab` accepts, `ctrl+r` runs, `ctrl+q` back. Lost vim modes + chroma highlight (textarea limitation); `sqlmeta.Tokenize`/`ColorFor` are ready for a future custom-render highlight pass.
