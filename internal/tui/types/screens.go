@@ -10,6 +10,7 @@ const (
 	ScreenTestConnection
 	ScreenConfirmDelete
 	ScreenBrowse
+	ScreenEditor
 )
 
 func (s Screen) String() string {
@@ -21,6 +22,7 @@ func (s Screen) String() string {
 		ScreenTestConnection: "Test Connection",
 		ScreenConfirmDelete:  "Confirm Delete",
 		ScreenBrowse:         "Browse",
+		ScreenEditor:         "SQL Editor",
 	}
 	if name, ok := names[s]; ok {
 		return name

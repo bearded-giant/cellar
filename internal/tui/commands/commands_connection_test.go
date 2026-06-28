@@ -23,6 +23,14 @@ type stubDriver struct {
 	recordsTotal int
 	recordsErr   error
 	lastGetArgs  []string // db, table, where, sort for the last GetRecords
+
+	queryRows  [][]string
+	queryTotal int
+	queryErr   error
+	dmlInfo    string
+	dmlErr     error
+	ranQuery   string // last ExecuteQuery arg
+	ranDML     string // last ExecuteDMLStatement arg
 }
 
 func (s *stubDriver) Connect(urlstr string) error {
@@ -50,8 +58,15 @@ func (s *stubDriver) GetRecords(db, table, where, sort string, _, _ int) ([][]st
 }
 func (s *stubDriver) UpdateRecord(string, string, string, string, string, string) error { return nil }
 func (s *stubDriver) DeleteRecord(string, string, string, string) error                 { return nil }
-func (s *stubDriver) ExecuteDMLStatement(string) (string, error)                        { return "", nil }
-func (s *stubDriver) ExecuteQuery(string) ([][]string, int, error)                      { return nil, 0, nil }
+func (s *stubDriver) ExecuteDMLStatement(q string) (string, error) {
+	s.ranDML = q
+	return s.dmlInfo, s.dmlErr
+}
+
+func (s *stubDriver) ExecuteQuery(q string) ([][]string, int, error) {
+	s.ranQuery = q
+	return s.queryRows, s.queryTotal, s.queryErr
+}
 func (s *stubDriver) ExecutePendingChanges([]models.DBDMLChange) error                  { return nil }
 func (s *stubDriver) GetPrimaryKeyColumnNames(string, string) ([]string, error)         { return nil, nil }
 func (s *stubDriver) SupportsProgramming() bool                                         { return false }

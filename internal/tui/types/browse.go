@@ -32,3 +32,14 @@ type RecordsLoadedMsg struct {
 	Offset int
 	Err    error
 }
+
+// QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish
+// queries fill Rows (Rows[0] = header) + Total; DML fills Info.
+type QueryExecutedMsg struct {
+	Query    string
+	IsSelect bool
+	Rows     [][]string
+	Total    int
+	Info     string
+	Err      error
+}

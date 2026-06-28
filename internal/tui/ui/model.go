@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/kujtimiihoxha/vimtea"
 
 	"github.com/jorgerojas26/lazysql/drivers"
 	"github.com/jorgerojas26/lazysql/helpers"
@@ -45,6 +46,11 @@ type Model struct {
 
 	Focus  types.Focus
 	Browse browseState
+
+	// Editor is the vimtea SQL editor, created fresh on entering ScreenEditor.
+	// EditorContent persists the last query across opens.
+	Editor        vimtea.Editor
+	EditorContent string
 
 	Width  int
 	Height int

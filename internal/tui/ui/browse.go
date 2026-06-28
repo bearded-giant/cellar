@@ -65,6 +65,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
 		return m.disconnectBrowse()
+	case "e":
+		return m.openEditor()
 	case "tab":
 		if m.Focus == types.FocusTree {
 			m.Focus = types.FocusGrid
@@ -199,12 +201,12 @@ func (m Model) browseFooter() string {
 	if m.Focus == types.FocusTree {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"tab", "grid"}, {"q", "disconnect"},
+			{"e", "sql"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "row"}, {"←/→", "cols"}, {"n/p", "page"},
-			{"tab", "tree"}, {"q", "disconnect"},
+			{"e", "sql"}, {"tab", "tree"}, {"q", "disconnect"},
 		}
 	}
 	var b strings.Builder

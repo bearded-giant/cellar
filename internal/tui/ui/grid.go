@@ -162,13 +162,14 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "G", "end":
 		m.Browse.RowCursor = max(len(m.Browse.Rows)-1, 0)
 	case "n", "ctrl+f", "pgdown":
-		if m.Browse.Offset+m.Browse.Limit < m.Browse.Total {
+		// only paginate real tables; query results are a single page
+		if m.Browse.Table != "" && m.Browse.Offset+m.Browse.Limit < m.Browse.Total {
 			m.Browse.Offset += m.Browse.Limit
 			m.Browse.GridLoading = true
 			return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)
 		}
 	case "p", "ctrl+b", "pgup":
-		if m.Browse.Offset > 0 {
+		if m.Browse.Table != "" && m.Browse.Offset > 0 {
 			m.Browse.Offset = max(m.Browse.Offset-m.Browse.Limit, 0)
 			m.Browse.GridLoading = true
 			return m, m.Cmds.LoadRecords(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, "", "", m.Browse.Offset, m.Browse.Limit)

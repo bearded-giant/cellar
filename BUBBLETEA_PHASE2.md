@@ -6,6 +6,13 @@ This doc scopes the work. It is a map + a sequence + an honest risk register, no
 
 ## Status
 
+**2026-06-27 — Phase 2.1 (SQL editor) landed.** From browse, `e` opens a vimtea editor (full vim modes + free SQL syntax highlighting via chroma — `query.sql` filename). `ctrl+r` executes: SELECT-ish queries (`select/with/explain/show/describe/desc` prefix) → `ExecuteQuery` → results fill the 2.0 grid (single page, paging disabled); other queries → `ExecuteDMLStatement`, info to the status bar; read-only connections reject DML via `drivers.ValidateQueryForReadOnly`. `ctrl+q` returns to browse (query text persists across opens). All green (build + vet + test).
+
+- **New dep:** `github.com/kujtimiihoxha/vimtea v0.0.2` (+ chroma transitive). Toolchain is go 1.26.4; vimtea needs only 1.23.5 — no bump. `Editor.Update`/`SetSize` return `tea.Model` → always type-assert back to `vimtea.Editor`. vimtea's cursor-blink tick is forwarded via the Update catch-all.
+- **Built:** `types.{ScreenEditor,QueryExecutedMsg}`, `commands.RunQuery` (SELECT/DML decision + RO gate), `ui/editor.go` (vimtea wiring, execute, result routing), `Model.{Editor,EditorContent}`.
+- **DEFERRED — autocomplete:** `sql_completer` reuse is blocked — vimtea exposes no public cursor getter (`Cursor` is unexported), so the completion prefix can't be extracted. Needs a vimtea fork/PR exposing the cursor, or a hand-rolled editor. Completer/lexer left un-ported (YAGNI) until then.
+- **DEFERRED — query history:** `internal/history` imports `app` (whose `init()` runs `tview.NewApplication()`) — can't be called from the tea binary without dragging tview in. Sever it first (extract `app.GetConfigPath` → app-free + make `MaxQueryHistoryPerConnection` a package var/param). `commands.RunQuery` has the one-line seam ready.
+
 **2026-06-27 — Phase 2.0 (Browse MVP) landed.** Read-only in-app browse works: connect → schema tree (lazy-loaded, db→schema→table for Postgres, db→table for flat drivers) → pick a table → paginated, virtualized results grid with vertical + horizontal scroll. All green: `go build ./...`, `go vet`, `go test ./...` (incl. a real-sqlite end-to-end test).
 
 - **Decision (Q1):** big-bang full parity is the goal — hand-off stays the **default** (`Enter`) safety net until parity. In-app browse is opt-in behind **`b`** on the connections list. Flip `Enter`→browse and retire hand-off when 2.1–2.3 land.
