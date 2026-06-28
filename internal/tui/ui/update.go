@@ -23,6 +23,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		return m.handleKeyPress(msg)
 
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
+
 	case types.ConnectionsLoadedMsg:
 		return m.handleConnectionsLoadedMsg(msg)
 	case types.ConnectionSavedMsg:

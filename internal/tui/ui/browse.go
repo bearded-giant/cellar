@@ -233,6 +233,28 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 	return m, nil
 }
 
+// browseLayout computes the split-pane geometry shared by viewBrowse and the
+// mouse hit-test, so clicks stay aligned with what is rendered.
+func (m Model) browseLayout() (treeW, gridW, bodyH int) {
+	w, h := m.Width, m.Height
+	bodyH = h - 3 // body + footer + status
+	if bodyH < 1 {
+		bodyH = 1
+	}
+	treeW = w * 30 / 100
+	if treeW < 20 {
+		treeW = 20
+	}
+	if treeW > 44 {
+		treeW = 44
+	}
+	gridW = w - treeW - 1
+	if gridW < 10 {
+		gridW = 10
+	}
+	return treeW, gridW, bodyH
+}
+
 func (m Model) viewBrowse() string {
 	w, h := m.Width, m.Height
 	if w < 20 || h < 8 {
@@ -240,21 +262,7 @@ func (m Model) viewBrowse() string {
 		return strings.Join(m.renderTreeLines(max(w, 20), max(h, 4)), "\n")
 	}
 
-	bodyH := h - 3 // body + footer + status
-	if bodyH < 1 {
-		bodyH = 1
-	}
-	treeW := w * 30 / 100
-	if treeW < 20 {
-		treeW = 20
-	}
-	if treeW > 44 {
-		treeW = 44
-	}
-	gridW := w - treeW - 1
-	if gridW < 10 {
-		gridW = 10
-	}
+	treeW, gridW, bodyH := m.browseLayout()
 
 	tree := fitHeight(m.renderTreeLines(treeW, bodyH), treeW, bodyH)
 	grid := fitHeight(m.renderGridLines(gridW, bodyH), gridW, bodyH)
