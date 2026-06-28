@@ -3,14 +3,13 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
 	"github.com/jorgerojas26/lazysql/helpers"
 	"github.com/jorgerojas26/lazysql/internal/tui/commands"
+	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
 	"github.com/jorgerojas26/lazysql/models"
 )
@@ -50,9 +49,9 @@ type Model struct {
 	Focus  types.Focus
 	Browse browseState
 
-	// SQL editor (textarea) + autocomplete. EditorContent persists the last
-	// query across opens.
-	EditorArea    textarea.Model
+	// SQL editor + autocomplete. EditorContent persists the last query across
+	// opens.
+	EditorArea    sqlEditor
 	EditorContent string
 	Completer     *sqlmeta.Autocompleter
 	Completions   []sqlmeta.CompletionItem

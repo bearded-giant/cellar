@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
@@ -29,17 +28,9 @@ func editorSize(w, h int) (int, int) {
 	return bw, bh
 }
 
-func newEditorArea(content string, w, h int) textarea.Model {
-	ta := textarea.New()
-	ta.Prompt = "│ "
-	ta.ShowLineNumbers = true
-	ta.CharLimit = 0
-	ta.SetValue(content)
+func newEditorArea(content string, w, h int) sqlEditor {
 	bw, bh := editorSize(w, h)
-	ta.SetWidth(bw)
-	ta.SetHeight(bh)
-	ta.CursorEnd()
-	return ta
+	return newEditor(content, bw, bh)
 }
 
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
@@ -66,12 +57,6 @@ func (m Model) buildCompleter() *sqlmeta.Autocompleter {
 		ac.SetColumns(m.Browse.Label, m.Browse.Columns)
 	}
 	return ac
-}
-
-func (m Model) forwardToEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	m.EditorArea, cmd = m.EditorArea.Update(msg)
-	return m, cmd
 }
 
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -121,20 +106,6 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// textareaCursorOffset returns the rune offset of the cursor within the full
-// editor text (logical column = StartColumn+ColumnOffset; rows split on \n).
-func textareaCursorOffset(ta textarea.Model) int {
-	lines := strings.Split(ta.Value(), "\n")
-	row := ta.Line()
-	li := ta.LineInfo()
-	col := li.StartColumn + li.ColumnOffset
-	off := 0
-	for i := 0; i < row && i < len(lines); i++ {
-		off += len([]rune(lines[i])) + 1 // +1 for the newline
-	}
-	return off + col
-}
-
 func currentPrefix(text string, off int) string {
 	r := []rune(text)
 	if off > len(r) {
@@ -158,7 +129,7 @@ func (m *Model) refreshCompletions() {
 		return
 	}
 	text := m.EditorArea.Value()
-	off := textareaCursorOffset(m.EditorArea)
+	off := m.EditorArea.cursorOffset()
 	if currentPrefix(text, off) == "" {
 		m.CompVisible = false
 		m.Completions = nil
@@ -175,7 +146,7 @@ func (m *Model) acceptCompletion() {
 	}
 	item := m.Completions[m.CompCursor]
 	text := m.EditorArea.Value()
-	off := textareaCursorOffset(m.EditorArea)
+	off := m.EditorArea.cursorOffset()
 	r := []rune(text)
 	if off > len(r) {
 		off = len(r)

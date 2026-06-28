@@ -66,10 +66,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSavedQueriesLoadedMsg(msg)
 	}
 
-	// forward unhandled msgs (e.g. the textarea cursor-blink tick) to the editor
-	if m.Screen == types.ScreenEditor {
-		return m.forwardToEditor(msg)
-	}
 	return m, nil
 }
 

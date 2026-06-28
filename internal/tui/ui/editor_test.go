@@ -63,13 +63,13 @@ func TestEditor_OpenAndClose(t *testing.T) {
 	m := browseModel()
 	m.Width, m.Height = 80, 24
 
-	res, cmd := m.openEditor()
+	res, _ := m.openEditor()
 	m = res.(Model)
 	if m.Screen != types.ScreenEditor {
 		t.Fatal("openEditor should switch to ScreenEditor")
 	}
-	if cmd == nil {
-		t.Error("openEditor should return the textarea Focus cmd (cursor blink)")
+	if !m.EditorArea.focused {
+		t.Error("openEditor should focus the editor")
 	}
 
 	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlQ})
