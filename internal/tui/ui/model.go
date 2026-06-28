@@ -75,6 +75,10 @@ type Model struct {
 	PreviewSQL     []string
 	PreviewCursor  int
 
+	CellViewLines  []string
+	CellViewScroll int
+	CellViewCol    string
+
 	Width  int
 	Height int
 

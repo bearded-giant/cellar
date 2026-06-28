@@ -22,6 +22,9 @@ func (m Model) View() string {
 	if m.Screen == types.ScreenEditor {
 		return m.viewEditor()
 	}
+	if m.Screen == types.ScreenCellView {
+		return m.viewCellView()
+	}
 
 	content := m.getScreenView()
 	status := m.getStatusBar()
@@ -84,6 +87,8 @@ func (m Model) getScreenView() string {
 		return m.viewCommitPreview()
 	case types.ScreenYank:
 		return m.viewYank()
+	case types.ScreenCellView:
+		return m.viewCellView()
 	default:
 		return m.viewConnections()
 	}

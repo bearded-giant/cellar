@@ -204,6 +204,8 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.jumpFK()
 	case "backspace":
 		return m.popCrumb()
+	case "v":
+		return m.openCellView()
 	}
 	return m, nil
 }

@@ -275,7 +275,7 @@ func (m Model) browseFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
-			{"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
+			{"enter", "fk"}, {"v", "view"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
 			{"J", "json"}, {"x", "export"}, {"ctrl+y", "copy"}, {"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "tree"}, {"q", "quit"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
