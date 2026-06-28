@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jorgerojas26/lazysql/drivers"
 	"github.com/jorgerojas26/lazysql/helpers"
 	"github.com/jorgerojas26/lazysql/internal/tui/commands"
 	"github.com/jorgerojas26/lazysql/internal/tui/types"
@@ -31,6 +32,7 @@ type Model struct {
 	DuplicatingFrom   *models.Connection
 	CurrentConn       *models.Connection
 	ActiveTunnel      *helpers.Tunnel
+	ActiveDriver      drivers.Driver
 
 	SSHInputs       []textinput.Model
 	SSHFocusIdx     int
@@ -40,6 +42,9 @@ type Model struct {
 
 	ConfirmType string
 	ConfirmData any
+
+	Focus  types.Focus
+	Browse browseState
 
 	Width  int
 	Height int

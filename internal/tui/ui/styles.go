@@ -12,6 +12,9 @@ var (
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
+	selectedRowStyle = lipgloss.NewStyle().Background(lipgloss.Color("39")).Foreground(lipgloss.Color("0")).Bold(true)
+	headerRowStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+
 	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)
 
 	statsBoxStyle = lipgloss.NewStyle().

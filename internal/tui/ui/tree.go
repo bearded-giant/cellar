@@ -1,0 +1,206 @@
+package ui
+
+import (
+	"sort"
+	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/jorgerojas26/lazysql/internal/tui/types"
+)
+
+type nodeKind int
+
+const (
+	kindDB nodeKind = iota
+	kindGroup
+	kindTable
+)
+
+type treeNode struct {
+	Key      string // unique expand-state key
+	Label    string
+	Kind     nodeKind
+	Depth    int
+	DB       string
+	Group    string // schema, for schema drivers
+	Table    string // schema-qualified ref for table nodes
+	Expanded bool
+	HasKids  bool
+}
+
+const treeKeySep = "\x1f"
+
+// flattenTree turns the loaded database/table maps into the visible, ordered
+// node slice the tree renders and the cursor indexes. Pure — unit tested.
+func flattenTree(b browseState) []treeNode {
+	var nodes []treeNode
+	for _, db := range b.Databases {
+		dbExpanded := b.Expanded[db]
+		nodes = append(nodes, treeNode{
+			Key: db, Label: db, Kind: kindDB, Depth: 0,
+			DB: db, Expanded: dbExpanded, HasKids: true,
+		})
+		if !dbExpanded {
+			continue
+		}
+		groups, loaded := b.TablesByDB[db]
+		if !loaded {
+			continue // table load still in flight
+		}
+
+		if b.UseSchemas {
+			for _, g := range sortedKeys(groups) {
+				gKey := db + treeKeySep + g
+				gExpanded := b.Expanded[gKey]
+				nodes = append(nodes, treeNode{
+					Key: gKey, Label: g, Kind: kindGroup, Depth: 1,
+					DB: db, Group: g, Expanded: gExpanded, HasKids: true,
+				})
+				if !gExpanded {
+					continue
+				}
+				for _, t := range sortedCopy(groups[g]) {
+					nodes = append(nodes, treeNode{
+						Key: gKey + treeKeySep + t, Label: t, Kind: kindTable, Depth: 2,
+						DB: db, Group: g, Table: g + "." + t,
+					})
+				}
+			}
+			continue
+		}
+
+		// flat drivers: collapse all groups (usually one) into a table list
+		var tables []string
+		for _, g := range sortedKeys(groups) {
+			tables = append(tables, groups[g]...)
+		}
+		for _, t := range sortedCopy(tables) {
+			nodes = append(nodes, treeNode{
+				Key: db + treeKeySep + t, Label: t, Kind: kindTable, Depth: 1,
+				DB: db, Table: t,
+			})
+		}
+	}
+	return nodes
+}
+
+func sortedKeys(m map[string][]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func sortedCopy(ss []string) []string {
+	out := append([]string(nil), ss...)
+	sort.Strings(out)
+	return out
+}
+
+func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	n := len(m.Browse.Nodes)
+	switch msg.String() {
+	case "up", "k":
+		if m.Browse.Cursor > 0 {
+			m.Browse.Cursor--
+		}
+	case "down", "j":
+		if m.Browse.Cursor < n-1 {
+			m.Browse.Cursor++
+		}
+	case "g", "home":
+		m.Browse.Cursor = 0
+	case "G", "end":
+		m.Browse.Cursor = max(n-1, 0)
+	case "enter", " ", "right", "l":
+		if n == 0 {
+			return m, nil
+		}
+		node := m.Browse.Nodes[m.Browse.Cursor]
+		switch node.Kind {
+		case kindTable:
+			m.Browse.TableDB = node.DB
+			m.Browse.Table = node.Table
+			m.Browse.Label = node.Label
+			m.Browse.Offset = 0
+			m.Browse.RowCursor = 0
+			m.Browse.ColOffset = 0
+			m.Browse.GridErr = ""
+			m.Browse.GridLoading = true
+			m.Focus = types.FocusGrid
+			return m, m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit)
+		case kindDB:
+			if m.Browse.Expanded[node.Key] {
+				m.Browse.Expanded[node.Key] = false
+				m.rebuildTree()
+				return m, nil
+			}
+			m.Browse.Expanded[node.Key] = true
+			m.rebuildTree()
+			if _, loaded := m.Browse.TablesByDB[node.DB]; !loaded {
+				return m, m.Cmds.LoadTables(m.ActiveDriver, node.DB)
+			}
+		case kindGroup:
+			m.Browse.Expanded[node.Key] = !m.Browse.Expanded[node.Key]
+			m.rebuildTree()
+		}
+	case "left", "h":
+		if n == 0 {
+			return m, nil
+		}
+		node := m.Browse.Nodes[m.Browse.Cursor]
+		if node.HasKids && m.Browse.Expanded[node.Key] {
+			m.Browse.Expanded[node.Key] = false
+			m.rebuildTree()
+		}
+	}
+	if m.Browse.Cursor >= len(m.Browse.Nodes) {
+		m.Browse.Cursor = max(len(m.Browse.Nodes)-1, 0)
+	}
+	return m, nil
+}
+
+func treeIcon(n treeNode) string {
+	if n.Kind == kindTable {
+		return "• "
+	}
+	if n.Expanded {
+		return "▾ "
+	}
+	return "▸ "
+}
+
+func (m Model) renderTreeLines(width, height int) []string {
+	var lines []string
+	add := func(plain string, style func(string) string) {
+		lines = append(lines, style(padRunes(plain, width)))
+	}
+	add("Schema", func(s string) string { return accentStyle.Render(s) })
+
+	if len(m.Browse.Nodes) == 0 {
+		add("(loading…)", func(s string) string { return dimStyle.Render(s) })
+		return lines
+	}
+
+	bodyH := height - 1
+	if bodyH < 1 {
+		bodyH = 1
+	}
+	start, end := visibleWindow(len(m.Browse.Nodes), m.Browse.Cursor, bodyH)
+	for i := start; i < end; i++ {
+		node := m.Browse.Nodes[i]
+		txt := "  " + strings.Repeat("  ", node.Depth) + treeIcon(node) + node.Label
+		switch {
+		case i == m.Browse.Cursor && m.Focus == types.FocusTree:
+			lines = append(lines, selectedRowStyle.Render(padRunes(txt, width)))
+		case i == m.Browse.Cursor:
+			lines = append(lines, accentStyle.Render(padRunes(txt, width)))
+		default:
+			lines = append(lines, normalStyle.Render(padRunes(txt, width)))
+		}
+	}
+	return lines
+}

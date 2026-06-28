@@ -16,6 +16,10 @@ func (m Model) View() string {
 			"Terminal too small.\nResize to at least 50x15.")
 	}
 
+	if m.Screen == types.ScreenBrowse {
+		return m.viewBrowse()
+	}
+
 	content := m.getScreenView()
 	status := m.getStatusBar()
 	fullContent := content + "\n\n" + status
@@ -51,6 +55,8 @@ func (m Model) getScreenView() string {
 		return m.viewTestConnection()
 	case types.ScreenConfirmDelete:
 		return m.viewConfirmDelete()
+	case types.ScreenBrowse:
+		return m.viewBrowse()
 	default:
 		return m.viewConnections()
 	}
@@ -245,6 +251,7 @@ func (m Model) connFooterHelp() string {
 	keybindings := []struct{ key, desc string }{
 		{"↑/↓", "navigate"},
 		{"enter", "connect"},
+		{"b", "browse"},
 		{"t", "test"},
 		{"a", "add"},
 		{"e", "edit"},

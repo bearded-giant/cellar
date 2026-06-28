@@ -32,6 +32,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSSHTestMsg(msg)
 	case types.LazysqlExitedMsg:
 		return m.handleLazysqlExitedMsg(msg)
+	case types.DatabasesLoadedMsg:
+		return m.handleDatabasesLoadedMsg(msg)
+	case types.TablesLoadedMsg:
+		return m.handleTablesLoadedMsg(msg)
+	case types.RecordsLoadedMsg:
+		return m.handleRecordsLoadedMsg(msg)
 	}
 
 	return m, nil
@@ -60,6 +66,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleTestConnectionScreen(msg)
 	case types.ScreenConfirmDelete:
 		return m.handleConfirmDeleteScreen(msg)
+	case types.ScreenBrowse:
+		return m.handleBrowseScreen(msg)
 	}
 	return m, nil
 }
@@ -147,8 +155,18 @@ func (m Model) handleConnectedMsg(msg types.ConnectedMsg) (tea.Model, tea.Cmd) {
 		_ = m.ActiveTunnel.Close()
 	}
 	m.ActiveTunnel = msg.Tunnel
+	m.ActiveDriver = msg.Driver
 	stored := msg.Connection
 	m.CurrentConn = &stored
+
+	if msg.Browse {
+		m.initBrowse(msg.Driver)
+		m.Screen = types.ScreenBrowse
+		m.Focus = types.FocusTree
+		m.StatusMsg = "Connected — " + msg.Connection.Name
+		return m, m.Cmds.LoadDatabases(msg.Driver)
+	}
+
 	m.StatusMsg = "Connected — opening lazysql..."
 	return m, handoffToLazysql(msg.Connection, msg.URL)
 }

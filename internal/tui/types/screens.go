@@ -9,6 +9,7 @@ const (
 	ScreenSSHTunnel
 	ScreenTestConnection
 	ScreenConfirmDelete
+	ScreenBrowse
 )
 
 func (s Screen) String() string {
@@ -19,6 +20,7 @@ func (s Screen) String() string {
 		ScreenSSHTunnel:      "SSH Tunnel",
 		ScreenTestConnection: "Test Connection",
 		ScreenConfirmDelete:  "Confirm Delete",
+		ScreenBrowse:         "Browse",
 	}
 	if name, ok := names[s]; ok {
 		return name

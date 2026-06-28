@@ -3,6 +3,7 @@ package types
 import (
 	"time"
 
+	"github.com/jorgerojas26/lazysql/drivers"
 	"github.com/jorgerojas26/lazysql/helpers"
 	"github.com/jorgerojas26/lazysql/models"
 )
@@ -27,7 +28,12 @@ type ConnectedMsg struct {
 	Connection models.Connection
 	URL        string
 	Tunnel     *helpers.Tunnel
-	Err        error
+	// Driver is the live, validated connection. Browse keeps it (and the tunnel)
+	// open; the hand-off path ignores it and lazysql opens its own.
+	Driver drivers.Driver
+	// Browse routes to the in-app browser instead of the lazysql hand-off.
+	Browse bool
+	Err    error
 }
 
 type TestResultMsg struct {
