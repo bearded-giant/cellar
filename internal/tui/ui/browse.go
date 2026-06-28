@@ -55,6 +55,8 @@ type browseState struct {
 	FKMap  map[string]fkRef // local column -> FK target, for FK jump
 	Crumbs []crumb          // FK-jump breadcrumb stack
 
+	TreeFilter string // case-insensitive substring filter on the schema tree
+
 	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
 	// commit. Editable only for a real table (Table != "", not read-only).
 	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
@@ -270,7 +272,7 @@ func (m Model) browseFooter() string {
 	if m.Focus == types.FocusTree {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"/", "search"}, {"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{

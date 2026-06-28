@@ -33,26 +33,38 @@ const treeKeySep = "\x1f"
 
 // flattenTree turns the loaded database/table maps into the visible, ordered
 // node slice the tree renders and the cursor indexes. Pure — unit tested.
+// When TreeFilter is set, only matching nodes (and their ancestors) appear and
+// matched ancestors are force-expanded.
 func flattenTree(b browseState) []treeNode {
+	filter := strings.ToLower(strings.TrimSpace(b.TreeFilter))
+	filtering := filter != ""
+	match := func(s string) bool { return strings.Contains(strings.ToLower(s), filter) }
+
 	var nodes []treeNode
 	for _, db := range b.Databases {
-		dbExpanded := b.Expanded[db]
+		groups, loaded := b.TablesByDB[db]
+		dbMatches := match(db)
+		if filtering && !dbMatches && !loadedHasMatch(groups, match) {
+			continue
+		}
+		dbExpanded := b.Expanded[db] || (filtering && loaded)
 		nodes = append(nodes, treeNode{
 			Key: db, Label: db, Kind: kindDB, Depth: 0,
 			DB: db, Expanded: dbExpanded, HasKids: true,
 		})
-		if !dbExpanded {
+		if !dbExpanded || !loaded {
 			continue
-		}
-		groups, loaded := b.TablesByDB[db]
-		if !loaded {
-			continue // table load still in flight
 		}
 
 		if b.UseSchemas {
 			for _, g := range sortedKeys(groups) {
+				gMatches := match(g)
+				tableMatch := anyMatch(groups[g], match)
+				if filtering && !dbMatches && !gMatches && !tableMatch {
+					continue
+				}
 				gKey := db + treeKeySep + g
-				gExpanded := b.Expanded[gKey]
+				gExpanded := b.Expanded[gKey] || (filtering && (dbMatches || gMatches || tableMatch))
 				nodes = append(nodes, treeNode{
 					Key: gKey, Label: g, Kind: kindGroup, Depth: 1,
 					DB: db, Group: g, Expanded: gExpanded, HasKids: true,
@@ -61,6 +73,9 @@ func flattenTree(b browseState) []treeNode {
 					continue
 				}
 				for _, t := range sortedCopy(groups[g]) {
+					if filtering && !dbMatches && !gMatches && !match(t) {
+						continue
+					}
 					nodes = append(nodes, treeNode{
 						Key: gKey + treeKeySep + t, Label: t, Kind: kindTable, Depth: 2,
 						DB: db, Group: g, Table: g + "." + t,
@@ -76,6 +91,9 @@ func flattenTree(b browseState) []treeNode {
 			tables = append(tables, groups[g]...)
 		}
 		for _, t := range sortedCopy(tables) {
+			if filtering && !dbMatches && !match(t) {
+				continue
+			}
 			nodes = append(nodes, treeNode{
 				Key: db + treeKeySep + t, Label: t, Kind: kindTable, Depth: 1,
 				DB: db, Table: t,
@@ -83,6 +101,26 @@ func flattenTree(b browseState) []treeNode {
 		}
 	}
 	return nodes
+}
+
+func anyMatch(ss []string, match func(string) bool) bool {
+	for _, s := range ss {
+		if match(s) {
+			return true
+		}
+	}
+	return false
+}
+
+// loadedHasMatch reports whether any group name or table in the loaded map
+// matches (used to decide whether a db should appear under a filter).
+func loadedHasMatch(groups map[string][]string, match func(string) bool) bool {
+	for g, tables := range groups {
+		if match(g) || anyMatch(tables, match) {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedKeys(m map[string][]string) []string {
@@ -103,6 +141,8 @@ func sortedCopy(ss []string) []string {
 func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	n := len(m.Browse.Nodes)
 	switch msg.String() {
+	case "/":
+		return m.openTreeFilter()
 	case "up", "k":
 		if m.Browse.Cursor > 0 {
 			m.Browse.Cursor--
@@ -186,7 +226,11 @@ func (m Model) renderTreeLines(width, height int) []string {
 	add := func(plain string, style func(string) string) {
 		lines = append(lines, style(padRunes(plain, width)))
 	}
-	add("Schema", func(s string) string { return accentStyle.Render(s) })
+	schemaTitle := "Schema"
+	if m.Browse.TreeFilter != "" {
+		schemaTitle += " /" + m.Browse.TreeFilter
+	}
+	add(schemaTitle, func(s string) string { return accentStyle.Render(s) })
 
 	if len(m.Browse.Nodes) == 0 {
 		add("(loading…)", func(s string) string { return dimStyle.Render(s) })

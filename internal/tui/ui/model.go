@@ -59,10 +59,11 @@ type Model struct {
 	CompCursor    int
 	CompVisible   bool
 
-	ExportInput textinput.Model
-	CellInput   textinput.Model
-	FilterInput textinput.Model
-	ExportAll   bool // export modal scope: all rows vs current page
+	ExportInput     textinput.Model
+	CellInput       textinput.Model
+	FilterInput     textinput.Model
+	TreeFilterInput textinput.Model
+	ExportAll       bool // export modal scope: all rows vs current page
 
 	HistoryItems  []models.QueryHistoryItem
 	HistoryCursor int

@@ -41,7 +41,7 @@ func (m Model) View() string {
 		types.ScreenExport, types.ScreenCellEdit, types.ScreenHistory,
 		types.ScreenFilter, types.ScreenSetValue,
 		types.ScreenSaveQuery, types.ScreenSavedQueries, types.ScreenCommitPreview,
-		types.ScreenYank:
+		types.ScreenYank, types.ScreenTreeFilter:
 		vPos = lipgloss.Center
 	}
 
@@ -89,6 +89,8 @@ func (m Model) getScreenView() string {
 		return m.viewYank()
 	case types.ScreenCellView:
 		return m.viewCellView()
+	case types.ScreenTreeFilter:
+		return m.viewTreeFilter()
 	default:
 		return m.viewConnections()
 	}
