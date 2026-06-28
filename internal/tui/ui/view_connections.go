@@ -284,8 +284,8 @@ func (m Model) buildStatsBar() string {
 func (m Model) connFooterHelp() string {
 	keybindings := []struct{ key, desc string }{
 		{"↑/↓", "navigate"},
-		{"enter", "connect"},
-		{"b", "browse"},
+		{"b", "browse here"},
+		{"enter", "open in lazysql"},
 		{"t", "test"},
 		{"a", "add"},
 		{"e", "edit"},
