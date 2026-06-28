@@ -213,8 +213,15 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // pageRecords moves a real table's page window (dir +1/-1). Query results and
 // tables with staged edits do not paginate.
 func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
-	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords {
+	if m.Browse.MetaKind != metaRecords {
 		return m, nil
+	}
+	// query results: page the in-memory rows (no driver round-trip)
+	if m.Browse.Table == "" {
+		if len(m.Browse.QueryRows) == 0 {
+			return m, nil
+		}
+		return m.pageQueryResult(dir), nil
 	}
 	if m.pendingCount() > 0 {
 		m.StatusMsg = "Commit or discard changes before paging"
@@ -228,6 +235,34 @@ func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m.reloadRecords()
+}
+
+func (m Model) pageQueryResult(dir int) tea.Model {
+	limit := m.Browse.Limit
+	switch {
+	case dir > 0 && m.Browse.Offset+limit < m.Browse.Total:
+		m.Browse.Offset += limit
+	case dir < 0 && m.Browse.Offset > 0:
+		m.Browse.Offset = max(m.Browse.Offset-limit, 0)
+	default:
+		return m
+	}
+	m.Browse.Rows = pageOf(m.Browse.QueryRows, m.Browse.Offset, limit)
+	m.Browse.RowCursor = 0
+	m.refreshJSONView()
+	return m
+}
+
+// pageOf returns the [offset, offset+limit) slice of rows, clamped.
+func pageOf(rows [][]string, offset, limit int) [][]string {
+	if offset < 0 || offset >= len(rows) {
+		return nil
+	}
+	end := offset + limit
+	if end > len(rows) {
+		end = len(rows)
+	}
+	return rows[offset:end]
 }
 
 func (m Model) renderGridLines(width, height int) []string {

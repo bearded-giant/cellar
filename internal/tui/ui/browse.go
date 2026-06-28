@@ -57,6 +57,10 @@ type browseState struct {
 
 	TreeFilter string // case-insensitive substring filter on the schema tree
 
+	// QueryRows holds the full in-memory result of a SQL query (ExecuteQuery
+	// returns everything at once); Rows is the visible page. nil for tables.
+	QueryRows [][]string
+
 	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
 	// commit. Editable only for a real table (Table != "", not read-only).
 	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
@@ -89,6 +93,7 @@ func (m *Model) resetPending() {
 	m.Browse.MetaKind = metaRecords
 	m.Browse.FKMap = nil
 	m.Browse.Crumbs = nil
+	m.Browse.QueryRows = nil
 }
 
 // clearStagedEdits drops staged DML but keeps the view (sort/filter/meta) —
@@ -219,6 +224,7 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 		return m, nil
 	}
 	m.Browse.GridErr = ""
+	m.Browse.QueryRows = nil // a real table page, not an in-memory query result
 	m.Browse.Offset = msg.Offset
 	if len(msg.Rows) > 0 {
 		m.Browse.Columns = msg.Rows[0]

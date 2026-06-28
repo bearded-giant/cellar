@@ -211,16 +211,18 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 
 	if msg.IsSelect {
 		m.Browse.Label = "query result"
+		m.Browse.Offset = 0
 		if len(msg.Rows) > 0 {
 			m.Browse.Columns = msg.Rows[0]
-			m.Browse.Rows = msg.Rows[1:]
+			m.Browse.QueryRows = msg.Rows[1:]
 		} else {
 			m.Browse.Columns = nil
-			m.Browse.Rows = nil
+			m.Browse.QueryRows = nil
 		}
-		m.Browse.Total = msg.Total
+		m.Browse.Total = len(m.Browse.QueryRows)
+		m.Browse.Rows = pageOf(m.Browse.QueryRows, 0, m.Browse.Limit) // paged in-memory
 		m.refreshJSONView()
-		m.StatusMsg = fmt.Sprintf("Query OK — %d rows", msg.Total)
+		m.StatusMsg = fmt.Sprintf("Query OK — %d rows", m.Browse.Total)
 		return m, nil
 	}
 
