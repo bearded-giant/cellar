@@ -195,39 +195,9 @@ func (m Model) discardPending() (tea.Model, tea.Cmd) {
 	if m.pendingCount() == 0 {
 		return m, nil
 	}
-	m.resetPending()
+	m.clearStagedEdits() // keep the view (sort/filter), drop staged edits only
 	m.StatusMsg = "Discarded pending changes"
 	return m, nil
-}
-
-func (m Model) openCommitConfirm() (tea.Model, tea.Cmd) {
-	if !m.editable() {
-		return m, nil
-	}
-	if m.readOnly() {
-		m.StatusMsg = "Cannot save changes: Connection is in read-only mode"
-		return m, nil
-	}
-	if m.pendingCount() == 0 {
-		m.StatusMsg = "No pending changes"
-		return m, nil
-	}
-	m.ConfirmType = "commit_dml"
-	m.ConfirmReturnScreen = types.ScreenBrowse
-	m.Screen = types.ScreenConfirmDelete
-	return m, nil
-}
-
-func (m Model) commitChanges() (tea.Model, tea.Cmd) {
-	m.Screen = types.ScreenBrowse
-	changes := buildDMLChanges(m.Browse.TableDB, m.Browse.Table, m.Browse.Columns,
-		m.Browse.Rows, m.Browse.PkColumns, m.Browse.Edited, m.Browse.Deleted, m.Browse.Inserts)
-	if len(changes) == 0 {
-		return m, nil
-	}
-	m.Browse.GridLoading = true
-	m.StatusMsg = "Committing..."
-	return m, m.Cmds.CommitChanges(m.ActiveDriver, changes, m.connIdent())
 }
 
 func (m Model) handleChangesCommittedMsg(msg types.ChangesCommittedMsg) (tea.Model, tea.Cmd) {

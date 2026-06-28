@@ -71,6 +71,10 @@ type Model struct {
 	SavedItems    []models.SavedQuery
 	SavedCursor   int
 
+	PreviewChanges []models.DBDMLChange
+	PreviewSQL     []string
+	PreviewCursor  int
+
 	Width  int
 	Height int
 

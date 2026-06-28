@@ -191,7 +191,7 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "o":
 		return m.appendInsertRow()
 	case "ctrl+s":
-		return m.openCommitConfirm()
+		return m.openCommitPreview()
 	case "u":
 		return m.discardPending()
 	case "s":

@@ -37,7 +37,7 @@ func (m Model) View() string {
 		types.ScreenSSHTunnel, types.ScreenTestConnection, types.ScreenConfirmDelete,
 		types.ScreenExport, types.ScreenCellEdit, types.ScreenHistory,
 		types.ScreenFilter, types.ScreenSetValue,
-		types.ScreenSaveQuery, types.ScreenSavedQueries:
+		types.ScreenSaveQuery, types.ScreenSavedQueries, types.ScreenCommitPreview:
 		vPos = lipgloss.Center
 	}
 
@@ -79,6 +79,8 @@ func (m Model) getScreenView() string {
 		return m.viewSaveQuery()
 	case types.ScreenSavedQueries:
 		return m.viewSavedQueries()
+	case types.ScreenCommitPreview:
+		return m.viewCommitPreview()
 	default:
 		return m.viewConnections()
 	}
@@ -442,13 +444,10 @@ func (m Model) viewConfirmDelete() string {
 	b.WriteString(warningStyle.Render("Confirm Delete"))
 	b.WriteString("\n\n")
 
-	switch m.ConfirmType {
-	case "connection":
+	if m.ConfirmType == "connection" {
 		if conn, ok := m.ConfirmData.(models.Connection); ok {
 			b.WriteString(normalStyle.Render(fmt.Sprintf("Delete connection '%s'?", conn.Name)))
 		}
-	case "commit_dml":
-		b.WriteString(normalStyle.Render(fmt.Sprintf("Execute %d pending change(s)?", m.pendingCount())))
 	}
 
 	b.WriteString("\n\n")
