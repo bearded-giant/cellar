@@ -202,12 +202,41 @@ func (m *Model) acceptCompletion() {
 		off = len(r)
 	}
 	start := off - len([]rune(currentPrefix(text, off)))
-	newText := string(r[:start]) + item.Text + string(r[off:])
+	insert := item.Text
+	// quote case-sensitive / special identifiers for the dialect (Postgres
+	// "Product", MySQL `Product`); plain snake_case stays bare.
+	if (item.Description == "table" || item.Description == "column") &&
+		m.ActiveDriver != nil && needsQuoting(item.Text) {
+		insert = m.ActiveDriver.FormatReference(item.Text)
+	}
+	newText := string(r[:start]) + insert + string(r[off:])
 	m.EditorArea.pushUndo()
 	m.EditorArea.SetValue(newText)
 	m.EditorArea.CursorEnd()
 	m.CompVisible = false
 	m.Completions = nil
+}
+
+// needsQuoting reports whether an identifier must be quoted to survive a
+// case-folding dialect: anything with an uppercase letter, a leading digit, or
+// a character outside [a-z0-9_].
+func needsQuoting(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r == '_':
+			continue
+		case r >= '0' && r <= '9':
+			if i == 0 {
+				return true
+			}
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, tea.Cmd) {
