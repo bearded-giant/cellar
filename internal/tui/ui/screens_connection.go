@@ -242,14 +242,17 @@ func (m Model) handleConfirmDeleteScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	switch msg.String() {
 	case "y", "Y", "enter":
-		if m.ConfirmType == "connection" {
+		switch m.ConfirmType {
+		case "connection":
 			if conn, ok := m.ConfirmData.(models.Connection); ok {
 				m.Loading = true
 				return m, m.Cmds.DeleteConnection(conn.Name, m.Connections)
 			}
+		case "disconnect":
+			return m.disconnectBrowse()
 		}
 		m.Screen = cancelScreen
-	case "n", "N", "esc":
+	case "n", "N", "esc", "q":
 		m.Screen = cancelScreen
 	}
 	return m, nil

@@ -135,13 +135,18 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
-		// back one level: exit an inspect/meta view to the table first, else disconnect
+		// back one level: exit an inspect/meta view to the table first; a
+		// grid-focused table backs out to the tree; only the tree confirms disconnect
 		if m.Focus == types.FocusGrid && m.Browse.MetaKind != metaRecords {
 			m.Browse.MetaKind = metaRecords
 			m.Browse.GridLoading = true
 			return m.reloadRecords()
 		}
-		return m.disconnectBrowse()
+		if m.Focus == types.FocusGrid {
+			m.Focus = types.FocusTree
+			return m, nil
+		}
+		return m.confirmDisconnect()
 	case "e":
 		return m.openEditor()
 	case "x":
@@ -160,7 +165,7 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.switchTab(+1)
 	case "[":
 		return m.switchTab(-1)
-	case "ctrl+w":
+	case "X":
 		return m.closeTab()
 	case "tab":
 		if m.Focus == types.FocusTree {
@@ -174,6 +179,18 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleBrowseGridKey(msg)
 	}
 	return m.handleBrowseTreeKey(msg)
+}
+
+// confirmDisconnect opens a confirm modal before tearing down the connection,
+// so an accidental back-out doesn't drop you to the connections list.
+func (m Model) confirmDisconnect() (tea.Model, tea.Cmd) {
+	if m.ActiveDriver == nil && m.ActiveTunnel == nil {
+		return m, nil // not connected; nothing to confirm
+	}
+	m.ConfirmType = "disconnect"
+	m.ConfirmReturnScreen = m.Screen
+	m.Screen = types.ScreenConfirmDelete
+	return m, nil
 }
 
 // disconnectBrowse closes the live tunnel (which severs the driver pool's
@@ -309,28 +326,32 @@ func (m Model) viewBrowse() string {
 }
 
 func (m Model) browseFooter() string {
-	var kb []struct{ key, desc string }
-	if m.Focus == types.FocusTree {
-		kb = []struct{ key, desc string }{
-			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"?", "help"}, {"q", "back"},
+	type kbd = struct{ key, desc string }
+	var kb []kbd
+	switch {
+	case m.Focus == types.FocusTree:
+		kb = []kbd{
+			{"↑/↓", "nav"}, {"→/enter", "open"}, {"←", "collapse"},
+			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"?", "help"}, {"q", "disconnect"},
 		}
-	} else {
-		kb = []struct{ key, desc string }{
-			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
-			{"enter", "fk"}, {"v", "view"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "tree"}, {"q", "back"},
+	case len(m.Browse.Columns) == 0:
+		// grid focused but nothing loaded — only the cross-pane actions apply
+		kb = []kbd{
+			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"?", "help"}, {"q", "tree"},
+		}
+	default:
+		kb = []kbd{
+			{"↑/↓/←/→", "move"}, {"c/C", "edit/null"}, {"o/d", "add/del"}, {"ctrl+s", "commit"},
+			{"enter", "fk"}, {"v", "cell"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
+			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
-			kb = append(kb, struct{ key, desc string }{"⌫", "back"})
+			kb = append(kb, kbd{"⌫", "fk-back"})
 		}
 	}
-	kb = append(kb, struct{ key, desc string }{"T", "new tab"})
+	kb = append(kb, kbd{"T", "new tab"})
 	if len(m.Tabs) > 1 {
-		kb = append(kb,
-			struct{ key, desc string }{"]/[", "switch"},
-			struct{ key, desc string }{"ctrl+w", "close"},
-		)
+		kb = append(kb, kbd{"]/[", "switch"}, kbd{"X", "close tab"})
 	}
 	var b strings.Builder
 	for i, k := range kb {

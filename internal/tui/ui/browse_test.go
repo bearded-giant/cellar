@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -252,20 +253,34 @@ func TestRecordsLoadedMsg_SplitsHeaderAndStaleDrop(t *testing.T) {
 
 func TestBrowseScreen_TabAndDisconnect(t *testing.T) {
 	m := browseModel()
+	m.ActiveDriver = &drivers.SQLite{} // a live connection, so disconnect confirms
 	m.Focus = types.FocusTree
 
 	res, _ := m.handleBrowseScreen(tea.KeyMsg{Type: tea.KeyTab})
-	if res.(Model).Focus != types.FocusGrid {
+	m = res.(Model)
+	if m.Focus != types.FocusGrid {
 		t.Error("tab should toggle focus tree -> grid")
 	}
 
-	res2, _ := m.handleBrowseScreen(keyMsg('q'))
-	dm := res2.(Model)
-	if dm.Screen != types.ScreenConnections {
-		t.Error("q should disconnect back to the connections list")
+	// q from a grid-focused table backs out to the tree (does not disconnect)
+	res, _ = m.handleBrowseScreen(keyMsg('q'))
+	m = res.(Model)
+	if m.Focus != types.FocusTree || m.Screen != types.ScreenBrowse {
+		t.Errorf("q from grid should return to the tree, got focus=%v screen=%v", m.Focus, m.Screen)
 	}
-	if dm.ActiveDriver != nil {
-		t.Error("disconnect should drop the active driver")
+
+	// q from the tree opens a disconnect confirmation, not an immediate disconnect
+	res, _ = m.handleBrowseScreen(keyMsg('q'))
+	m = res.(Model)
+	if m.Screen != types.ScreenConfirmDelete || m.ConfirmType != "disconnect" {
+		t.Fatalf("q from tree should confirm disconnect, got screen=%v type=%q", m.Screen, m.ConfirmType)
+	}
+
+	// confirming tears the connection down
+	res, _ = m.handleConfirmDeleteScreen(keyMsg('y'))
+	m = res.(Model)
+	if m.Screen != types.ScreenConnections || m.ActiveDriver != nil {
+		t.Errorf("confirming should disconnect to the list, got screen=%v driver=%v", m.Screen, m.ActiveDriver)
 	}
 }
 

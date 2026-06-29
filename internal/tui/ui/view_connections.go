@@ -460,17 +460,26 @@ func (m Model) viewConfirmDelete() string {
 	var b strings.Builder
 	warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
 
-	b.WriteString(warningStyle.Render("Confirm Delete"))
-	b.WriteString("\n\n")
-
-	if m.ConfirmType == "connection" {
+	title, msg := "Confirm Delete", ""
+	switch m.ConfirmType {
+	case "connection":
 		if conn, ok := m.ConfirmData.(models.Connection); ok {
-			b.WriteString(normalStyle.Render(fmt.Sprintf("Delete connection '%s'?", conn.Name)))
+			msg = fmt.Sprintf("Delete connection '%s'?", conn.Name)
 		}
+	case "disconnect":
+		title = "Disconnect"
+		name := ""
+		if m.CurrentConn != nil {
+			name = m.CurrentConn.Name
+		}
+		msg = fmt.Sprintf("Disconnect from '%s'?", name)
 	}
 
+	b.WriteString(warningStyle.Render(title))
 	b.WriteString("\n\n")
-	b.WriteString(helpStyle.Render("[y] confirm  [n/esc] cancel"))
+	b.WriteString(normalStyle.Render(msg))
+	b.WriteString("\n\n")
+	b.WriteString(helpStyle.Render("[y] confirm  [n/esc/q] cancel"))
 
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

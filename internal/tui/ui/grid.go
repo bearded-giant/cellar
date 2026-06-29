@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 const maxCellWidth = 40
@@ -167,9 +169,12 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Browse.RowCursor++
 		}
 	case "left", "h":
-		if !m.Browse.ViewJSON && m.Browse.ColCursor > 0 {
-			m.Browse.ColCursor--
+		// at the left edge (or in JSON view) back out to the schema tree
+		if m.Browse.ViewJSON || m.Browse.ColCursor == 0 {
+			m.Focus = types.FocusTree
+			return m, nil
 		}
+		m.Browse.ColCursor--
 	case "right", "l":
 		if !m.Browse.ViewJSON && m.Browse.ColCursor < len(m.Browse.Columns)-1 {
 			m.Browse.ColCursor++

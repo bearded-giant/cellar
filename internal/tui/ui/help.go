@@ -29,8 +29,8 @@ func (m Model) viewHelp() string {
 		rows  [][2]string
 	}{
 		{"Navigation", [][2]string{
-			{"q / esc", "back one level (never quits)"},
-			{"ctrl+q", "disconnect → connections"},
+			{"q / esc / ←", "back one level (grid → tree → confirm disconnect)"},
+			{"ctrl+q", "disconnect (confirmed)"},
 			{"ctrl+c", "quit cellar"},
 			{"? / ctrl+g", "this help"},
 		}},
@@ -71,7 +71,7 @@ func (m Model) viewHelp() string {
 		{"Tabs", [][2]string{
 			{"T", "open selected table in new tab"},
 			{"] / [", "next / prev tab"},
-			{"ctrl+w", "close tab"},
+			{"X", "close tab"},
 		}},
 		{"Global", [][2]string{
 			{"?", "toggle this help"},

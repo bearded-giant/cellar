@@ -83,9 +83,9 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		return m, tea.Quit // exit the program
 	case "ctrl+q":
-		// disconnect the live connection from anywhere; no-op at the list
+		// disconnect the live connection from anywhere (confirmed); no-op at the list
 		if m.ActiveDriver != nil || m.ActiveTunnel != nil {
-			return m.disconnectBrowse()
+			return m.confirmDisconnect()
 		}
 		return m, nil
 	case "ctrl+g":
