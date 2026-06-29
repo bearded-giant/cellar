@@ -32,7 +32,7 @@ func (m Model) viewHelp() string {
 			{"q / esc", "back one level (never quits)"},
 			{"ctrl+q", "disconnect → connections"},
 			{"ctrl+c", "quit cellar"},
-			{"? / F1", "this help"},
+			{"? / ctrl+g", "this help"},
 		}},
 		{"Connections", [][2]string{
 			{"enter / b", "open (in-app browse)"},

@@ -86,7 +86,7 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.disconnectBrowse()
 		}
 		return m, nil
-	case "f1":
+	case "ctrl+g":
 		return m.openHelp() // help is reachable everywhere, incl. the editor text box
 	}
 

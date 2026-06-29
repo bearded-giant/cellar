@@ -352,7 +352,7 @@ func (m Model) editorFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
-			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"f1", "help"}, {"esc", "back"},
+			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"ctrl+g", "help"}, {"esc", "back"},
 		}
 	}
 	var b strings.Builder
