@@ -51,16 +51,7 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.SelectedConnIdx++
 			m.ConnectionError = ""
 		}
-	case "enter":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			conn := m.Connections[m.SelectedConnIdx]
-			m.CurrentConn = &conn
-			m.Loading = true
-			m.StatusMsg = "Connecting..."
-			m.ConnectionError = ""
-			return m, m.Cmds.Connect(conn, false)
-		}
-	case "b":
+	case "enter", "b":
 		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
 			conn := m.Connections[m.SelectedConnIdx]
 			m.CurrentConn = &conn
@@ -68,6 +59,17 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.StatusMsg = "Connecting..."
 			m.ConnectionError = ""
 			return m, m.Cmds.Connect(conn, true)
+		}
+	case "L":
+		// legacy fallback: hand off to the tview lazysql binary until in-app
+		// browse is validated for daily use.
+		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
+			conn := m.Connections[m.SelectedConnIdx]
+			m.CurrentConn = &conn
+			m.Loading = true
+			m.StatusMsg = "Connecting..."
+			m.ConnectionError = ""
+			return m, m.Cmds.Connect(conn, false)
 		}
 	case "t":
 		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
