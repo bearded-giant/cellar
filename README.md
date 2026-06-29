@@ -104,7 +104,7 @@ Press `?` anywhere for the full keymap. The essentials:
 
 ## Credits
 
-The database drivers and the original project come from [jorgerojas26/lazysql](https://github.com/jorgerojas26/lazysql) (MIT). The interface here is a ground-up rewrite on [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+Inspired by [jorgerojas26/lazysql](https://github.com/jorgerojas26/lazysql). Built on [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
 ## License
 
