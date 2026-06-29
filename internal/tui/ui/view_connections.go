@@ -28,6 +28,12 @@ func (m Model) View() string {
 	if m.Screen == types.ScreenHelp {
 		return m.renderModal(m.viewHelp())
 	}
+	if m.Connecting {
+		body := m.Spinner.View() + accentStyle.Render(" Connecting") + "\n\n" +
+			normalStyle.Render(m.ConnectingTo) + "\n\n" +
+			dimStyle.Render("opening the tunnel + database…")
+		return m.renderModal(body)
+	}
 
 	content := m.getScreenView()
 	status := m.getStatusBar()

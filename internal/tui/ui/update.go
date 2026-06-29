@@ -3,6 +3,7 @@ package ui
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -25,6 +26,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		return m.handleMouse(msg)
+
+	case spinner.TickMsg:
+		if !m.Connecting {
+			return m, nil // stop ticking once the connection resolves
+		}
+		var cmd tea.Cmd
+		m.Spinner, cmd = m.Spinner.Update(msg)
+		return m, cmd
 
 	case types.ConnectionsLoadedMsg:
 		return m.handleConnectionsLoadedMsg(msg)
@@ -195,6 +204,7 @@ func (m Model) handleConnectionDeletedMsg(msg types.ConnectionDeletedMsg) (tea.M
 
 func (m Model) handleConnectedMsg(msg types.ConnectedMsg) (tea.Model, tea.Cmd) {
 	m.Loading = false
+	m.Connecting = false
 	if msg.Err != nil {
 		m.ConnectionError = formatConnectError(msg.Err)
 		m.StatusMsg = "Error: connection failed"

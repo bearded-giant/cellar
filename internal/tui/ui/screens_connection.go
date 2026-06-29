@@ -56,9 +56,11 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			conn := m.Connections[m.SelectedConnIdx]
 			m.CurrentConn = &conn
 			m.Loading = true
+			m.Connecting = true
+			m.ConnectingTo = conn.Name
 			m.StatusMsg = "Connecting..."
 			m.ConnectionError = ""
-			return m, m.Cmds.Connect(conn)
+			return m, tea.Batch(m.Cmds.Connect(conn), m.Spinner.Tick)
 		}
 	case "t":
 		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {

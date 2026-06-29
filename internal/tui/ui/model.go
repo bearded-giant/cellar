@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -97,6 +98,12 @@ type Model struct {
 	ConnectionError string
 	TestResult      string
 
+	// Connecting drives the centered "Connecting…" modal + spinner while a
+	// connection is being established; cleared when ConnectedMsg lands.
+	Connecting   bool
+	ConnectingTo string
+	Spinner      spinner.Model
+
 	SendFunc *func(tea.Msg)
 }
 
@@ -109,12 +116,16 @@ const (
 )
 
 func New(cmds *commands.Commands) Model {
+	sp := spinner.New()
+	sp.Spinner = spinner.Dot
+	sp.Style = accentStyle
 	return Model{
 		Cmds:        cmds,
 		Screen:      types.ScreenConnections,
 		Connections: []models.Connection{},
 		ConnInputs:  createConnectionInputs(),
 		SSHInputs:   createSSHInputs(),
+		Spinner:     sp,
 	}
 }
 
