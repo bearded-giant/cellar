@@ -5,7 +5,7 @@ import "testing"
 func TestTabs_NewTabIsolatesGridSharesTree(t *testing.T) {
 	m := browseModel()
 	m.Browse.Label = "t0"
-	m.Browse.Edited[[2]int{0, 0}] = "x" // pending edit on tab 0
+	m.Browse.Where = "WHERE id = 1" // per-tab grid state on tab 0
 
 	res, _ := m.openSelectedInNewTab() // empty tree -> blank new tab
 	m = res.(Model)
@@ -13,8 +13,8 @@ func TestTabs_NewTabIsolatesGridSharesTree(t *testing.T) {
 	if len(m.Tabs) != 2 || m.TabActive != 1 {
 		t.Fatalf("after new tab: len=%d active=%d, want 2/1", len(m.Tabs), m.TabActive)
 	}
-	if len(m.Browse.Edited) != 0 {
-		t.Errorf("new tab must start with empty DML state, got %v", m.Browse.Edited)
+	if m.Browse.Where != "" {
+		t.Errorf("new tab must start with fresh grid state, got Where=%q", m.Browse.Where)
 	}
 
 	// tree maps are shared by reference across tabs
@@ -26,8 +26,8 @@ func TestTabs_NewTabIsolatesGridSharesTree(t *testing.T) {
 	if m.TabActive != 0 || m.Browse.Label != "t0" {
 		t.Fatalf("switch back: active=%d label=%q, want 0/t0", m.TabActive, m.Browse.Label)
 	}
-	if m.Browse.Edited[[2]int{0, 0}] != "x" {
-		t.Error("tab 0 pending edit lost across switch")
+	if m.Browse.Where != "WHERE id = 1" {
+		t.Error("tab 0 per-tab grid state lost across switch")
 	}
 	if !m.Browse.Expanded["db1"] {
 		t.Error("tree expansion should be shared across tabs")

@@ -61,8 +61,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleExportDoneMsg(msg)
 	case types.PrimaryKeyLoadedMsg:
 		return m.handlePrimaryKeyLoadedMsg(msg)
-	case types.ChangesCommittedMsg:
-		return m.handleChangesCommittedMsg(msg)
 	case types.HistoryLoadedMsg:
 		return m.handleHistoryLoadedMsg(msg)
 	case types.MetaLoadedMsg:
@@ -111,20 +109,14 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleEditorScreen(msg)
 	case types.ScreenExport:
 		return m.handleExportScreen(msg)
-	case types.ScreenCellEdit:
-		return m.handleCellEditScreen(msg)
 	case types.ScreenHistory:
 		return m.handleHistoryScreen(msg)
 	case types.ScreenFilter:
 		return m.handleFilterScreen(msg)
-	case types.ScreenSetValue:
-		return m.handleSetValueScreen(msg)
 	case types.ScreenSaveQuery:
 		return m.handleSaveQueryScreen(msg)
 	case types.ScreenSavedQueries:
 		return m.handleSavedQueriesScreen(msg)
-	case types.ScreenCommitPreview:
-		return m.handleCommitPreviewScreen(msg)
 	case types.ScreenYank:
 		return m.handleYankScreen(msg)
 	case types.ScreenCellView:

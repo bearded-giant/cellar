@@ -63,11 +63,6 @@ type PrimaryKeyLoadedMsg struct {
 	Err     error
 }
 
-type ChangesCommittedMsg struct {
-	Count int
-	Err   error
-}
-
 type MetaLoadedMsg struct {
 	Kind int
 	Rows [][]string

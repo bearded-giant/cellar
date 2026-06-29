@@ -12,13 +12,10 @@ const (
 	ScreenBrowse
 	ScreenEditor
 	ScreenExport
-	ScreenCellEdit
 	ScreenHistory
 	ScreenFilter
-	ScreenSetValue
 	ScreenSaveQuery
 	ScreenSavedQueries
-	ScreenCommitPreview
 	ScreenYank
 	ScreenCellView
 	ScreenTreeFilter
@@ -36,13 +33,10 @@ func (s Screen) String() string {
 		ScreenBrowse:         "Browse",
 		ScreenEditor:         "SQL Editor",
 		ScreenExport:         "Export",
-		ScreenCellEdit:       "Edit Cell",
 		ScreenHistory:        "Query History",
 		ScreenFilter:         "Filter",
-		ScreenSetValue:       "Set Value",
 		ScreenSaveQuery:      "Save Query",
 		ScreenSavedQueries:   "Saved Queries",
-		ScreenCommitPreview:  "Commit Preview",
 		ScreenYank:           "Copy",
 		ScreenCellView:       "Cell",
 		ScreenTreeFilter:     "Filter Tree",

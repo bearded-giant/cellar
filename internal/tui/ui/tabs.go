@@ -34,8 +34,6 @@ func (m Model) freshTab() browseState {
 		Cursor:     b.Cursor,
 		TreeFilter: b.TreeFilter,
 		Limit:      browsePageSize,
-		Edited:     map[[2]int]string{},
-		Deleted:    map[int]bool{},
 		MetaKind:   metaRecords,
 	}
 }

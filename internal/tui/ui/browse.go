@@ -60,13 +60,6 @@ type browseState struct {
 	// QueryRows holds the full in-memory result of a SQL query (ExecuteQuery
 	// returns everything at once); Rows is the visible page. nil for tables.
 	QueryRows [][]string
-
-	// Pending DML state. Maps auto-merge edits; []DBDMLChange is synthesized at
-	// commit. Editable only for a real table (Table != "", not read-only).
-	EditCol int               // column being edited via ScreenCellEdit (row = RowCursor)
-	Edited  map[[2]int]string // (rowIndex,colIndex) -> new value, existing rows
-	Deleted map[int]bool      // existing-row index -> staged delete
-	Inserts [][]insertCell    // appended new rows (rendered after Rows)
 }
 
 func (m *Model) initBrowse(driver drivers.Driver) {
@@ -79,17 +72,14 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 		TablesByDB: map[string]map[string][]string{},
 		Expanded:   map[string]bool{},
 		Limit:      browsePageSize,
-		Edited:     map[[2]int]string{},
-		Deleted:    map[int]bool{},
 	}
 	m.Tabs = []browseState{m.Browse}
 	m.TabActive = 0
 	m.GridReturnScreen = types.ScreenBrowse
 }
 
-// resetPending clears staged DML state (on table switch or after commit).
+// resetPending resets the per-table view state (on table switch / FK jump).
 func (m *Model) resetPending() {
-	m.clearStagedEdits()
 	m.Browse.ColCursor = 0
 	m.Browse.Sort = ""
 	m.Browse.Where = ""
@@ -97,14 +87,6 @@ func (m *Model) resetPending() {
 	m.Browse.FKMap = nil
 	m.Browse.Crumbs = nil
 	m.Browse.QueryRows = nil
-}
-
-// clearStagedEdits drops staged DML but keeps the view (sort/filter/meta) —
-// used after a successful commit so the reload stays in context.
-func (m *Model) clearStagedEdits() {
-	m.Browse.Edited = map[[2]int]string{}
-	m.Browse.Deleted = map[int]bool{}
-	m.Browse.Inserts = nil
 }
 
 // connIdent is the per-connection key for query history (the connection name).
@@ -340,12 +322,11 @@ func (m Model) browseFooter() string {
 			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"?", "help"}, {"q", "tree"},
 		}
 	default:
-		// table preview: paged viewing + cell/row ops only. export/json operate on
-		// all rows and are gated to query results (run a LIMIT'd query via e).
+		// table preview: read + navigate. d/o generate DELETE/INSERT SQL into the
+		// editor (run there); no in-grid editing. export/json are query-only.
 		kb = []kbd{
-			{"↑/↓/←/→", "move"}, {"c/C", "edit/null"}, {"o/d", "add/del"}, {"ctrl+s", "commit"},
-			{"enter", "fk"}, {"v", "cell"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"y", "copy"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
+			{"↑/↓/←/→", "move"}, {"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
+			{"v", "cell"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, kbd{"⌫", "fk-back"})

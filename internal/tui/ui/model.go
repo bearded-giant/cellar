@@ -72,7 +72,6 @@ type Model struct {
 	EditorColsLoaded map[string]bool
 
 	ExportInput     textinput.Model
-	CellInput       textinput.Model
 	FilterInput     textinput.Model
 	TreeFilterInput textinput.Model
 
@@ -82,10 +81,6 @@ type Model struct {
 	SaveNameInput textinput.Model
 	SavedItems    []models.SavedQuery
 	SavedCursor   int
-
-	PreviewChanges []models.DBDMLChange
-	PreviewSQL     []string
-	PreviewCursor  int
 
 	CellViewLines  []string
 	CellViewScroll int

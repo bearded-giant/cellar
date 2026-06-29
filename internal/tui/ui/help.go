@@ -47,22 +47,20 @@ func (m Model) viewHelp() string {
 			{"g / G", "top / bottom"},
 			{"tab", "focus grid"},
 		}},
-		{"Results grid", [][2]string{
-			{"←/→  h/l", "select column"},
+		{"Table view", [][2]string{
+			{"←/→  h/l", "select column (← at edge → tree)"},
 			{"↑/↓  j/k", "move row"},
 			{"n / p", "page next / prev"},
-			{"c / C", "edit cell / set NULL·EMPTY·DEFAULT"},
-			{"o / d", "add row / toggle delete"},
-			{"ctrl+s / u", "commit / discard"},
 			{"s / / / i", "sort / filter / meta views"},
 			{"enter / ⌫", "FK jump / back"},
 			{"v", "cell view"},
 			{"y", "copy (cell / row)"},
+			{"d / o", "DELETE / INSERT SQL → editor (review + run)"},
 			{"H / Y", "history / saved queries"},
 		}},
 		{"Query results only", [][2]string{
 			{"x / J", "export / JSON view (bounded by your LIMIT)"},
-			{"", "disabled on table previews — can be millions of rows"},
+			{"", "disabled on table views — can be millions of rows"},
 		}},
 		{"Query workspace (e)", [][2]string{
 			{"ctrl+r", "run query (ctrl+enter on some terminals)"},

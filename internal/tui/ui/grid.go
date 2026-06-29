@@ -193,18 +193,10 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.pageRecords(+1)
 	case "p", "ctrl+b", "pgup":
 		return m.pageRecords(-1)
-	case "c":
-		return m.openCellEdit()
-	case "C":
-		return m.openSetValue()
 	case "d":
-		return m.toggleDeleteRow()
+		return m.generateDelete()
 	case "o":
-		return m.appendInsertRow()
-	case "ctrl+s":
-		return m.openCommitPreview()
-	case "u":
-		return m.discardPending()
+		return m.generateInsert()
 	case "s":
 		return m.cycleSort()
 	case "/":
@@ -233,10 +225,6 @@ func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.pageQueryResult(dir), nil
-	}
-	if m.pendingCount() > 0 {
-		m.StatusMsg = "Commit or discard changes before paging"
-		return m, nil
 	}
 	if dir > 0 && m.Browse.Offset+m.Browse.Limit < m.Browse.Total {
 		m.Browse.Offset += m.Browse.Limit
@@ -358,9 +346,6 @@ func (m Model) renderGridLines(width, height int, showTitle bool) []string {
 	}
 	status := fmt.Sprintf("rows %d-%d of %d   cols %d-%d/%d",
 		from, to, m.Browse.Total, cs+1, ce, len(m.Browse.Columns))
-	if n := m.pendingCount(); n > 0 {
-		status += fmt.Sprintf("   %d pending (ctrl+s commit · u discard)", n)
-	}
 	add(status, dim)
 	return lines
 }

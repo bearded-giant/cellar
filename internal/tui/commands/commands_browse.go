@@ -10,7 +10,6 @@ import (
 	"github.com/bearded-giant/cellar/internal/history"
 	"github.com/bearded-giant/cellar/internal/saved"
 	"github.com/bearded-giant/cellar/internal/tui/types"
-	"github.com/bearded-giant/cellar/models"
 )
 
 func recordHistory(connIdent, query string) {
@@ -141,25 +140,6 @@ func (c *Commands) LoadPrimaryKey(driver drivers.Driver, db, table string) tea.C
 		}
 		cols, err := driver.GetPrimaryKeyColumnNames(db, table)
 		return types.PrimaryKeyLoadedMsg{Table: table, Columns: cols, Err: err}
-	}
-}
-
-// CommitChanges applies staged DML changes in one transaction, then records
-// each committed statement to query history (best-effort).
-func (c *Commands) CommitChanges(driver drivers.Driver, changes []models.DBDMLChange, connIdent string) tea.Cmd {
-	return func() tea.Msg {
-		if driver == nil {
-			return types.ChangesCommittedMsg{}
-		}
-		if err := driver.ExecutePendingChanges(changes); err != nil {
-			return types.ChangesCommittedMsg{Err: err}
-		}
-		for _, ch := range changes {
-			if q, err := driver.DMLChangeToQueryString(ch); err == nil {
-				recordHistory(connIdent, q)
-			}
-		}
-		return types.ChangesCommittedMsg{Count: len(changes)}
 	}
 }
 

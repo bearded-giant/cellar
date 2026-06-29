@@ -2,87 +2,23 @@ package ui
 
 import (
 	"fmt"
-	"sort"
+	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
-	"github.com/bearded-giant/cellar/models"
 )
 
-const readOnlyEditMsg = "Cannot modify data: Connection is in read-only mode"
+func (b browseState) gridRowCount() int { return len(b.Rows) }
 
-// insertCell is one cell of a staged INSERT row. typ selects the value kind:
-// Default (untouched -> DB default), String (literal), Null, or Empty.
-type insertCell struct {
-	val string
-	typ models.CellValueType
-}
-
-func insertCellDisplay(c insertCell) string {
-	switch c.typ {
-	case models.Default:
-		return "DEFAULT"
-	case models.Null:
-		return "NULL"
-	case models.Empty:
-		return ""
-	default:
-		return c.val
-	}
-}
-
-func (b browseState) gridRowCount() int { return len(b.Rows) + len(b.Inserts) }
-
-// editable reports whether the grid currently allows DML: a real table is
-// loaded (not a query result or metadata view) and we are in table view.
-func (m Model) editable() bool {
-	return m.Browse.Table != "" && !m.Browse.ViewJSON &&
-		len(m.Browse.Columns) > 0 && m.Browse.MetaKind == metaRecords
-}
-
-// displaySentinel renders a typed-edit sentinel as its display text.
-func displaySentinel(v string) string {
-	switch v {
-	case dmlNull:
-		return "NULL"
-	case dmlEmpty:
-		return ""
-	case dmlDefault:
-		return "DEFAULT"
-	}
-	return v
-}
-
-func (m Model) readOnly() bool {
-	return m.CurrentConn != nil && m.CurrentConn.ReadOnly
-}
-
-func (m Model) pendingCount() int {
-	rows := map[int]bool{}
-	for k := range m.Browse.Edited {
-		rows[k[0]] = true
-	}
-	return len(rows) + len(m.Browse.Deleted) + len(m.Browse.Inserts)
-}
-
-// cellValue returns the display string for a grid cell, honoring staged edits
-// and insert rows.
+// cellValue returns the display string for a grid cell.
 func (m Model) cellValue(row, col int) string {
-	if row < len(m.Browse.Rows) {
-		if v, ok := m.Browse.Edited[[2]int{row, col}]; ok {
-			return displaySentinel(v)
-		}
-		if col < len(m.Browse.Rows[row]) {
-			return m.Browse.Rows[row][col]
-		}
+	if row < 0 || row >= len(m.Browse.Rows) {
 		return ""
 	}
-	ins := m.Browse.Inserts[row-len(m.Browse.Rows)]
-	if col < len(ins) {
-		return insertCellDisplay(ins[col])
+	if col < len(m.Browse.Rows[row]) {
+		return m.Browse.Rows[row][col]
 	}
 	return ""
 }
@@ -91,135 +27,7 @@ func (m Model) cellStyle(row, col int) lipgloss.Style {
 	if m.Focus == types.FocusGrid && row == m.Browse.RowCursor && col == m.Browse.ColCursor {
 		return selectedRowStyle
 	}
-	if row >= len(m.Browse.Rows) {
-		return dmlInsertStyle
-	}
-	if m.Browse.Deleted[row] {
-		return dmlDeleteStyle
-	}
-	if _, ok := m.Browse.Edited[[2]int{row, col}]; ok {
-		return dmlChangeStyle
-	}
 	return normalStyle
-}
-
-func (m Model) openCellEdit() (tea.Model, tea.Cmd) {
-	if !m.editable() {
-		return m, nil
-	}
-	if m.readOnly() {
-		m.StatusMsg = readOnlyEditMsg
-		return m, nil
-	}
-	ti := textinput.New()
-	ti.SetValue(m.cellValue(m.Browse.RowCursor, m.Browse.ColCursor))
-	ti.Width = 50
-	ti.Focus()
-	ti.CursorEnd()
-	m.CellInput = ti
-	m.Browse.EditCol = m.Browse.ColCursor
-	m.Screen = types.ScreenCellEdit
-	return m, nil
-}
-
-func (m Model) handleCellEditScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "esc":
-		m.Screen = m.GridReturnScreen
-		return m, nil
-	case "enter":
-		m.applyCellEdit(m.CellInput.Value())
-		m.Screen = m.GridReturnScreen
-		return m, nil
-	}
-	var cmd tea.Cmd
-	m.CellInput, cmd = m.CellInput.Update(msg)
-	return m, cmd
-}
-
-func (m *Model) applyCellEdit(val string) {
-	row, col := m.Browse.RowCursor, m.Browse.EditCol
-	if row >= len(m.Browse.Rows) {
-		idx := row - len(m.Browse.Rows)
-		if idx < len(m.Browse.Inserts) && col < len(m.Browse.Inserts[idx]) {
-			m.Browse.Inserts[idx][col] = insertCell{val: val, typ: models.String}
-		}
-		return
-	}
-	original := ""
-	if col < len(m.Browse.Rows[row]) {
-		original = m.Browse.Rows[row][col]
-	}
-	key := [2]int{row, col}
-	if val == original {
-		delete(m.Browse.Edited, key) // edit-back-to-original cancels the change
-	} else {
-		m.Browse.Edited[key] = val
-	}
-}
-
-func (m Model) toggleDeleteRow() (tea.Model, tea.Cmd) {
-	if !m.editable() {
-		return m, nil
-	}
-	if m.readOnly() {
-		m.StatusMsg = readOnlyEditMsg
-		return m, nil
-	}
-	row := m.Browse.RowCursor
-	if row >= len(m.Browse.Rows) {
-		idx := row - len(m.Browse.Rows)
-		m.Browse.Inserts = append(m.Browse.Inserts[:idx], m.Browse.Inserts[idx+1:]...)
-		if m.Browse.RowCursor >= m.Browse.gridRowCount() {
-			m.Browse.RowCursor = max(m.Browse.gridRowCount()-1, 0)
-		}
-		return m, nil
-	}
-	if m.Browse.Deleted[row] {
-		delete(m.Browse.Deleted, row) // delete is a toggle
-	} else {
-		m.Browse.Deleted[row] = true
-	}
-	return m, nil
-}
-
-func (m Model) appendInsertRow() (tea.Model, tea.Cmd) {
-	if !m.editable() {
-		return m, nil
-	}
-	if m.readOnly() {
-		m.StatusMsg = readOnlyEditMsg
-		return m, nil
-	}
-	row := make([]insertCell, len(m.Browse.Columns))
-	for i := range row {
-		row[i] = insertCell{typ: models.Default}
-	}
-	m.Browse.Inserts = append(m.Browse.Inserts, row)
-	m.Browse.RowCursor = m.Browse.gridRowCount() - 1
-	m.Browse.ColCursor = 0
-	return m, nil
-}
-
-func (m Model) discardPending() (tea.Model, tea.Cmd) {
-	if m.pendingCount() == 0 {
-		return m, nil
-	}
-	m.clearStagedEdits() // keep the view (sort/filter), drop staged edits only
-	m.StatusMsg = "Discarded pending changes"
-	return m, nil
-}
-
-func (m Model) handleChangesCommittedMsg(msg types.ChangesCommittedMsg) (tea.Model, tea.Cmd) {
-	m.Browse.GridLoading = false
-	if msg.Err != nil {
-		m.Browse.GridErr = "Commit failed: " + msg.Err.Error()
-		m.StatusMsg = "Commit failed"
-		return m, nil // keep pending so the user can fix or discard
-	}
-	m.clearStagedEdits()
-	m.StatusMsg = fmt.Sprintf("Committed %d change(s)", msg.Count)
-	return m.reloadRecords()
 }
 
 func (m Model) handlePrimaryKeyLoadedMsg(msg types.PrimaryKeyLoadedMsg) (tea.Model, tea.Cmd) {
@@ -229,139 +37,77 @@ func (m Model) handlePrimaryKeyLoadedMsg(msg types.PrimaryKeyLoadedMsg) (tea.Mod
 	return m, nil
 }
 
-func (m Model) viewCellEdit() string {
-	col := ""
-	if m.Browse.EditCol < len(m.Browse.Columns) {
-		col = m.Browse.Columns[m.Browse.EditCol]
+// generateDelete writes a DELETE for the cursor row into the SQL editor (it is
+// not executed — the user reviews and runs it). WHERE targets the primary key,
+// falling back to every column when the table has none.
+func (m Model) generateDelete() (tea.Model, tea.Cmd) {
+	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || m.ActiveDriver == nil {
+		return m, nil
 	}
-	body := titleStyle.Render("Edit cell") + "\n\n" +
-		keyStyle.Render(col+":") + "\n" +
-		m.CellInput.View() + "\n\n" +
-		helpStyle.Render("enter:apply  esc:cancel")
-	return m.renderModal(body)
+	if m.Browse.RowCursor < 0 || m.Browse.RowCursor >= len(m.Browse.Rows) {
+		m.StatusMsg = "No row selected"
+		return m, nil
+	}
+	row := m.Browse.Rows[m.Browse.RowCursor]
+	stmt := fmt.Sprintf("DELETE FROM %s\nWHERE %s;", m.Browse.Table, m.rowWhereClause(row))
+	return m.appendToEditor(stmt)
 }
 
-// buildDMLChanges synthesizes the driver change list from the staged maps.
-// Edits are grouped per row into one UPDATE; deletes and inserts each become
-// one change. PrimaryKeyInfo targets existing rows (whole-row fallback when the
-// table has no PK).
-func buildDMLChanges(db, table string, columns []string, rows [][]string, pk []string,
-	edited map[[2]int]string, deleted map[int]bool, inserts [][]insertCell,
-) []models.DBDMLChange {
-	var changes []models.DBDMLChange
-
-	editsByRow := map[int][]models.CellValue{}
-	for k, v := range edited {
-		row, col := k[0], k[1]
-		if deleted[row] {
-			continue // a row staged for delete ignores its edits
-		}
-		cv := models.CellValue{Column: columns[col], TableColumnIndex: col, TableRowIndex: row}
-		switch v {
-		case dmlNull:
-			cv.Type = models.Null
-		case dmlEmpty:
-			cv.Type = models.Empty
-			cv.Value = ""
-		case dmlDefault:
-			cv.Type = models.Default
-			cv.Value = "DEFAULT"
-		default:
-			cv.Type = models.String
-			cv.Value = v
-		}
-		editsByRow[row] = append(editsByRow[row], cv)
+// generateInsert writes an INSERT template (column list + <col> placeholders)
+// for the current table into the SQL editor.
+func (m Model) generateInsert() (tea.Model, tea.Cmd) {
+	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || len(m.Browse.Columns) == 0 {
+		return m, nil
 	}
-	for _, row := range sortedIntKeys(editsByRow) {
-		vals := editsByRow[row]
-		sort.Slice(vals, func(i, j int) bool { return vals[i].TableColumnIndex < vals[j].TableColumnIndex })
-		changes = append(changes, models.DBDMLChange{
-			Database: db, Table: table, Type: models.DMLUpdateType,
-			PrimaryKeyInfo: pkInfoForRow(columns, rows[row], pk), Values: vals,
-		})
+	placeholders := make([]string, len(m.Browse.Columns))
+	for i, c := range m.Browse.Columns {
+		placeholders[i] = "<" + c + ">"
 	}
-
-	for _, row := range sortedBoolKeys(deleted) {
-		changes = append(changes, models.DBDMLChange{
-			Database: db, Table: table, Type: models.DMLDeleteType,
-			PrimaryKeyInfo: pkInfoForRow(columns, rows[row], pk),
-		})
-	}
-
-	for _, ins := range inserts {
-		var vals []models.CellValue
-		for ci, cell := range ins {
-			col := ""
-			if ci < len(columns) {
-				col = columns[ci]
-			}
-			cv := models.CellValue{Column: col, TableColumnIndex: ci, Type: cell.typ, Value: cell.val}
-			switch cell.typ {
-			case models.Default:
-				cv.Value = "DEFAULT"
-			case models.Null:
-				cv.Value = nil
-			case models.Empty:
-				cv.Value = ""
-			}
-			vals = append(vals, cv)
-		}
-		changes = append(changes, models.DBDMLChange{
-			Database: db, Table: table, Type: models.DMLInsertType, Values: vals,
-		})
-	}
-	return changes
+	stmt := fmt.Sprintf("INSERT INTO %s (%s)\nVALUES (%s);",
+		m.Browse.Table, strings.Join(m.Browse.Columns, ", "), strings.Join(placeholders, ", "))
+	return m.appendToEditor(stmt)
 }
 
-func pkInfoForRow(columns, row, pk []string) []models.PrimaryKeyInfo {
-	if len(pk) > 0 {
-		var infos []models.PrimaryKeyInfo
-		for _, name := range pk {
-			idx := indexOf(columns, name)
-			if idx < 0 || idx >= len(row) {
-				continue
-			}
-			infos = append(infos, models.PrimaryKeyInfo{Name: name, Value: row[idx]})
-		}
-		if len(infos) > 0 {
-			return infos
-		}
+// rowWhereClause builds an equality WHERE for a row: primary-key columns when
+// known, else every column (matches the row but verbose). NULL cells use IS NULL.
+func (m Model) rowWhereClause(row []string) string {
+	cols := m.Browse.PkColumns
+	if len(cols) == 0 {
+		cols = m.Browse.Columns
 	}
-	// whole-row fallback (matches tview: WHERE every column = its value)
-	infos := make([]models.PrimaryKeyInfo, 0, len(columns))
-	for i, name := range columns {
-		v := ""
-		if i < len(row) {
-			v = row[i]
+	var parts []string
+	for _, name := range cols {
+		idx := columnIndex(m.Browse.Columns, name)
+		if idx < 0 || idx >= len(row) {
+			continue
 		}
-		infos = append(infos, models.PrimaryKeyInfo{Name: name, Value: v})
+		raw := row[idx]
+		if raw == "NULL&" {
+			parts = append(parts, name+" IS NULL")
+			continue
+		}
+		parts = append(parts, name+" = "+m.ActiveDriver.FormatArgForQueryString(displayCell(raw)))
 	}
-	return infos
+	return strings.Join(parts, " AND ")
 }
 
-func indexOf(ss []string, s string) int {
-	for i, v := range ss {
-		if v == s {
+// appendToEditor appends a statement to the editor buffer (blank line between
+// statements) and opens the query workspace focused on it.
+func (m Model) appendToEditor(stmt string) (tea.Model, tea.Cmd) {
+	if strings.TrimSpace(m.EditorContent) == "" {
+		m.EditorContent = stmt
+	} else {
+		m.EditorContent = strings.TrimRight(m.EditorContent, "\n") + "\n\n" + stmt
+	}
+	m.StatusMsg = "Added SQL to the editor — review, then ctrl+r to run"
+	return m.openEditor()
+}
+
+func columnIndex(cols []string, name string) int {
+	for i, c := range cols {
+		if c == name {
 			return i
 		}
 	}
 	return -1
-}
-
-func sortedIntKeys[V any](m map[int]V) []int {
-	keys := make([]int, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	return keys
-}
-
-func sortedBoolKeys(m map[int]bool) []int {
-	keys := make([]int, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	return keys
 }

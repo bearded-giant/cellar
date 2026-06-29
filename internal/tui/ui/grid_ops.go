@@ -8,7 +8,6 @@ import (
 
 	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/types"
-	"github.com/bearded-giant/cellar/models"
 )
 
 // metadata views shown in the grid (metaRecords is the normal editable table).
@@ -21,13 +20,6 @@ const (
 )
 
 var metaNames = []string{"records", "columns", "constraints", "indexes", "foreign keys"}
-
-// Typed-edit sentinels stored in Browse.Edited for NULL/EMPTY/DEFAULT updates.
-const (
-	dmlNull    = "\x00NULL"
-	dmlEmpty   = "\x00EMPTY"
-	dmlDefault = "\x00DEFAULT"
-)
 
 // reloadRecords re-fetches the current table page with the active where/sort.
 func (m Model) reloadRecords() (tea.Model, tea.Cmd) {
@@ -144,62 +136,5 @@ func (m Model) viewFilter() string {
 		keyStyle.Render("WHERE clause (blank clears):") + "\n" +
 		m.FilterInput.View() + "\n\n" +
 		helpStyle.Render("enter:apply  esc:cancel")
-	return m.renderModal(body)
-}
-
-// ---- Set value (NULL / EMPTY / DEFAULT) ----
-
-func (m Model) openSetValue() (tea.Model, tea.Cmd) {
-	if !m.editable() {
-		return m, nil
-	}
-	if m.readOnly() {
-		m.StatusMsg = readOnlyEditMsg
-		return m, nil
-	}
-	m.Browse.EditCol = m.Browse.ColCursor
-	m.Screen = types.ScreenSetValue
-	return m, nil
-}
-
-func (m Model) handleSetValueScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	var (
-		typ      models.CellValueType
-		sentinel string
-	)
-	switch msg.String() {
-	case "n", "N":
-		typ, sentinel = models.Null, dmlNull
-	case "e", "E":
-		typ, sentinel = models.Empty, dmlEmpty
-	case "d", "D":
-		typ, sentinel = models.Default, dmlDefault
-	case "esc", "q":
-		m.Screen = m.GridReturnScreen
-		return m, nil
-	default:
-		return m, nil
-	}
-	row, col := m.Browse.RowCursor, m.Browse.EditCol
-	if row >= len(m.Browse.Rows) { // staged insert row
-		idx := row - len(m.Browse.Rows)
-		if idx < len(m.Browse.Inserts) && col < len(m.Browse.Inserts[idx]) {
-			m.Browse.Inserts[idx][col] = insertCell{typ: typ}
-		}
-	} else {
-		m.Browse.Edited[[2]int{row, col}] = sentinel
-	}
-	m.Screen = m.GridReturnScreen
-	return m, nil
-}
-
-func (m Model) viewSetValue() string {
-	col := ""
-	if m.Browse.EditCol < len(m.Browse.Columns) {
-		col = m.Browse.Columns[m.Browse.EditCol]
-	}
-	body := titleStyle.Render("Set "+col) + "\n\n" +
-		normalStyle.Render("[n] NULL   [e] EMPTY   [d] DEFAULT") + "\n\n" +
-		helpStyle.Render("esc:cancel")
 	return m.renderModal(body)
 }
