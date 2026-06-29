@@ -16,7 +16,7 @@ var (
 	headerRowStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 
 	// DML pending-change cell colors (mirror the tview palette).
-	dmlChangeStyle = lipgloss.NewStyle().Background(lipgloss.Color("214")).Foreground(lipgloss.Color("0")) // edited: orange
+	dmlChangeStyle = lipgloss.NewStyle().Background(lipgloss.Color("214")).Foreground(lipgloss.Color("0"))  // edited: orange
 	dmlDeleteStyle = lipgloss.NewStyle().Background(lipgloss.Color("160")).Foreground(lipgloss.Color("15")) // deleted: red
 	dmlInsertStyle = lipgloss.NewStyle().Background(lipgloss.Color("22")).Foreground(lipgloss.Color("15"))  // inserted: green
 
@@ -50,7 +50,12 @@ func focusedLabelStyle(focused bool) lipgloss.Style {
 
 // renderModal wraps content in a centered, accent-bordered box.
 func (m Model) renderModal(content string) string {
-	modalWidth := min(80, m.Width-10)
+	return m.renderModalW(content, 80)
+}
+
+// renderModalW is renderModal with a custom max width (for wider modals).
+func (m Model) renderModalW(content string, maxW int) string {
+	modalWidth := min(maxW, m.Width-10)
 	if modalWidth < 20 {
 		modalWidth = 20
 	}

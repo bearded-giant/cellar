@@ -147,24 +147,16 @@ func AddQueryToHistory(connectionIdentifier string, queryText string) error {
 		items = []models.QueryHistoryItem{} // Reset to ensure we don't append to potentially problematic data
 	}
 
-	// Avoid adding duplicate of the most recent query by updating its timestamp
-	// Sort by timestamp descending to easily check the latest
-	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].Timestamp.After(items[j].Timestamp)
-	})
-
-	if len(items) > 0 && items[0].QueryText == queryText {
-		logger.Info("Query is identical to the most recent history entry, updating timestamp.", map[string]any{"connection": connectionIdentifier})
-		items[0].Timestamp = time.Now().UTC()
-	} else {
-		newItem := models.QueryHistoryItem{
-			QueryText: queryText,
-			Timestamp: time.Now().UTC(),
+	// Dedupe: drop any prior entry with the same text, then re-add it on top with
+	// a fresh timestamp so each unique query appears once at its last-run time.
+	kept := items[:0]
+	for _, it := range items {
+		if it.QueryText != queryText {
+			kept = append(kept, it)
 		}
-		items = append(items, newItem) // Add as a new entry
 	}
+	items = append(kept, models.QueryHistoryItem{QueryText: queryText, Timestamp: time.Now().UTC()})
 
-	// Re-sort by timestamp descending (newest first) after potential addition or timestamp update
 	sort.SliceStable(items, func(i, j int) bool {
 		return items[i].Timestamp.After(items[j].Timestamp)
 	})

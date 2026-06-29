@@ -72,21 +72,26 @@ func (m Model) viewHistory() string {
 		return m.renderModal(b.String())
 	}
 
-	const maxVisible = 12
+	const maxVisible = 18
+	modalW := min(120, max(m.Width-10, 40))
+	const tsW = 12 // "01-02 15:04 "
+	innerW := max(modalW-6, 20)
+	queryW := max(innerW-tsW-2, 10)
+
 	start := 0
 	if m.HistoryCursor >= maxVisible {
 		start = m.HistoryCursor - maxVisible + 1
 	}
 	end := min(start+maxVisible, len(m.HistoryItems))
-	innerW := min(80, max(m.Width-14, 30))
 
 	for i := start; i < end; i++ {
-		q := strings.ReplaceAll(m.HistoryItems[i].QueryText, "\n", " ")
-		line := truncateRunes(q, innerW)
+		it := m.HistoryItems[i]
+		ts := it.Timestamp.Local().Format("01-02 15:04")
+		q := truncateRunes(strings.ReplaceAll(it.QueryText, "\n", " "), queryW)
 		if i == m.HistoryCursor {
-			b.WriteString(selectedRowStyle.Render("▶ " + line))
+			b.WriteString(selectedRowStyle.Render("▶ " + padRunes(ts+"  "+q, innerW)))
 		} else {
-			b.WriteString(normalStyle.Render("  " + line))
+			b.WriteString(dimStyle.Render("  "+ts+"  ") + normalStyle.Render(q))
 		}
 		b.WriteString("\n")
 	}
@@ -95,5 +100,5 @@ func (m Model) viewHistory() string {
 	}
 	b.WriteString("\n")
 	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  d:delete  esc:cancel"))
-	return m.renderModal(b.String())
+	return m.renderModalW(b.String(), modalW)
 }
