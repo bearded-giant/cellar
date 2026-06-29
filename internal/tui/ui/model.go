@@ -75,7 +75,6 @@ type Model struct {
 	CellInput       textinput.Model
 	FilterInput     textinput.Model
 	TreeFilterInput textinput.Model
-	ExportAll       bool // export modal scope: all rows vs current page
 
 	HistoryItems  []models.QueryHistoryItem
 	HistoryCursor int

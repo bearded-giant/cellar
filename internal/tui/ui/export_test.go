@@ -1,49 +1,27 @@
 package ui
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
-func TestExportAll_SQLiteCSV(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "e.db")
-	seed, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	if _, err := seed.Exec(`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`); err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	if _, err := seed.Exec(`INSERT INTO t (name) VALUES ('a'),('b'),('c')`); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	_ = seed.Close()
+func TestExportCmd_CSV(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.csv")
+	cols := []string{"id", "name"}
+	rows := [][]string{{"1", "a"}, {"2", "b"}, {"3", "c"}}
 
-	driver := &drivers.SQLite{}
-	if err := driver.Connect(dbPath); err != nil {
-		t.Fatalf("connect: %v", err)
-	}
-
-	out := filepath.Join(dir, "out.csv")
-	msg := exportAllCmd(driver, "", "t", "", "id ASC", out)().(types.ExportDoneMsg)
+	msg := exportCmd(out, cols, rows)().(types.ExportDoneMsg)
 	if msg.Err != nil {
 		t.Fatalf("export: %v", msg.Err)
 	}
 	if msg.Rows != 3 {
 		t.Errorf("rows = %d, want 3", msg.Rows)
 	}
-	data, err := os.ReadFile(out)
-	if err != nil {
-		t.Fatalf("read csv: %v", err)
-	}
-	body := strings.TrimRight(string(data), "\n")
+	body := strings.TrimRight(readFile(t, out), "\n")
 	if lines := strings.Count(body, "\n") + 1; lines != 4 {
 		t.Errorf("csv lines = %d, want 4 (header + 3 rows)\n%s", lines, body)
 	}
@@ -52,23 +30,56 @@ func TestExportAll_SQLiteCSV(t *testing.T) {
 	}
 }
 
-func TestExportAll_JSON(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "e.db")
-	seed, _ := sql.Open("sqlite", dbPath)
-	_, _ = seed.Exec(`CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)`)
-	_, _ = seed.Exec(`INSERT INTO t (name) VALUES ('x'),('y')`)
-	_ = seed.Close()
-
-	driver := &drivers.SQLite{}
-	_ = driver.Connect(dbPath)
-	out := filepath.Join(dir, "out.json")
-	msg := exportAllCmd(driver, "", "t", "", "id ASC", out)().(types.ExportDoneMsg)
+func TestExportCmd_JSON(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.json")
+	msg := exportCmd(out, []string{"id", "name"}, [][]string{{"1", "x"}, {"2", "y"}})().(types.ExportDoneMsg)
 	if msg.Err != nil || msg.Rows != 2 {
 		t.Fatalf("export json: err=%v rows=%d", msg.Err, msg.Rows)
 	}
-	data, _ := os.ReadFile(out)
-	if !strings.Contains(string(data), `"name"`) {
-		t.Errorf("json missing name key:\n%s", data)
+	if !strings.Contains(readFile(t, out), `"name"`) {
+		t.Error("json missing name key")
 	}
+}
+
+// exportRows returns QueryRows (full result) when present, else the page.
+func TestExportRows_PrefersQueryRows(t *testing.T) {
+	m := browseModel()
+	m.Browse.Rows = [][]string{{"page"}}
+	m.Browse.QueryRows = [][]string{{"a"}, {"b"}}
+	if got := m.exportRows(); len(got) != 2 {
+		t.Errorf("exportRows should return the full QueryRows (2), got %d", len(got))
+	}
+	m.Browse.QueryRows = nil
+	if got := m.exportRows(); len(got) != 1 {
+		t.Errorf("exportRows should fall back to the page (1), got %d", len(got))
+	}
+}
+
+func TestOpenExport_BlockedOnTablePreview(t *testing.T) {
+	m := gridModel() // gridModel sets Browse.Table = "widgets" (a real table preview)
+	res, _ := m.openExport()
+	m = res.(Model)
+	if m.Screen == types.ScreenExport {
+		t.Error("export must not open on a table preview (unbounded)")
+	}
+	if !strings.Contains(m.StatusMsg, "query") {
+		t.Errorf("expected a query-results hint, got %q", m.StatusMsg)
+	}
+
+	// a query result (Table == "") opens the export modal
+	m.Browse.Table = ""
+	m.Browse.QueryRows = [][]string{{"1", "a"}}
+	res, _ = m.openExport()
+	if res.(Model).Screen != types.ScreenExport {
+		t.Error("export should open on a query result")
+	}
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(data)
 }

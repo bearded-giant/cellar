@@ -340,10 +340,12 @@ func (m Model) browseFooter() string {
 			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"?", "help"}, {"q", "tree"},
 		}
 	default:
+		// table preview: paged viewing + cell/row ops only. export/json operate on
+		// all rows and are gated to query results (run a LIMIT'd query via e).
 		kb = []kbd{
 			{"↑/↓/←/→", "move"}, {"c/C", "edit/null"}, {"o/d", "add/del"}, {"ctrl+s", "commit"},
 			{"enter", "fk"}, {"v", "cell"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
+			{"y", "copy"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, kbd{"⌫", "fk-back"})

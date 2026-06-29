@@ -25,8 +25,6 @@ func (m Model) handleYankScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		text, what = m.yankCell(), "cell"
 	case "r":
 		text, what = m.yankRow(), "row"
-	case "a":
-		text, what = m.yankAll(), "result"
 	case "esc", "q":
 		m.Screen = m.GridReturnScreen
 		return m, nil
@@ -57,25 +55,9 @@ func (m Model) yankRow() string {
 	return strings.Join(cells, "\t")
 }
 
-// yankAll returns the loaded result as TSV (header + data rows).
-func (m Model) yankAll() string {
-	var b strings.Builder
-	b.WriteString(strings.Join(m.Browse.Columns, "\t"))
-	b.WriteByte('\n')
-	for _, row := range m.Browse.Rows {
-		cells := make([]string, len(row))
-		for i, c := range row {
-			cells[i] = displayCell(c)
-		}
-		b.WriteString(strings.Join(cells, "\t"))
-		b.WriteByte('\n')
-	}
-	return b.String()
-}
-
 func (m Model) viewYank() string {
 	body := titleStyle.Render("Copy to clipboard") + "\n\n" +
-		normalStyle.Render("[c] cell   [r] row (TSV)   [a] full result (TSV)") + "\n\n" +
+		normalStyle.Render("[c] cell   [r] row (TSV)") + "\n\n" +
 		helpStyle.Render("esc:cancel")
 	return m.renderModal(body)
 }

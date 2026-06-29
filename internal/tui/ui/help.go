@@ -56,9 +56,13 @@ func (m Model) viewHelp() string {
 			{"ctrl+s / u", "commit / discard"},
 			{"s / / / i", "sort / filter / meta views"},
 			{"enter / ⌫", "FK jump / back"},
-			{"v / J", "cell view / JSON"},
-			{"x / y", "export / copy"},
+			{"v", "cell view"},
+			{"y", "copy (cell / row)"},
 			{"H / Y", "history / saved queries"},
+		}},
+		{"Query results only", [][2]string{
+			{"x / J", "export / JSON view (bounded by your LIMIT)"},
+			{"", "disabled on table previews — can be millions of rows"},
 		}},
 		{"Query workspace (e)", [][2]string{
 			{"ctrl+r", "run query (ctrl+enter on some terminals)"},

@@ -12,10 +12,6 @@ func TestYankBuilders(t *testing.T) {
 	if got := m.yankRow(); got != "1\talpha" {
 		t.Errorf("yankRow = %q, want '1\\talpha'", got)
 	}
-	want := "id\tname\n1\talpha\n2\tbeta\n"
-	if got := m.yankAll(); got != want {
-		t.Errorf("yankAll = %q, want %q", got, want)
-	}
 }
 
 func TestYankCell_HandlesSentinel(t *testing.T) {

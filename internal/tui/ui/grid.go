@@ -155,6 +155,12 @@ func (m Model) gridCursorMax() int {
 func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "J":
+		// JSON view is for query results only — on a wide table preview, rendering
+		// the page as JSON can hang on huge cells. Query with a LIMIT instead.
+		if m.Browse.Table != "" {
+			m.StatusMsg = "JSON view is for query results — run a query with a LIMIT (e)"
+			return m, nil
+		}
 		m.Browse.ViewJSON = !m.Browse.ViewJSON
 		m.Browse.RowCursor = 0
 		m.Browse.ColCursor = 0
