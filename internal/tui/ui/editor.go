@@ -240,9 +240,22 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 	return m, nil
 }
 
+// queryStatusLine reports the last execution status (e.g. "Query OK — 2 rows"),
+// shown between the editor and the results in place of a grid title.
+func (m Model) queryStatusLine() string {
+	msg := m.StatusMsg
+	if strings.TrimSpace(msg) == "" {
+		msg = "Ready — ctrl+r to run"
+	}
+	if m.Browse.GridErr != "" {
+		return errorStyle.Render(msg)
+	}
+	return successStyle.Render(msg)
+}
+
 func (m Model) viewEditor() string {
-	w := m.Width
-	_, _, resultsH := m.queryLayout()
+	w, h := m.Width, m.Height
+	rule := dimStyle.Render(strings.Repeat("─", max(w, 1)))
 
 	title := accentStyle.Render("SQL Query")
 	if m.CurrentConn != nil {
@@ -254,16 +267,29 @@ func (m Model) viewEditor() string {
 		title += dimStyle.Render("   editing — tab to results")
 	}
 
-	parts := []string{
-		title,
-		m.EditorArea.View(),
-		strings.Join(m.renderCompletions(w, completionAreaRows), "\n"),
-		"", // breathing room between the editor and the results
-		strings.Join(m.renderGridLines(w, resultsH), "\n"),
-		m.editorFooter(),
-		m.getStatusBar(),
+	// top: blank, header, blank, editor, completion band, rule, blank, status, blank, rule, blank
+	top := []string{"", title, ""}
+	top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
+	top = append(top, m.renderCompletions(w, completionAreaRows)...)
+	top = append(top, rule, "", m.queryStatusLine(), "", rule, "")
+
+	// footer pinned to the bottom: blank, rule, blank, keybinds
+	foot := []string{"", rule, "", m.editorFooter()}
+
+	// results fill the gap so the footer sits at the bottom of the window
+	resultsH := h - len(top) - len(foot)
+	if resultsH < 1 {
+		resultsH = 1
 	}
-	return strings.Join(parts, "\n")
+	results := m.renderGridLines(w, resultsH, false)
+	for len(results) < resultsH {
+		results = append(results, "")
+	}
+	results = results[:resultsH]
+
+	all := append(top, results...)
+	all = append(all, foot...)
+	return strings.Join(all, "\n")
 }
 
 func (m Model) renderCompletions(width, rows int) []string {

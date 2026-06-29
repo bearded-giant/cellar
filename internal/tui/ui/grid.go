@@ -265,8 +265,9 @@ func pageOf(rows [][]string, offset, limit int) [][]string {
 	return rows[offset:end]
 }
 
-func (m Model) renderGridLines(width, height int) []string {
+func (m Model) renderGridLines(width, height int, showTitle bool) []string {
 	var lines []string
+	chrome := 4 // top rule, header, bottom rule, pagination
 	add := func(plain string, render func(string) string) {
 		lines = append(lines, render(padRunes(plain, width)))
 	}
@@ -277,23 +278,26 @@ func (m Model) renderGridLines(width, height int) []string {
 		return lines
 	}
 
-	title := m.Browse.Label
-	if m.Browse.MetaKind != metaRecords {
-		title += "  · " + metaNames[m.Browse.MetaKind]
+	if showTitle {
+		title := m.Browse.Label
+		if m.Browse.MetaKind != metaRecords {
+			title += "  · " + metaNames[m.Browse.MetaKind]
+		}
+		if m.Browse.Sort != "" {
+			title += "  ↕ " + m.Browse.Sort
+		}
+		if m.Browse.Where != "" {
+			title += "  ⧩ filtered"
+		}
+		if m.Browse.ViewJSON {
+			title += "  [json]"
+		}
+		if m.Browse.GridLoading {
+			title += "  loading…"
+		}
+		add(title, func(s string) string { return accentStyle.Render(s) })
+		chrome++ // title
 	}
-	if m.Browse.Sort != "" {
-		title += "  ↕ " + m.Browse.Sort
-	}
-	if m.Browse.Where != "" {
-		title += "  ⧩ filtered"
-	}
-	if m.Browse.ViewJSON {
-		title += "  [json]"
-	}
-	if m.Browse.GridLoading {
-		title += "  loading…"
-	}
-	add(title, func(s string) string { return accentStyle.Render(s) })
 
 	if m.Browse.GridErr != "" {
 		add(m.Browse.GridErr, func(s string) string { return errorStyle.Render(s) })
@@ -305,7 +309,10 @@ func (m Model) renderGridLines(width, height int) []string {
 	}
 
 	if m.Browse.ViewJSON {
-		bodyH := height - 1 // title
+		bodyH := height // only the title (if shown) is chrome in JSON view
+		if showTitle {
+			bodyH--
+		}
 		if bodyH < 1 {
 			bodyH = 1
 		}
@@ -323,7 +330,7 @@ func (m Model) renderGridLines(width, height int) []string {
 	add(gridRowText(m.Browse.Columns, widths, cs, ce), func(s string) string { return headerRowStyle.Render(s) })
 	add(strings.Repeat("─", width), dim)
 
-	bodyH := height - 5 // title, top rule, header, rule, pagination
+	bodyH := height - chrome
 	if bodyH < 1 {
 		bodyH = 1
 	}

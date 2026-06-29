@@ -287,7 +287,7 @@ func (m Model) viewBrowse() string {
 	treeW, gridW, bodyH := m.browseLayout()
 
 	tree := fitHeight(m.renderTreeLines(treeW, bodyH), treeW, bodyH)
-	grid := fitHeight(m.renderGridLines(gridW, bodyH), gridW, bodyH)
+	grid := fitHeight(m.renderGridLines(gridW, bodyH, true), gridW, bodyH)
 	sep := dimStyle.Render("│")
 
 	rows := make([]string, 0, bodyH)
