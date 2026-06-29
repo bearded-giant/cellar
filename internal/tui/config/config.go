@@ -35,15 +35,25 @@ func defaultConfig() *Config {
 }
 
 func DefaultConfigFile() (string, error) {
-	configDir := os.Getenv("XDG_CONFIG_HOME")
-	if configDir == "" {
-		dir, err := os.UserConfigDir()
-		if err != nil {
-			return "", err
-		}
-		configDir = dir
+	dir, err := configHome()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(configDir, "cellar", "config.toml"), nil
+	return filepath.Join(dir, "cellar", "config.toml"), nil
+}
+
+// configHome resolves the config root: $XDG_CONFIG_HOME if set, else ~/.config
+// on every platform (matching lazygit/k9s — NOT os.UserConfigDir, which is
+// ~/Library/Application Support on macOS and splits the config in two).
+func configHome() (string, error) {
+	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
+		return x, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".config"), nil
 }
 
 // FindLocalConfig walks up from CWD to find a `.cellar.toml` file.

@@ -30,11 +30,11 @@ var MaxPerConnection = 50
 func GetAppConfigDir() (string, error) {
 	configDir := os.Getenv("XDG_CONFIG_HOME")
 	if configDir == "" {
-		dir, err := os.UserConfigDir()
+		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", fmt.Errorf("failed to get user config directory: %w", err)
+			return "", fmt.Errorf("failed to get home directory: %w", err)
 		}
-		configDir = dir
+		configDir = filepath.Join(home, ".config")
 	}
 	return filepath.Join(configDir, cellarConfigDirName), nil
 }
