@@ -39,6 +39,16 @@ sqlserver://user:pass@host:1433/dbname
 
 Connections are saved to `~/.config/cellar/config.toml`. Mark a connection read-only in the form and cellar refuses every write for it — edits, inserts, deletes, and any non-SELECT query.
 
+### Adding connections from the command line
+
+If your URLs come from somewhere else — a Vault cred script, an `.envrc`, whatever — you can push them into cellar without the form:
+
+```bash
+cellar --add-connection --name "orders-prod" --url "mysql://user:pass@host:3306/orders" --read-only
+```
+
+It upserts by name (re-running replaces the entry instead of duplicating it), so it's safe to call from a script that refreshes short-lived credentials. The provider is inferred from the URL scheme; pass `--provider` to override. Drop `--read-only` for a writable connection, and `--config` to target a non-default config file. The whole thing writes to `~/.config/cellar/config.toml` and exits without opening the TUI.
+
 ### SSH tunneling
 
 Toggle SSH in the add/edit form (`ctrl+s`) and fill in the bastion host, port, user, and either a private key or a password. cellar forwards the database connection through that bastion for the life of the session. For hosts you only reach through a wrapper — AWS SSM, for example — put the full command in the proxy-command field and cellar runs it instead of dialing directly. Passphrases and passwords are kept in memory only and never written to the config file.
