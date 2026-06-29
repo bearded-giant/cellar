@@ -14,8 +14,8 @@ import (
 )
 
 type Config struct {
-	ConfigFile      string
-	LocalConfigFile string
+	ConfigFile      string              `toml:"-"`
+	LocalConfigFile string              `toml:"-"`
 	AppConfig       *models.AppConfig   `toml:"application"`
 	Connections     []models.Connection `toml:"database"`
 	Keymaps         models.KeymapConfig `toml:"keymap"`
@@ -205,6 +205,38 @@ func (c *Config) SaveConnections(connections []models.Connection) error {
 	}
 
 	return toml.NewEncoder(file).Encode(&out)
+}
+
+// UpsertConnection adds, or replaces by Name, a connection in the global config
+// file at path (other settings preserved), then writes it back. Reads raw (no
+// env expansion) so existing ${env:…} placeholders survive the round-trip. Used
+// by the non-interactive `--add-connection` import path.
+func UpsertConnection(path string, conn models.Connection) error {
+	cfg := defaultConfig()
+	cfg.ConfigFile = path
+
+	if data, err := os.ReadFile(path); err == nil {
+		if err := toml.Unmarshal(data, cfg); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	replaced := false
+	for i := range cfg.Connections {
+		if cfg.Connections[i].Name == conn.Name {
+			cfg.Connections[i] = conn
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		cfg.Connections = append(cfg.Connections, conn)
+	}
+
+	cfg.LocalConfigFile = "" // always target the global file
+	return cfg.SaveConnections(cfg.Connections)
 }
 
 // parseConfigURL synthesizes a URL from the connection struct when URL is empty.

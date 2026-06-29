@@ -4,10 +4,47 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/bearded-giant/cellar/models"
 )
+
+func TestUpsertConnection(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+
+	if err := UpsertConnection(path, models.Connection{Name: "a", URL: "mysql://h1/db", Provider: "mysql", ReadOnly: true}); err != nil {
+		t.Fatalf("add a: %v", err)
+	}
+	if err := UpsertConnection(path, models.Connection{Name: "b", URL: "postgres://h/db", Provider: "postgres"}); err != nil {
+		t.Fatalf("add b: %v", err)
+	}
+	// replace a by name (new url, drop read-only)
+	if err := UpsertConnection(path, models.Connection{Name: "a", URL: "mysql://h2/db", Provider: "mysql"}); err != nil {
+		t.Fatalf("replace a: %v", err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if len(cfg.Connections) != 2 {
+		t.Fatalf("want 2 connections after upsert, got %d", len(cfg.Connections))
+	}
+	var a *models.Connection
+	for i := range cfg.Connections {
+		if cfg.Connections[i].Name == "a" {
+			a = &cfg.Connections[i]
+		}
+	}
+	if a == nil || a.URL != "mysql://h2/db" || a.ReadOnly {
+		t.Errorf("upsert should replace 'a' (url=mysql://h2/db, read-only off), got %+v", a)
+	}
+	// internal path fields must not leak into the file
+	if data, _ := os.ReadFile(path); strings.Contains(string(data), "ConfigFile") {
+		t.Error("ConfigFile/LocalConfigFile leaked into the config file")
+	}
+}
 
 func TestSaveConnections_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
