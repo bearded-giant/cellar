@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func TestRenderConnCard_NeverLeaksURLOrSecret(t *testing.T) {

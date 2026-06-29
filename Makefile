@@ -1,4 +1,4 @@
-BINARY  := lazytea
+BINARY  := cellar
 PREFIX  ?= $(HOME)/.local/bin
 
 # Tagged version: the git tag if HEAD is one (e.g. v0.1.0), else <tag>-<n>-g<sha>,
@@ -12,26 +12,26 @@ DEV_LDFLAGS := -ldflags "-X main.version=$(DEV_VERSION)"
 
 .PHONY: build install install-dev uninstall version test race vet tidy clean run help
 
-## build: build lazytea (tagged version) to ./lazytea
+## build: build cellar (tagged version) to ./cellar
 build:
-	go build $(LDFLAGS) -o $(BINARY) ./cmd/lazytea
+	go build $(LDFLAGS) -o $(BINARY) ./cmd/cellar
 
-## install: build + install lazytea with the TAGGED version (git tag vX.Y.Z first)
+## install: build + install cellar with the TAGGED version (git tag vX.Y.Z first)
 install: build
 	@mkdir -p $(PREFIX)
 	@rm -f $(PREFIX)/$(BINARY)
 	install -m 0755 $(BINARY) $(PREFIX)/$(BINARY)
 	@echo "installed $(BINARY) -> $(PREFIX)/$(BINARY)  (version=$(VERSION))"
 
-## install-dev: build + install lazytea with a DEV version marker (dev-<sha>)
+## install-dev: build + install cellar with a DEV version marker (dev-<sha>)
 install-dev:
-	go build $(DEV_LDFLAGS) -o $(BINARY) ./cmd/lazytea
+	go build $(DEV_LDFLAGS) -o $(BINARY) ./cmd/cellar
 	@mkdir -p $(PREFIX)
 	@rm -f $(PREFIX)/$(BINARY)
 	install -m 0755 $(BINARY) $(PREFIX)/$(BINARY)
 	@echo "installed $(BINARY) -> $(PREFIX)/$(BINARY)  (version=$(DEV_VERSION))"
 
-## uninstall: remove the installed lazytea binary
+## uninstall: remove the installed cellar binary
 uninstall:
 	rm -f $(PREFIX)/$(BINARY)
 
@@ -60,7 +60,7 @@ tidy:
 clean:
 	rm -f $(BINARY)
 
-## run: build + run lazytea
+## run: build + run cellar
 run: build
 	./$(BINARY)
 

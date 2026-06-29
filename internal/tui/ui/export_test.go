@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func TestExportAll_SQLiteCSV(t *testing.T) {

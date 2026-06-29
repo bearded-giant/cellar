@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 // prettyCellLines renders a cell value for the full-screen viewer: JSON is

@@ -14,8 +14,8 @@ import (
 	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/xo/dburl"
 
-	"github.com/jorgerojas26/lazysql/helpers/logger"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/helpers/logger"
+	"github.com/bearded-giant/cellar/models"
 )
 
 type MSSQL struct {

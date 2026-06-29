@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 const browsePageSize = 100

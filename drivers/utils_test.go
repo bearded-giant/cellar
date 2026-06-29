@@ -9,7 +9,7 @@ import (
 
 	gomock "github.com/DATA-DOG/go-sqlmock"
 
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/models"
 )
 
 // mockDriver implements Driver with postgres-like formatting for unit tests.

@@ -319,9 +319,9 @@ func TestExpandProxyTokens(t *testing.T) {
 
 // TestSSHProxyHelperProcess is not a real test: TestDialSSH_ViaProxyCommand
 // re-execs it as the ProxyCommand subprocess, bridging stdio to the TCP addr in
-// LAZYSQL_PROXY_HELPER_ADDR (avoids depending on nc, which is GNU netcat here).
+// CELLAR_PROXY_HELPER_ADDR (avoids depending on nc, which is GNU netcat here).
 func TestSSHProxyHelperProcess(t *testing.T) {
-	addr := os.Getenv("LAZYSQL_PROXY_HELPER_ADDR")
+	addr := os.Getenv("CELLAR_PROXY_HELPER_ADDR")
 	if addr == "" {
 		return
 	}
@@ -365,7 +365,7 @@ func TestDialSSH_ViaProxyCommand(t *testing.T) {
 	// path, with host-key verification still enforced against known_hosts.
 	cleanup := withTempKnownHosts(t, "bastion.invalid:22", srv.HostPublicKey())
 	defer cleanup()
-	t.Setenv("LAZYSQL_PROXY_HELPER_ADDR", srv.addr)
+	t.Setenv("CELLAR_PROXY_HELPER_ADDR", srv.addr)
 
 	cfg := &SSHConfig{
 		Host:         "bastion.invalid",

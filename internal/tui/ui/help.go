@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func (m Model) openHelp() (tea.Model, tea.Cmd) {
@@ -27,7 +27,7 @@ func (m Model) viewHelp() string {
 	}{
 		{"Connections", [][2]string{
 			{"enter / b", "open (in-app browse)"},
-			{"L", "open in legacy lazysql"},
+			{"L", "open in legacy cellar"},
 			{"t / a / e", "test / add / edit"},
 			{"D / d / r", "duplicate / delete / reload"},
 			{"q", "quit"},

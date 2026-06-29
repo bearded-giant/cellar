@@ -1,6 +1,6 @@
 package types
 
-import "github.com/jorgerojas26/lazysql/models"
+import "github.com/bearded-giant/cellar/models"
 
 type HistoryLoadedMsg struct {
 	Items []models.QueryHistoryItem

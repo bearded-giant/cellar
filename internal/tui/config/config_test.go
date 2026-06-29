@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func TestSaveConnections_RoundTrip(t *testing.T) {

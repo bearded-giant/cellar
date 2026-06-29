@@ -9,8 +9,8 @@ import (
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/models"
 )
 
 type Config struct {
@@ -43,10 +43,10 @@ func DefaultConfigFile() (string, error) {
 		}
 		configDir = dir
 	}
-	return filepath.Join(configDir, "lazysql", "config.toml"), nil
+	return filepath.Join(configDir, "cellar", "config.toml"), nil
 }
 
-// FindLocalConfig walks up from CWD to find a `.lazysql.toml` file.
+// FindLocalConfig walks up from CWD to find a `.cellar.toml` file.
 // It stops at the git repository root (`.git` directory/file).
 func FindLocalConfig() (string, error) {
 	dir, err := os.Getwd()
@@ -55,7 +55,7 @@ func FindLocalConfig() (string, error) {
 	}
 
 	for {
-		configPath := filepath.Join(dir, ".lazysql.toml")
+		configPath := filepath.Join(dir, ".cellar.toml")
 		if _, err := os.Stat(configPath); err == nil {
 			return configPath, nil
 		}

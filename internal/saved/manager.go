@@ -9,13 +9,13 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/jorgerojas26/lazysql/helpers/logger"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/helpers/logger"
+	"github.com/bearded-giant/cellar/models"
 )
 
 const (
 	SavedQueriesDirName       = "saved_queries"
-	lazysqlConfigDirName      = "lazysql"
+	cellarConfigDirName       = "cellar"
 	savedQueriesFileExtension = ".toml"
 )
 
@@ -30,7 +30,7 @@ func GetAppConfigDir() (string, error) {
 		}
 		configDir = dir
 	}
-	return filepath.Join(configDir, lazysqlConfigDirName), nil
+	return filepath.Join(configDir, cellarConfigDirName), nil
 }
 
 // SanitizeFilename prepares a string to be used as a part of a filename.

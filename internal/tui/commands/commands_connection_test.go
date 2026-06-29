@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 // stubDriver records the URL passed to Connect/TestConnection. It satisfies the

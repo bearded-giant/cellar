@@ -8,8 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 const readOnlyEditMsg = "Cannot modify data: Connection is in read-only mode"

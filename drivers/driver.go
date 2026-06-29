@@ -1,7 +1,7 @@
 package drivers
 
 import (
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/models"
 )
 
 type Driver interface {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jorgerojas26/lazysql/helpers/logger"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/helpers/logger"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func queriesInTransaction(db *sql.DB, queries []models.Query) (err error) {

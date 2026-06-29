@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 // openCommitPreview synthesizes the pending changes, renders each as SQL via

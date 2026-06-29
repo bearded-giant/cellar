@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func TestGridHitTest(t *testing.T) {

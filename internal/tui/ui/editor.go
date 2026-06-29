@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 // completionAreaRows is the fixed band reserved below the editor for the

@@ -3,9 +3,9 @@ package types
 import (
 	"time"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/helpers"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/helpers"
+	"github.com/bearded-giant/cellar/models"
 )
 
 type ConnectionsLoadedMsg struct {

@@ -6,13 +6,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 // uniqueDupName returns a name for a duplicated connection that does not collide
 // with any existing name. Tries "{base}-copy", then "{base}-copy-2", etc. Names
-// are the de-dupe key for lazysql connections, so this must never clash.
+// are the de-dupe key for cellar connections, so this must never clash.
 func uniqueDupName(base string, existing []models.Connection) string {
 	taken := make(map[string]struct{}, len(existing))
 	for _, c := range existing {

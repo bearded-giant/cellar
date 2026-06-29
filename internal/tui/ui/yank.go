@@ -5,8 +5,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/lib"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/lib"
 )
 
 func (m Model) openYank() (tea.Model, tea.Cmd) {

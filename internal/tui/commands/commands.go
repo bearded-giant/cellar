@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/tui/config"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/tui/config"
+	"github.com/bearded-giant/cellar/models"
 )
 
 // Commands holds the dependencies for the tea.Cmd factories. The config loader

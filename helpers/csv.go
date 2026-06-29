@@ -30,7 +30,7 @@ func NewCSVWriter(filePath string) (*CSVWriter, error) {
 		return nil, err
 	}
 
-	tempFile, err := os.CreateTemp(dir, ".lazysql_export_*.tmp")
+	tempFile, err := os.CreateTemp(dir, ".cellar_export_*.tmp")
 	if err != nil {
 		return nil, err
 	}

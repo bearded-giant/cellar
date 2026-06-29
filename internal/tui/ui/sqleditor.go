@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/sqlmeta"
+	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 )
 
 // sqlEditor is a minimal multi-line text editor with SQL syntax highlighting.

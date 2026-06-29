@@ -8,21 +8,21 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/history"
-	"github.com/jorgerojas26/lazysql/internal/tui/commands"
-	"github.com/jorgerojas26/lazysql/internal/tui/config"
-	"github.com/jorgerojas26/lazysql/internal/tui/ui"
+	"github.com/bearded-giant/cellar/internal/history"
+	"github.com/bearded-giant/cellar/internal/tui/commands"
+	"github.com/bearded-giant/cellar/internal/tui/config"
+	"github.com/bearded-giant/cellar/internal/tui/ui"
 )
 
 var version = "dev"
 
 func main() {
-	fs := flag.NewFlagSet("lazytea", flag.ContinueOnError)
+	fs := flag.NewFlagSet("cellar", flag.ContinueOnError)
 	showVersion := fs.Bool("version", false, "Print version and exit")
 	configPath := fs.String("config", "", "Path to config.toml (defaults to XDG config dir)")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: lazytea [flags]\n\n")
-		fmt.Fprintf(os.Stderr, "A Bubble Tea connection manager for lazysql.\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: cellar [flags]\n\n")
+		fmt.Fprintf(os.Stderr, "A Bubble Tea connection manager for cellar.\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n")
 		fmt.Fprintf(os.Stderr, "      --version        Print version and exit\n")
 		fmt.Fprintf(os.Stderr, "      --config string  Path to config.toml\n")
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	if *showVersion {
-		fmt.Printf("lazytea %s\n", version)
+		fmt.Printf("cellar %s\n", version)
 		return
 	}
 

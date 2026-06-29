@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jorgerojas26/lazysql/helpers/logger"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/helpers/logger"
+	"github.com/bearded-giant/cellar/models"
 )
 
 const (
 	historyDirName       = "history"
-	lazysqlConfigDirName = "lazysql" // This should match your application's config directory name
+	cellarConfigDirName  = "cellar" // This should match your application's config directory name
 	historyFileExtension = ".json"
 )
 
@@ -37,7 +37,7 @@ func GetAppConfigDir() (string, error) {
 		}
 		configDir = dir
 	}
-	return filepath.Join(configDir, lazysqlConfigDirName), nil
+	return filepath.Join(configDir, cellarConfigDirName), nil
 }
 
 // SanitizeFilename prepares a string to be used as a part of a filename.

@@ -6,8 +6,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func TestCycleSort(t *testing.T) {

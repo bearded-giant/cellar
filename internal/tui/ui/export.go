@@ -10,9 +10,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/helpers"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/helpers"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func (m Model) openExport() (tea.Model, tea.Cmd) {

@@ -1,4 +1,4 @@
-module github.com/jorgerojas26/lazysql
+module github.com/bearded-giant/cellar
 
 go 1.24.2
 

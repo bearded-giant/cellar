@@ -5,11 +5,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/history"
-	"github.com/jorgerojas26/lazysql/internal/saved"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/history"
+	"github.com/bearded-giant/cellar/internal/saved"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func recordHistory(connIdent, query string) {

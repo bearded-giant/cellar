@@ -113,7 +113,7 @@ func TestCSVWriter(t *testing.T) {
 		// Check no temp files remain
 		entries, _ := os.ReadDir(tempDir)
 		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), ".lazysql_export_") {
+			if strings.HasPrefix(entry.Name(), ".cellar_export_") {
 				t.Fatalf("Temp file should not remain: %s", entry.Name())
 			}
 		}
@@ -148,7 +148,7 @@ func TestCSVWriter(t *testing.T) {
 		// Temp file should not exist
 		entries, _ := os.ReadDir(tempDir)
 		for _, entry := range entries {
-			if strings.HasPrefix(entry.Name(), ".lazysql_export_") {
+			if strings.HasPrefix(entry.Name(), ".cellar_export_") {
 				t.Fatalf("Temp file should be removed after Abort: %s", entry.Name())
 			}
 		}

@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
-	"github.com/jorgerojas26/lazysql/models"
+	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func (m Model) View() string {
@@ -115,7 +115,7 @@ func (m Model) getStatusBar() string {
 	if ver == "" {
 		ver = "dev"
 	}
-	verBadge := dimStyle.Render("lazytea " + ver)
+	verBadge := dimStyle.Render("cellar " + ver)
 	if msg == "" {
 		return verBadge
 	}

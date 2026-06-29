@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jorgerojas26/lazysql/drivers"
-	"github.com/jorgerojas26/lazysql/internal/history"
-	"github.com/jorgerojas26/lazysql/internal/tui/types"
+	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/history"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func TestLoadDatabases(t *testing.T) {
