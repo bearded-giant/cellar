@@ -72,9 +72,9 @@ func TestEditor_OpenAndClose(t *testing.T) {
 		t.Error("openEditor should focus the editor")
 	}
 
-	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlQ})
+	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyEsc})
 	if res2.(Model).Screen != types.ScreenBrowse {
-		t.Error("ctrl+q should return from the editor to browse")
+		t.Error("esc should return from the editor to the tree/grid")
 	}
 }
 

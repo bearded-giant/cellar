@@ -301,7 +301,7 @@ func (m Model) connFooterHelp() string {
 		{"d", "delete"},
 		{"r", "reload"},
 		{"?", "help"},
-		{"q", "quit"},
+		{"ctrl+c", "quit"},
 	}
 
 	var help strings.Builder

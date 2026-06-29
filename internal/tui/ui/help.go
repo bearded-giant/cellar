@@ -9,6 +9,9 @@ import (
 )
 
 func (m Model) openHelp() (tea.Model, tea.Cmd) {
+	if m.Screen == types.ScreenHelp {
+		return m, nil // already open (e.g. F1 pressed again)
+	}
 	m.HelpReturnScreen = m.Screen
 	m.Screen = types.ScreenHelp
 	return m, nil
@@ -25,11 +28,16 @@ func (m Model) viewHelp() string {
 		title string
 		rows  [][2]string
 	}{
+		{"Navigation", [][2]string{
+			{"q / esc", "back one level (never quits)"},
+			{"ctrl+q", "disconnect → connections"},
+			{"ctrl+c", "quit cellar"},
+			{"? / F1", "this help"},
+		}},
 		{"Connections", [][2]string{
 			{"enter / b", "open (in-app browse)"},
 			{"t / a / e", "test / add / edit"},
 			{"D / d / r", "duplicate / delete / reload"},
-			{"q", "quit"},
 		}},
 		{"Schema tree", [][2]string{
 			{"↑/↓  j/k", "navigate"},
@@ -52,12 +60,13 @@ func (m Model) viewHelp() string {
 			{"x / y", "export / copy"},
 			{"H / Y", "history / saved queries"},
 		}},
-		{"SQL editor (e)", [][2]string{
-			{"ctrl+r", "run query"},
-			{"tab", "accept completion / results"},
-			{"ctrl+z", "undo"},
-			{"ctrl+y", "query history"},
-			{"ctrl+s / ctrl+q", "save / back to tree"},
+		{"Query workspace (e)", [][2]string{
+			{"ctrl+r", "run query (ctrl+enter on some terminals)"},
+			{"tab", "cycle editor ⟷ results"},
+			{"ctrl+z / ctrl+y", "undo / query history"},
+			{"ctrl+s", "save query"},
+			{"esc", "back to tree"},
+			{"results: x/J/y/v", "export / json / copy / cell"},
 		}},
 		{"Tabs", [][2]string{
 			{"T", "open selected table in new tab"},

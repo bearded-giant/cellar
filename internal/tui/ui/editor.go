@@ -69,14 +69,20 @@ func (m Model) buildCompleter() *sqlmeta.Autocompleter {
 	return ac
 }
 
+// leaveQueryWorkspace exits the editor+results view back to the tree/grid,
+// preserving the query text (re-entered via `e`).
+func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
+	m.EditorContent = m.EditorArea.Value()
+	m.Screen = types.ScreenBrowse
+	m.Focus = types.FocusTree
+	return m, nil
+}
+
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.GridReturnScreen = types.ScreenEditor // grid modals from the results pane reopen here
+
+	// workspace-wide actions (both panes)
 	switch msg.String() {
-	case "ctrl+q":
-		m.EditorContent = m.EditorArea.Value()
-		m.Screen = types.ScreenBrowse
-		m.Focus = types.FocusTree
-		return m, nil
 	case "ctrl+s":
 		return m.openSaveQuery()
 	case "ctrl+y":
@@ -97,17 +103,25 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent())
 	}
 
-	// results pane focused: navigate the grid below the editor; tab/esc returns.
+	// results pane focused: single-key grid affordances + back/cycle.
 	if m.Focus == types.FocusGrid {
 		switch msg.String() {
-		case "tab", "esc":
+		case "tab":
 			m.Focus = types.FocusEditor
 			return m, nil
+		case "esc", "q":
+			return m.leaveQueryWorkspace()
+		case "x":
+			return m.openExport()
+		case "y":
+			return m.openYank()
+		case "?":
+			return m.openHelp()
 		}
 		return m.handleBrowseGridKey(msg)
 	}
 
-	// editor focused: completion popup nav takes tab/esc first.
+	// editor (text) focused: completion popup nav takes tab/esc first.
 	if m.CompVisible {
 		switch msg.String() {
 		case "up", "ctrl+p":
@@ -128,10 +142,12 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
-	// no popup: tab moves down to the results pane.
-	if msg.String() == "tab" {
+	switch msg.String() {
+	case "tab": // no popup: move down to the results pane
 		m.Focus = types.FocusGrid
 		return m, nil
+	case "esc": // back one level: leave the workspace to the tree
+		return m.leaveQueryWorkspace()
 	}
 
 	var cmd tea.Cmd
@@ -331,12 +347,12 @@ func (m Model) editorFooter() string {
 	if m.Focus == types.FocusGrid {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "scroll"}, {"n/p", "page"}, {"v", "cell"}, {"J", "json"},
-			{"tab", "editor"}, {"ctrl+r", "run"}, {"ctrl+q", "tree"},
+			{"x", "export"}, {"y", "copy"}, {"?", "help"}, {"tab", "editor"}, {"esc", "back"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{
 			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
-			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"ctrl+q", "tree"},
+			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"f1", "help"}, {"esc", "back"},
 		}
 	}
 	var b strings.Builder

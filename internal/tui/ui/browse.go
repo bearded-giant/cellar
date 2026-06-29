@@ -135,6 +135,12 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
+		// back one level: exit an inspect/meta view to the table first, else disconnect
+		if m.Focus == types.FocusGrid && m.Browse.MetaKind != metaRecords {
+			m.Browse.MetaKind = metaRecords
+			m.Browse.GridLoading = true
+			return m.reloadRecords()
+		}
 		return m.disconnectBrowse()
 	case "e":
 		return m.openEditor()
@@ -307,13 +313,13 @@ func (m Model) browseFooter() string {
 	if m.Focus == types.FocusTree {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"?", "help"}, {"q", "back"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{
 			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
 			{"enter", "fk"}, {"v", "view"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "tree"}, {"q", "quit"},
+			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "tree"}, {"q", "back"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, struct{ key, desc string }{"⌫", "back"})
