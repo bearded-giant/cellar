@@ -24,6 +24,7 @@ type Focus int
 const (
 	FocusTree Focus = iota
 	FocusGrid
+	FocusEditor
 )
 
 type DatabasesLoadedMsg struct {

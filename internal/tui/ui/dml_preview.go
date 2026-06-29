@@ -46,7 +46,7 @@ func (m Model) openCommitPreview() (tea.Model, tea.Cmd) {
 func (m Model) handleCommitPreviewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	case "up", "k":
 		if m.PreviewCursor > 0 {
@@ -64,16 +64,16 @@ func (m Model) handleCommitPreviewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.PreviewCursor = max(len(m.PreviewSQL)-1, 0)
 			}
 			if len(m.PreviewChanges) == 0 {
-				m.Screen = types.ScreenBrowse
+				m.Screen = m.GridReturnScreen
 				m.StatusMsg = "All changes removed from this commit"
 			}
 		}
 	case "ctrl+s", "enter", "y":
 		if len(m.PreviewChanges) == 0 {
-			m.Screen = types.ScreenBrowse
+			m.Screen = m.GridReturnScreen
 			return m, nil
 		}
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		m.Browse.GridLoading = true
 		m.StatusMsg = "Committing..."
 		return m, m.Cmds.CommitChanges(m.ActiveDriver, m.PreviewChanges, m.connIdent())

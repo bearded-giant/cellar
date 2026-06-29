@@ -47,6 +47,9 @@ type Model struct {
 	ConfirmReturnScreen types.Screen
 	// HelpReturnScreen is the screen to restore when closing the help overlay.
 	HelpReturnScreen types.Screen
+	// GridReturnScreen is the host a grid modal (cell view, export, ...) returns
+	// to — ScreenBrowse or the ScreenEditor query workspace.
+	GridReturnScreen types.Screen
 
 	Focus  types.Focus
 	Browse browseState // live state of the active browse tab

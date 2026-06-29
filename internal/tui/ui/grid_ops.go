@@ -121,7 +121,7 @@ func (m Model) openFilter() (tea.Model, tea.Cmd) {
 func (m Model) handleFilterScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	case "enter":
 		where := strings.TrimSpace(m.FilterInput.Value())
@@ -131,7 +131,7 @@ func (m Model) handleFilterScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Browse.Where = where
 		m.Browse.Offset = 0
 		m.Browse.RowCursor = 0
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m.reloadRecords()
 	}
 	var cmd tea.Cmd
@@ -175,7 +175,7 @@ func (m Model) handleSetValueScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d", "D":
 		typ, sentinel = models.Default, dmlDefault
 	case "esc", "q":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	default:
 		return m, nil
@@ -189,7 +189,7 @@ func (m Model) handleSetValueScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	} else {
 		m.Browse.Edited[[2]int{row, col}] = sentinel
 	}
-	m.Screen = types.ScreenBrowse
+	m.Screen = m.GridReturnScreen
 	return m, nil
 }
 

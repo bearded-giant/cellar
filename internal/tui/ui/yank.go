@@ -28,12 +28,12 @@ func (m Model) handleYankScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		text, what = m.yankAll(), "result"
 	case "esc", "q":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	default:
 		return m, nil
 	}
-	m.Screen = types.ScreenBrowse
+	m.Screen = m.GridReturnScreen
 	if err := lib.NewClipboard().Write(text); err != nil {
 		m.StatusMsg = "Copy failed: " + err.Error()
 	} else {

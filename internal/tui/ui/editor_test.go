@@ -18,8 +18,8 @@ func TestQueryExecuted_SelectFillsGrid(t *testing.T) {
 		Total:    1,
 	})
 	m = res.(Model)
-	if m.Screen != types.ScreenBrowse || m.Focus != types.FocusGrid {
-		t.Error("query result should land on the browse grid")
+	if m.Screen != types.ScreenEditor || m.Focus != types.FocusEditor {
+		t.Error("query result should stay in the editor workspace (editor focused)")
 	}
 	if !reflect.DeepEqual(m.Browse.Columns, []string{"id", "name"}) {
 		t.Errorf("Columns = %v", m.Browse.Columns)

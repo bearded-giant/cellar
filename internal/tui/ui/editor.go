@@ -11,33 +11,43 @@ import (
 )
 
 // completionAreaRows is the fixed band reserved below the editor for the
-// autocomplete popup (kept constant so the editor height never jumps).
+// autocomplete popup (kept constant so the layout never jumps).
 const completionAreaRows = 5
 
-// editorSize reserves rows for the title, footer, status bar, and completion
-// band around the editor body.
-func editorSize(w, h int) (int, int) {
-	bw := w
-	if bw < 10 {
-		bw = 10
+// queryLayout splits the query workspace vertically: an editor pane on top and
+// a results pane below. Fixed chrome = title + completion band + a breather +
+// footer + status (see viewEditor); the rest is the results grid.
+func (m Model) queryLayout() (editorW, editorH, resultsH int) {
+	w, h := m.Width, m.Height
+	editorW = w
+	if editorW < 10 {
+		editorW = 10
 	}
-	bh := h - 3 - completionAreaRows
-	if bh < 3 {
-		bh = 3
+	editorH = h / 4
+	if editorH < 4 {
+		editorH = 4
 	}
-	return bw, bh
+	if editorH > 10 {
+		editorH = 10
+	}
+	resultsH = h - editorH - completionAreaRows - 4 // title, breather, footer, status
+	if resultsH < 3 {
+		resultsH = 3
+	}
+	return editorW, editorH, resultsH
 }
 
-func newEditorArea(content string, w, h int) sqlEditor {
-	bw, bh := editorSize(w, h)
-	return newEditor(content, bw, bh)
+func (m Model) newEditorArea(content string) sqlEditor {
+	ew, eh, _ := m.queryLayout()
+	return newEditor(content, ew, eh)
 }
 
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
-	m.EditorArea = newEditorArea(m.EditorContent, m.Width, m.Height)
+	m.EditorArea = m.newEditorArea(m.EditorContent)
 	m.Completer = m.buildCompleter()
 	m.CompVisible = false
 	m.Completions = nil
+	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
 	return m, m.EditorArea.Focus()
 }
@@ -60,10 +70,12 @@ func (m Model) buildCompleter() *sqlmeta.Autocompleter {
 }
 
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.GridReturnScreen = types.ScreenEditor // grid modals from the results pane reopen here
 	switch msg.String() {
 	case "ctrl+q":
 		m.EditorContent = m.EditorArea.Value()
 		m.Screen = types.ScreenBrowse
+		m.Focus = types.FocusTree
 		return m, nil
 	case "ctrl+s":
 		return m.openSaveQuery()
@@ -79,6 +91,17 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent())
 	}
 
+	// results pane focused: navigate the grid below the editor; tab/esc returns.
+	if m.Focus == types.FocusGrid {
+		switch msg.String() {
+		case "tab", "esc":
+			m.Focus = types.FocusEditor
+			return m, nil
+		}
+		return m.handleBrowseGridKey(msg)
+	}
+
+	// editor focused: completion popup nav takes tab/esc first.
 	if m.CompVisible {
 		switch msg.String() {
 		case "up", "ctrl+p":
@@ -98,6 +121,11 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.CompVisible = false
 			return m, nil
 		}
+	}
+	// no popup: tab moves down to the results pane.
+	if msg.String() == "tab" {
+		m.Focus = types.FocusGrid
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -162,8 +190,10 @@ func (m *Model) acceptCompletion() {
 
 func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, tea.Cmd) {
 	m.Browse.GridLoading = false
-	m.Screen = types.ScreenBrowse
-	m.Focus = types.FocusGrid
+	// results render in the query workspace, below the editor (which stays focused
+	// so the query can be tweaked and re-run).
+	m.Screen = types.ScreenEditor
+	m.Focus = types.FocusEditor
 
 	m.Browse.Table = ""
 	m.Browse.TableDB = ""
@@ -211,14 +241,25 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 }
 
 func (m Model) viewEditor() string {
+	w := m.Width
+	_, _, resultsH := m.queryLayout()
+
 	title := accentStyle.Render("SQL Query")
 	if m.CurrentConn != nil {
 		title += dimStyle.Render("  ·  " + m.CurrentConn.Name)
 	}
+	if m.Focus == types.FocusGrid {
+		title += dimStyle.Render("   results — tab to edit")
+	} else {
+		title += dimStyle.Render("   editing — tab to results")
+	}
+
 	parts := []string{
 		title,
 		m.EditorArea.View(),
-		strings.Join(m.renderCompletions(m.EditorArea.Width(), completionAreaRows), "\n"),
+		strings.Join(m.renderCompletions(w, completionAreaRows), "\n"),
+		"", // breathing room between the editor and the results
+		strings.Join(m.renderGridLines(w, resultsH), "\n"),
 		m.editorFooter(),
 		m.getStatusBar(),
 	}
@@ -254,8 +295,17 @@ func (m Model) renderCompletions(width, rows int) []string {
 }
 
 func (m Model) editorFooter() string {
-	kb := []struct{ key, desc string }{
-		{"ctrl+r", "run"}, {"tab", "complete"}, {"ctrl+z", "undo"}, {"ctrl+s", "save"}, {"ctrl+q", "back"},
+	var kb []struct{ key, desc string }
+	if m.Focus == types.FocusGrid {
+		kb = []struct{ key, desc string }{
+			{"↑/↓", "scroll"}, {"n/p", "page"}, {"v", "cell"}, {"J", "json"},
+			{"tab", "editor"}, {"ctrl+r", "run"}, {"ctrl+q", "tree"},
+		}
+	} else {
+		kb = []struct{ key, desc string }{
+			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
+			{"ctrl+s", "save"}, {"ctrl+q", "tree"},
+		}
 	}
 	var b strings.Builder
 	for i, k := range kb {

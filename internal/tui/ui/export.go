@@ -40,7 +40,7 @@ func (m Model) exportTableScope() bool {
 func (m Model) handleExportScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	case "tab":
 		if m.exportTableScope() {
@@ -52,7 +52,7 @@ func (m Model) handleExportScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if path == "" {
 			return m, nil
 		}
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		m.StatusMsg = "Exporting..."
 		if m.ExportAll && m.exportTableScope() {
 			return m, exportAllCmd(m.ActiveDriver, m.Browse.TableDB, m.Browse.Table, m.Browse.Where, m.exportSort(), path)

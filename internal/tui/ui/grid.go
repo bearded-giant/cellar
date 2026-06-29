@@ -319,10 +319,11 @@ func (m Model) renderGridLines(width, height int) []string {
 	widths := colWidths(m.Browse.Columns, m.Browse.Rows, maxCellWidth)
 	cs, ce := visibleColsForCursor(widths, m.Browse.ColCursor, width)
 
+	add(strings.Repeat("─", width), dim) // top border of the column header
 	add(gridRowText(m.Browse.Columns, widths, cs, ce), func(s string) string { return headerRowStyle.Render(s) })
 	add(strings.Repeat("─", width), dim)
 
-	bodyH := height - 4 // title, header, rule, pagination
+	bodyH := height - 5 // title, top rule, header, rule, pagination
 	if bodyH < 1 {
 		bodyH = 1
 	}

@@ -125,11 +125,11 @@ func (m Model) openCellEdit() (tea.Model, tea.Cmd) {
 func (m Model) handleCellEditScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	case "enter":
 		m.applyCellEdit(m.CellInput.Value())
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	}
 	var cmd tea.Cmd

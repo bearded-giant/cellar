@@ -43,7 +43,7 @@ func (m Model) handleCellViewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	last := len(m.CellViewLines) - 1
 	switch msg.String() {
 	case "esc", "q", "v":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 	case "up", "k":
 		if m.CellViewScroll > 0 {
 			m.CellViewScroll--

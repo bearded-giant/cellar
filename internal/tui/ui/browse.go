@@ -84,6 +84,7 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 	}
 	m.Tabs = []browseState{m.Browse}
 	m.TabActive = 0
+	m.GridReturnScreen = types.ScreenBrowse
 }
 
 // resetPending clears staged DML state (on table switch or after commit).
@@ -131,6 +132,7 @@ func (m *Model) refreshJSONView() {
 }
 
 func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
 		return m.disconnectBrowse()
