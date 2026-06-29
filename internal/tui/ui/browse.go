@@ -144,6 +144,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openSavedQueries()
 	case "ctrl+y":
 		return m.openYank()
+	case "?":
+		return m.openHelp()
 	case "T":
 		return m.openSelectedInNewTab()
 	case "]":

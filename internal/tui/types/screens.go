@@ -22,6 +22,7 @@ const (
 	ScreenYank
 	ScreenCellView
 	ScreenTreeFilter
+	ScreenHelp
 )
 
 func (s Screen) String() string {
@@ -45,6 +46,7 @@ func (s Screen) String() string {
 		ScreenYank:           "Copy",
 		ScreenCellView:       "Cell",
 		ScreenTreeFilter:     "Filter Tree",
+		ScreenHelp:           "Help",
 	}
 	if name, ok := names[s]; ok {
 		return name

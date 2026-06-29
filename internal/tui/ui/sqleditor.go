@@ -21,6 +21,14 @@ type sqlEditor struct {
 	width   int      // total render width incl. gutter
 	height  int      // visible line count
 	focused bool
+
+	undo    []editorSnapshot
+	lastIns bool // last edit was a rune-insert, so coalesce a typing run into one undo
+}
+
+type editorSnapshot struct {
+	lines    []string
+	row, col int
 }
 
 func newEditor(content string, w, h int) sqlEditor {
@@ -70,7 +78,57 @@ func (e sqlEditor) cursorOffset() int {
 	return off + e.col
 }
 
+func isEditMutation(t tea.KeyType) bool {
+	switch t {
+	case tea.KeyRunes, tea.KeySpace, tea.KeyEnter, tea.KeyBackspace, tea.KeyDelete, tea.KeyTab:
+		return true
+	}
+	return false
+}
+
+func (e *sqlEditor) pushUndo() {
+	e.undo = append(e.undo, editorSnapshot{
+		lines: append([]string(nil), e.lines...),
+		row:   e.row,
+		col:   e.col,
+	})
+	if len(e.undo) > 200 {
+		e.undo = e.undo[len(e.undo)-200:]
+	}
+}
+
+func (e *sqlEditor) undoPop() {
+	if len(e.undo) == 0 {
+		return
+	}
+	last := e.undo[len(e.undo)-1]
+	e.undo = e.undo[:len(e.undo)-1]
+	e.lines = last.lines
+	e.row, e.col = last.row, last.col
+	if e.row >= len(e.lines) {
+		e.row = len(e.lines) - 1
+	}
+	if e.col > e.lineLen(e.row) {
+		e.col = e.lineLen(e.row)
+	}
+	e.lastIns = false
+	e.clampScroll()
+}
+
 func (e sqlEditor) Update(msg tea.KeyMsg) (sqlEditor, tea.Cmd) {
+	if msg.Type == tea.KeyCtrlZ {
+		e.undoPop()
+		return e, nil
+	}
+	if isEditMutation(msg.Type) {
+		typing := msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace
+		if !(typing && e.lastIns) {
+			e.pushUndo() // coalesce a run of typing into a single undo step
+		}
+		e.lastIns = typing
+	} else {
+		e.lastIns = false
+	}
 	switch msg.Type {
 	case tea.KeyRunes, tea.KeySpace:
 		e.insert(string(msg.Runes))

@@ -45,6 +45,8 @@ type Model struct {
 	ConfirmData any
 	// ConfirmReturnScreen is where the confirm dialog returns on cancel/finish.
 	ConfirmReturnScreen types.Screen
+	// HelpReturnScreen is the screen to restore when closing the help overlay.
+	HelpReturnScreen types.Screen
 
 	Focus  types.Focus
 	Browse browseState // live state of the active browse tab

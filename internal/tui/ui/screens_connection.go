@@ -58,18 +58,7 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Loading = true
 			m.StatusMsg = "Connecting..."
 			m.ConnectionError = ""
-			return m, m.Cmds.Connect(conn, true)
-		}
-	case "L":
-		// legacy fallback: hand off to the tview lazysql binary until in-app
-		// browse is validated for daily use.
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			conn := m.Connections[m.SelectedConnIdx]
-			m.CurrentConn = &conn
-			m.Loading = true
-			m.StatusMsg = "Connecting..."
-			m.ConnectionError = ""
-			return m, m.Cmds.Connect(conn, false)
+			return m, m.Cmds.Connect(conn)
 		}
 	case "t":
 		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
@@ -115,6 +104,8 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		m.Loading = true
 		return m, m.Cmds.LoadConnections()
+	case "?":
+		return m.openHelp()
 	}
 	return m, nil
 }

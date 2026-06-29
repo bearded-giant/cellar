@@ -91,7 +91,7 @@ func (c *Commands) DeleteConnection(name string, existing []models.Connection) t
 	}
 }
 
-func (c *Commands) Connect(conn models.Connection, browse bool) tea.Cmd {
+func (c *Commands) Connect(conn models.Connection) tea.Cmd {
 	return func() tea.Msg {
 		url, tunnel, err := c.openDial(context.Background(), conn)
 		if err != nil {
@@ -118,7 +118,7 @@ func (c *Commands) Connect(conn models.Connection, browse bool) tea.Cmd {
 
 		// keep the tunnel + driver open for the connection's lifetime; the UI closes
 		// the tunnel on disconnect/quit. Closing it here would kill the live pool.
-		return types.ConnectedMsg{Connection: conn, URL: url, Tunnel: tunnel, Driver: driver, Browse: browse}
+		return types.ConnectedMsg{Connection: conn, URL: url, Tunnel: tunnel, Driver: driver}
 	}
 }
 

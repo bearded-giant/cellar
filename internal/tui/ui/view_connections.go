@@ -25,6 +25,9 @@ func (m Model) View() string {
 	if m.Screen == types.ScreenCellView {
 		return m.viewCellView()
 	}
+	if m.Screen == types.ScreenHelp {
+		return m.renderModal(m.viewHelp())
+	}
 
 	content := m.getScreenView()
 	status := m.getStatusBar()
@@ -291,7 +294,7 @@ func (m Model) connFooterHelp() string {
 		{"D", "duplicate"},
 		{"d", "delete"},
 		{"r", "reload"},
-		{"L", "lazysql (legacy)"},
+		{"?", "help"},
 		{"q", "quit"},
 	}
 

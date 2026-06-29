@@ -28,11 +28,9 @@ type ConnectedMsg struct {
 	Connection models.Connection
 	URL        string
 	Tunnel     *helpers.Tunnel
-	// Driver is the live, validated connection. Browse keeps it (and the tunnel)
-	// open; the hand-off path ignores it and lazysql opens its own.
+	// Driver is the live, validated connection; the in-app browser keeps it and
+	// the tunnel open for the session.
 	Driver drivers.Driver
-	// Browse routes to the in-app browser instead of the lazysql hand-off.
-	Browse bool
 	Err    error
 }
 
@@ -43,9 +41,5 @@ type TestResultMsg struct {
 }
 
 type SSHTestMsg struct {
-	Err error
-}
-
-type LazysqlExitedMsg struct {
 	Err error
 }

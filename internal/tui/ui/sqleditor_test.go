@@ -68,6 +68,36 @@ func TestSQLEditor_CursorEndAndOffset(t *testing.T) {
 	}
 }
 
+func TestSQLEditor_Undo(t *testing.T) {
+	e := newEditor("", 40, 10)
+	e = drive(e, typeRunes("ab"), key(tea.KeyEnter), typeRunes("c"))
+	if e.Value() != "ab\nc" {
+		t.Fatalf("setup value = %q", e.Value())
+	}
+	for _, want := range []string{"ab\n", "ab", ""} {
+		e = drive(e, key(tea.KeyCtrlZ))
+		if e.Value() != want {
+			t.Fatalf("after undo, value = %q, want %q", e.Value(), want)
+		}
+	}
+	e = drive(e, key(tea.KeyCtrlZ)) // empty stack -> no-op
+	if e.Value() != "" {
+		t.Errorf("undo on empty stack changed value to %q", e.Value())
+	}
+}
+
+func TestSQLEditor_UndoCoalescesTyping(t *testing.T) {
+	e := newEditor("", 40, 10)
+	e = drive(e, typeRunes("a"), typeRunes("b"), typeRunes("c"))
+	if e.Value() != "abc" {
+		t.Fatalf("value = %q", e.Value())
+	}
+	e = drive(e, key(tea.KeyCtrlZ)) // a typing run collapses to one undo step
+	if e.Value() != "" {
+		t.Errorf("one undo should revert the whole typing run, got %q", e.Value())
+	}
+}
+
 func TestSQLEditor_ViewExactHeightAndScroll(t *testing.T) {
 	e := newEditor("l0\nl1\nl2\nl3\nl4", 20, 2)
 	// CursorEnd is on l4; a 2-row window must have scrolled to show it.

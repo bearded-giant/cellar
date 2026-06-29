@@ -153,6 +153,7 @@ func (m *Model) acceptCompletion() {
 	}
 	start := off - len([]rune(currentPrefix(text, off)))
 	newText := string(r[:start]) + item.Text + string(r[off:])
+	m.EditorArea.pushUndo()
 	m.EditorArea.SetValue(newText)
 	m.EditorArea.CursorEnd()
 	m.CompVisible = false
@@ -254,7 +255,7 @@ func (m Model) renderCompletions(width, rows int) []string {
 
 func (m Model) editorFooter() string {
 	kb := []struct{ key, desc string }{
-		{"ctrl+r", "run"}, {"tab", "complete"}, {"ctrl+s", "save"}, {"ctrl+q", "back"},
+		{"ctrl+r", "run"}, {"tab", "complete"}, {"ctrl+z", "undo"}, {"ctrl+s", "save"}, {"ctrl+q", "back"},
 	}
 	var b strings.Builder
 	for i, k := range kb {

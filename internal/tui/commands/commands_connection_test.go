@@ -67,21 +67,21 @@ func (s *stubDriver) ExecuteQuery(q string) ([][]string, int, error) {
 	s.ranQuery = q
 	return s.queryRows, s.queryTotal, s.queryErr
 }
-func (s *stubDriver) ExecutePendingChanges([]models.DBDMLChange) error                  { return nil }
-func (s *stubDriver) GetPrimaryKeyColumnNames(string, string) ([]string, error)         { return nil, nil }
-func (s *stubDriver) SupportsProgramming() bool                                         { return false }
-func (s *stubDriver) UseSchemas() bool                                                  { return s.useSchemas }
-func (s *stubDriver) GetFunctions(string) (map[string][]string, error)                  { return nil, nil }
-func (s *stubDriver) GetProcedures(string) (map[string][]string, error)                 { return nil, nil }
-func (s *stubDriver) GetViews(string) (map[string][]string, error)                      { return nil, nil }
-func (s *stubDriver) GetFunctionDefinition(string, string) (string, error)              { return "", nil }
-func (s *stubDriver) GetProcedureDefinition(string, string) (string, error)             { return "", nil }
-func (s *stubDriver) GetViewDefinition(string, string) (string, error)                  { return "", nil }
-func (s *stubDriver) FormatArg(arg any, _ models.CellValueType) any                     { return arg }
-func (s *stubDriver) FormatArgForQueryString(any) string                                { return "" }
-func (s *stubDriver) FormatReference(reference string) string                           { return reference }
-func (s *stubDriver) FormatPlaceholder(int) string                                      { return "" }
-func (s *stubDriver) DMLChangeToQueryString(models.DBDMLChange) (string, error)         { return "", nil }
+func (s *stubDriver) ExecutePendingChanges([]models.DBDMLChange) error          { return nil }
+func (s *stubDriver) GetPrimaryKeyColumnNames(string, string) ([]string, error) { return nil, nil }
+func (s *stubDriver) SupportsProgramming() bool                                 { return false }
+func (s *stubDriver) UseSchemas() bool                                          { return s.useSchemas }
+func (s *stubDriver) GetFunctions(string) (map[string][]string, error)          { return nil, nil }
+func (s *stubDriver) GetProcedures(string) (map[string][]string, error)         { return nil, nil }
+func (s *stubDriver) GetViews(string) (map[string][]string, error)              { return nil, nil }
+func (s *stubDriver) GetFunctionDefinition(string, string) (string, error)      { return "", nil }
+func (s *stubDriver) GetProcedureDefinition(string, string) (string, error)     { return "", nil }
+func (s *stubDriver) GetViewDefinition(string, string) (string, error)          { return "", nil }
+func (s *stubDriver) FormatArg(arg any, _ models.CellValueType) any             { return arg }
+func (s *stubDriver) FormatArgForQueryString(any) string                        { return "" }
+func (s *stubDriver) FormatReference(reference string) string                   { return reference }
+func (s *stubDriver) FormatPlaceholder(int) string                              { return "" }
+func (s *stubDriver) DMLChangeToQueryString(models.DBDMLChange) (string, error) { return "", nil }
 
 func TestConnect_NonSSHPassesURLToDriver(t *testing.T) {
 	stub := &stubDriver{}
@@ -96,7 +96,7 @@ func TestConnect_NonSSHPassesURLToDriver(t *testing.T) {
 		UseSSH:   false,
 	}
 
-	msg := c.Connect(conn, false)()
+	msg := c.Connect(conn)()
 	connected, ok := msg.(types.ConnectedMsg)
 	if !ok {
 		t.Fatalf("expected ConnectedMsg, got %T", msg)
@@ -113,26 +113,6 @@ func TestConnect_NonSSHPassesURLToDriver(t *testing.T) {
 	if connected.Driver != stub {
 		t.Error("ConnectedMsg.Driver should carry the live driver for in-app browse")
 	}
-	if connected.Browse {
-		t.Error("Browse should be false when connecting via Enter (hand-off path)")
-	}
-}
-
-func TestConnect_BrowseFlagCarried(t *testing.T) {
-	stub := &stubDriver{}
-	c := &Commands{DriverFor: func(string) drivers.Driver { return stub }}
-	conn := models.Connection{URL: "mysql://h/db", Provider: drivers.DriverMySQL}
-
-	connected := c.Connect(conn, true)().(types.ConnectedMsg)
-	if connected.Err != nil {
-		t.Fatalf("unexpected error: %v", connected.Err)
-	}
-	if !connected.Browse {
-		t.Error("Browse should be true when connecting via the browse key")
-	}
-	if connected.Driver != stub {
-		t.Error("browse connect must carry the live driver")
-	}
 }
 
 func TestConnect_StubDriverErrorPropagates(t *testing.T) {
@@ -140,7 +120,7 @@ func TestConnect_StubDriverErrorPropagates(t *testing.T) {
 	c := &Commands{DriverFor: func(string) drivers.Driver { return stub }}
 
 	conn := models.Connection{URL: "mysql://h/db", Provider: drivers.DriverMySQL}
-	msg := c.Connect(conn, false)()
+	msg := c.Connect(conn)()
 	connected := msg.(types.ConnectedMsg)
 	if connected.Err != errStub {
 		t.Errorf("Err = %v, want errStub", connected.Err)
@@ -150,7 +130,7 @@ func TestConnect_StubDriverErrorPropagates(t *testing.T) {
 func TestConnect_UnsupportedProvider(t *testing.T) {
 	c := &Commands{DriverFor: func(string) drivers.Driver { return nil }}
 	conn := models.Connection{URL: "x://y", Provider: "bogus"}
-	msg := c.Connect(conn, false)()
+	msg := c.Connect(conn)()
 	connected := msg.(types.ConnectedMsg)
 	if connected.Err == nil {
 		t.Fatal("expected error for unsupported provider")
