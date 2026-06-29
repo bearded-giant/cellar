@@ -79,10 +79,13 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "ctrl+s":
 		return m.openSaveQuery()
-	case "ctrl+h":
+	case "ctrl+y":
 		m.EditorContent = m.EditorArea.Value() // preserve the buffer if recall is cancelled
 		return m.openHistory()
-	case "ctrl+r":
+	// ctrl+enter is a shadow for run; most terminals can't distinguish it from
+	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
+	// the reliable bind.
+	case "ctrl+r", "ctrl+enter":
 		query := m.EditorArea.Value()
 		m.EditorContent = query
 		if strings.TrimSpace(query) == "" {
@@ -333,7 +336,7 @@ func (m Model) editorFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
-			{"ctrl+s", "save"}, {"ctrl+h", "history"}, {"ctrl+q", "tree"},
+			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"ctrl+q", "tree"},
 		}
 	}
 	var b strings.Builder

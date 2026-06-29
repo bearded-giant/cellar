@@ -56,7 +56,7 @@ func (m Model) viewHelp() string {
 			{"ctrl+r", "run query"},
 			{"tab", "accept completion / results"},
 			{"ctrl+z", "undo"},
-			{"ctrl+h", "query history"},
+			{"ctrl+y", "query history"},
 			{"ctrl+s / ctrl+q", "save / back to tree"},
 		}},
 		{"Tabs", [][2]string{
