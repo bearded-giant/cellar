@@ -67,6 +67,9 @@ type Model struct {
 	Completions   []sqlmeta.CompletionItem
 	CompCursor    int
 	CompVisible   bool
+	// EditorColsLoaded tracks tables whose columns have been fetched into the
+	// completer (keyed by lowercased bare name) so each loads at most once.
+	EditorColsLoaded map[string]bool
 
 	ExportInput     textinput.Model
 	CellInput       textinput.Model

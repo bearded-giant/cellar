@@ -55,6 +55,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRecordsLoadedMsg(msg)
 	case types.QueryExecutedMsg:
 		return m.handleQueryExecutedMsg(msg)
+	case types.ColumnsLoadedMsg:
+		return m.handleColumnsLoadedMsg(msg)
 	case types.ExportDoneMsg:
 		return m.handleExportDoneMsg(msg)
 	case types.PrimaryKeyLoadedMsg:

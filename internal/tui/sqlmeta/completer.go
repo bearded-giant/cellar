@@ -144,6 +144,12 @@ func (a *Autocompleter) Complete(text string, cursorPos int) []CompletionItem {
 	return nil
 }
 
+// ReferencedTables returns the distinct table/view names named in FROM / JOIN /
+// INTO / UPDATE clauses (in order of appearance), as written in the SQL.
+func ReferencedTables(sql string) []string {
+	return scanSQLContext(sql).Tables
+}
+
 // extractPrefix extracts the word being typed at cursorPos (a rune offset).
 func extractPrefix(text string, cursorPos int) string {
 	prefix, _ := extractCompletionContext(text, cursorPos)

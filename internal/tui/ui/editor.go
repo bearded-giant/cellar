@@ -47,9 +47,74 @@ func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.Completer = m.buildCompleter()
 	m.CompVisible = false
 	m.Completions = nil
+	m.EditorColsLoaded = map[string]bool{}
 	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
-	return m, m.EditorArea.Focus()
+	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns())
+}
+
+// ensureRefColumns fires column-load commands for tables referenced in the
+// editor whose columns aren't in the completer yet (each table loads once), so
+// `select … from Foo where <tab>` completes Foo's columns without opening it.
+func (m *Model) ensureRefColumns() tea.Cmd {
+	if m.Completer == nil || m.ActiveDriver == nil || m.EditorColsLoaded == nil {
+		return nil
+	}
+	var cmds []tea.Cmd
+	for _, raw := range sqlmeta.ReferencedTables(m.EditorArea.Value()) {
+		bare := bareIdent(raw)
+		key := strings.ToLower(bare)
+		if key == "" || m.EditorColsLoaded[key] {
+			continue
+		}
+		db, qualified, ok := m.resolveTableRef(bare)
+		if !ok {
+			continue
+		}
+		m.EditorColsLoaded[key] = true // optimistic: don't refetch (best-effort)
+		cmds = append(cmds, m.Cmds.LoadColumns(m.ActiveDriver, db, qualified, bare))
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
+}
+
+// bareIdent strips quoting and any schema/db qualifier from a referenced name.
+func bareIdent(raw string) string {
+	if i := strings.LastIndex(raw, "."); i >= 0 {
+		raw = raw[i+1:]
+	}
+	return strings.Trim(raw, "\"`[]")
+}
+
+// resolveTableRef locates a referenced (bare) table in the loaded schema tree and
+// returns its database + the driver-qualified table arg for GetTableColumns
+// (schema.table for schema drivers, bare table for MySQL/SQLite).
+func (m Model) resolveTableRef(bare string) (db, qualified string, ok bool) {
+	want := strings.ToLower(bare)
+	for dbName, groups := range m.Browse.TablesByDB {
+		for schema, tables := range groups {
+			for _, t := range tables {
+				if strings.ToLower(t) == want {
+					if m.Browse.UseSchemas {
+						return dbName, schema + "." + t, true
+					}
+					return dbName, t, true
+				}
+			}
+		}
+	}
+	return "", "", false
+}
+
+func (m Model) handleColumnsLoadedMsg(msg types.ColumnsLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil || m.Completer == nil || len(msg.Columns) == 0 {
+		return m, nil // best-effort autocomplete: ignore load failures
+	}
+	m.Completer.SetColumns(msg.Table, msg.Columns)
+	m.refreshCompletions()
+	return m, nil
 }
 
 // buildCompleter seeds the autocompleter with the loaded schema: every table
@@ -153,7 +218,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.EditorArea, cmd = m.EditorArea.Update(msg)
 	m.refreshCompletions()
-	return m, cmd
+	return m, tea.Batch(cmd, m.ensureRefColumns())
 }
 
 func currentPrefix(text string, off int) string {

@@ -176,6 +176,30 @@ func (c *Commands) LoadHistory(connIdent string) tea.Cmd {
 	}
 }
 
+// LoadColumns fetches a table's column names for the editor autocompleter. db
+// is the database; table is driver-qualified (schema.table for schema drivers,
+// bare otherwise); register is the key the completer stores them under. Errors
+// are non-fatal (autocomplete is best-effort).
+func (c *Commands) LoadColumns(driver drivers.Driver, db, table, register string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil {
+			return types.ColumnsLoadedMsg{Table: register}
+		}
+		rows, err := driver.GetTableColumns(db, table)
+		if err != nil {
+			return types.ColumnsLoadedMsg{Table: register, Err: err}
+		}
+		var cols []string
+		for i, r := range rows {
+			if i == 0 || len(r) == 0 { // rows[0] is the column-metadata header
+				continue
+			}
+			cols = append(cols, r[0])
+		}
+		return types.ColumnsLoadedMsg{Table: register, Columns: cols}
+	}
+}
+
 // DeleteHistory removes one history entry (matched by text + timestamp) and
 // returns the remaining items via HistoryLoadedMsg so the modal refreshes.
 func (c *Commands) DeleteHistory(connIdent, queryText string, ts time.Time) tea.Cmd {

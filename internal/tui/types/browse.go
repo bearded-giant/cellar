@@ -80,6 +80,14 @@ type ForeignKeysLoadedMsg struct {
 	Err   error
 }
 
+// ColumnsLoadedMsg carries a table's column names fetched on demand to feed the
+// SQL editor autocompleter. Table is the key the completer registers under.
+type ColumnsLoadedMsg struct {
+	Table   string
+	Columns []string
+	Err     error
+}
+
 // QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish
 // queries fill Rows (Rows[0] = header) + Total; DML fills Info.
 type QueryExecutedMsg struct {

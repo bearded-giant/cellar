@@ -4,6 +4,27 @@ import (
 	"testing"
 )
 
+func TestReferencedTables(t *testing.T) {
+	cases := map[string][]string{
+		`select * from Product where x = 1`:                   {"Product"},
+		`select * from "public"."Order" o join Item i on i.x`: {`"public"."Order"`, "Item"},
+		`update widgets set a = 1`:                            {"widgets"},
+		`select 1`:                                            nil,
+	}
+	for sql, want := range cases {
+		got := ReferencedTables(sql)
+		if len(got) != len(want) {
+			t.Errorf("ReferencedTables(%q) = %v, want %v", sql, got, want)
+			continue
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("ReferencedTables(%q)[%d] = %q, want %q", sql, i, got[i], want[i])
+			}
+		}
+	}
+}
+
 func TestTokenize(t *testing.T) {
 	input := "SELECT id FROM users WHERE x = 1"
 	runes := []rune(input)
