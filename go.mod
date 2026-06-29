@@ -9,7 +9,6 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/gdamore/tcell/v2 v2.7.4
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
@@ -17,7 +16,6 @@ require (
 	github.com/microsoft/go-mssqldb v1.8.0
 	github.com/mitchellh/go-linereader v0.0.0-20190213213312-1b945b3263eb
 	github.com/pelletier/go-toml/v2 v2.2.3
-	github.com/rivo/tview v0.0.0-20241103174730-c76f7879f592
 	github.com/xo/dburl v0.23.2
 	golang.org/x/crypto v0.24.0
 	modernc.org/sqlite v1.34.1
@@ -39,7 +37,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect

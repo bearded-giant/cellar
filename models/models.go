@@ -1,10 +1,6 @@
 package models
 
-import (
-	"time"
-
-	"github.com/rivo/tview"
-)
+import "time"
 
 type AppConfig struct {
 	DefaultPageSize              int
@@ -63,11 +59,6 @@ type Command struct {
 type StateChange struct {
 	Value interface{}
 	Key   string
-}
-
-type ConnectionPages struct {
-	*tview.Grid
-	*tview.Pages
 }
 
 type (
