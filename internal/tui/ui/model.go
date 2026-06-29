@@ -47,7 +47,11 @@ type Model struct {
 	ConfirmReturnScreen types.Screen
 
 	Focus  types.Focus
-	Browse browseState
+	Browse browseState // live state of the active browse tab
+
+	// Tabs are the per-tab browse snapshots; m.Browse mirrors Tabs[TabActive].
+	Tabs      []browseState
+	TabActive int
 
 	// SQL editor + autocomplete. EditorContent persists the last query across
 	// opens.

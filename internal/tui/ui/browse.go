@@ -82,6 +82,8 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 		Edited:     map[[2]int]string{},
 		Deleted:    map[int]bool{},
 	}
+	m.Tabs = []browseState{m.Browse}
+	m.TabActive = 0
 }
 
 // resetPending clears staged DML state (on table switch or after commit).
@@ -142,6 +144,14 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openSavedQueries()
 	case "ctrl+y":
 		return m.openYank()
+	case "T":
+		return m.openSelectedInNewTab()
+	case "]":
+		return m.switchTab(+1)
+	case "[":
+		return m.switchTab(-1)
+	case "ctrl+w":
+		return m.closeTab()
 	case "tab":
 		if m.Focus == types.FocusTree {
 			m.Focus = types.FocusGrid
@@ -168,6 +178,8 @@ func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
 	m.ActiveDriver = nil
 	m.CurrentConn = nil
 	m.Browse = browseState{}
+	m.Tabs = nil
+	m.TabActive = 0
 	m.Focus = types.FocusTree
 	m.Screen = types.ScreenConnections
 	m.StatusMsg = "Disconnected"
@@ -243,7 +255,7 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 // mouse hit-test, so clicks stay aligned with what is rendered.
 func (m Model) browseLayout() (treeW, gridW, bodyH int) {
 	w, h := m.Width, m.Height
-	bodyH = h - 3 // body + footer + status
+	bodyH = h - 3 - m.tabBarHeight() // tab bar + body + footer + status
 	if bodyH < 1 {
 		bodyH = 1
 	}
@@ -278,7 +290,12 @@ func (m Model) viewBrowse() string {
 	for i := 0; i < bodyH; i++ {
 		rows = append(rows, tree[i]+sep+grid[i])
 	}
-	return strings.Join(rows, "\n") + "\n" + m.browseFooter() + "\n" + m.getStatusBar()
+	var b strings.Builder
+	if tb := m.tabBar(w); tb != "" {
+		b.WriteString(tb + "\n")
+	}
+	b.WriteString(strings.Join(rows, "\n") + "\n" + m.browseFooter() + "\n" + m.getStatusBar())
+	return b.String()
 }
 
 func (m Model) browseFooter() string {
@@ -297,6 +314,13 @@ func (m Model) browseFooter() string {
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, struct{ key, desc string }{"⌫", "back"})
 		}
+	}
+	kb = append(kb, struct{ key, desc string }{"T", "new tab"})
+	if len(m.Tabs) > 1 {
+		kb = append(kb,
+			struct{ key, desc string }{"]/[", "switch"},
+			struct{ key, desc string }{"ctrl+w", "close"},
+		)
 	}
 	var b strings.Builder
 	for i, k := range kb {

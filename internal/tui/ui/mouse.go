@@ -39,6 +39,11 @@ func (m Model) mouseScroll(dir int) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) mouseClick(x, y int) (tea.Model, tea.Cmd) {
+	top := m.tabBarHeight()
+	if y < top { // clicked the tab bar
+		return m, nil
+	}
+	y -= top
 	treeW, gridW, bodyH := m.browseLayout()
 	if y >= bodyH { // footer / status rows
 		return m, nil

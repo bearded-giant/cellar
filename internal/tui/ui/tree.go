@@ -138,6 +138,29 @@ func sortedCopy(ss []string) []string {
 	return out
 }
 
+// openTable loads a table node into the active tab's grid (shared by the tree
+// Enter path and "open in new tab").
+func (m Model) openTable(node treeNode) (tea.Model, tea.Cmd) {
+	m.Browse.TableDB = node.DB
+	m.Browse.Table = node.Table
+	m.Browse.Label = node.Label
+	m.Browse.Offset = 0
+	m.Browse.RowCursor = 0
+	m.Browse.PkColumns = nil
+	m.Browse.ViewJSON = false
+	m.Browse.FKMap = nil
+	m.Browse.Crumbs = nil
+	m.resetPending()
+	m.Browse.GridErr = ""
+	m.Browse.GridLoading = true
+	m.Focus = types.FocusGrid
+	return m, tea.Batch(
+		m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit),
+		m.Cmds.LoadPrimaryKey(m.ActiveDriver, node.DB, node.Table),
+		m.Cmds.LoadForeignKeys(m.ActiveDriver, node.DB, node.Table),
+	)
+}
+
 func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	n := len(m.Browse.Nodes)
 	switch msg.String() {
@@ -162,24 +185,7 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		node := m.Browse.Nodes[m.Browse.Cursor]
 		switch node.Kind {
 		case kindTable:
-			m.Browse.TableDB = node.DB
-			m.Browse.Table = node.Table
-			m.Browse.Label = node.Label
-			m.Browse.Offset = 0
-			m.Browse.RowCursor = 0
-			m.Browse.PkColumns = nil
-			m.Browse.ViewJSON = false
-			m.Browse.FKMap = nil
-			m.Browse.Crumbs = nil
-			m.resetPending()
-			m.Browse.GridErr = ""
-			m.Browse.GridLoading = true
-			m.Focus = types.FocusGrid
-			return m, tea.Batch(
-				m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit),
-				m.Cmds.LoadPrimaryKey(m.ActiveDriver, node.DB, node.Table),
-				m.Cmds.LoadForeignKeys(m.ActiveDriver, node.DB, node.Table),
-			)
+			return m.openTable(node)
 		case kindDB:
 			if m.Browse.Expanded[node.Key] {
 				m.Browse.Expanded[node.Key] = false
