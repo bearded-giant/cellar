@@ -1,15 +1,12 @@
 package config
 
 import (
-	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 
-	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/models"
 )
 
@@ -173,10 +170,6 @@ func LoadConfig(configFile string) (*Config, error) {
 		return nil, err
 	}
 
-	for i, conn := range cfg.Connections {
-		cfg.Connections[i].URL = parseConfigURL(&conn)
-	}
-
 	return cfg, nil
 }
 
@@ -247,30 +240,4 @@ func UpsertConnection(path string, conn models.Connection) error {
 
 	cfg.LocalConfigFile = "" // always target the global file
 	return cfg.SaveConnections(cfg.Connections)
-}
-
-// parseConfigURL synthesizes a URL from the connection struct when URL is empty.
-// Only MSSQL is supported; other providers return the (empty) URL unchanged.
-func parseConfigURL(conn *models.Connection) string {
-	if conn.URL != "" {
-		return conn.URL
-	}
-
-	if conn.Provider != drivers.DriverMSSQL {
-		return conn.URL
-	}
-
-	user := url.QueryEscape(conn.Username)
-	pass := url.QueryEscape(conn.Password)
-
-	return fmt.Sprintf(
-		"%s://%s:%s@%s:%s?database=%s%s",
-		conn.Provider,
-		user,
-		pass,
-		conn.Hostname,
-		conn.Port,
-		conn.DBName,
-		conn.URLParams,
-	)
 }

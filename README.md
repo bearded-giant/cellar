@@ -1,6 +1,6 @@
 # cellar
 
-A keyboard-driven terminal client for SQL databases — schema browser, results grid, and SQL editor in one Bubble Tea app. It speaks MySQL, PostgreSQL, SQLite, and SQL Server, and tunnels through SSH bastions natively, including ProxyCommand setups like AWS SSM.
+A keyboard-driven terminal client for SQL databases — schema browser, results grid, and SQL editor in one Bubble Tea app. It speaks MySQL, PostgreSQL, and SQLite, and tunnels through SSH bastions natively, including ProxyCommand setups like AWS SSM.
 
 <!-- screenshots: drop images here once captured -->
 <!-- ![browse](images/browse.png) -->
@@ -34,7 +34,6 @@ First run lands you on the connection list. Press `a` to add one. A connection i
 mysql://user:pass@host:3306/dbname
 postgres://user:pass@host:5432/dbname
 sqlite:///absolute/path/to/file.db
-sqlserver://user:pass@host:1433/dbname
 ```
 
 Connections are saved to `~/.config/cellar/config.toml`. Mark a connection read-only in the form and cellar refuses every write for it — edits, inserts, deletes, and any non-SELECT query.

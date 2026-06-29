@@ -4,13 +4,22 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"strconv"
 	"strings"
 
+	mysqldriver "github.com/go-sql-driver/mysql"
 	"github.com/xo/dburl"
 
 	"github.com/bearded-giant/cellar/models"
 )
+
+// register the mysql driver with database/sql and silence its internal logger
+// (stray stderr writes corrupt the alt-screen TUI).
+func init() {
+	_ = mysqldriver.SetLogger(log.New(io.Discard, "", 0))
+}
 
 type MySQL struct {
 	Connection *sql.DB

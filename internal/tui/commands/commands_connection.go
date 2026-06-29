@@ -38,8 +38,6 @@ func defaultDBPort(provider string) string {
 	switch provider {
 	case drivers.DriverPostgres:
 		return "5432"
-	case drivers.DriverMSSQL:
-		return "1433"
 	default:
 		return "3306"
 	}
@@ -105,7 +103,7 @@ func (c *Commands) Connect(conn models.Connection) tea.Cmd {
 			}
 			return types.ConnectedMsg{
 				Connection: conn,
-				Err:        fmt.Errorf("unsupported database provider %q (valid: mysql, postgres, sqlite3, sqlserver)", conn.Provider),
+				Err:        fmt.Errorf("unsupported database provider %q (valid: mysql, postgres, sqlite3)", conn.Provider),
 			}
 		}
 
@@ -138,7 +136,7 @@ func (c *Commands) TestConnection(conn models.Connection) tea.Cmd {
 		driver := c.DriverFor(conn.Provider)
 		if driver == nil {
 			return types.TestResultMsg{
-				Err: fmt.Errorf("unsupported database provider %q (valid: mysql, postgres, sqlite3, sqlserver)", conn.Provider),
+				Err: fmt.Errorf("unsupported database provider %q (valid: mysql, postgres, sqlite3)", conn.Provider),
 			}
 		}
 

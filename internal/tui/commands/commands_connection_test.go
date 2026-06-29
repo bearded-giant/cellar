@@ -214,7 +214,6 @@ func TestSSHConfigFromConnection(t *testing.T) {
 func TestDefaultDBPort(t *testing.T) {
 	cases := map[string]string{
 		drivers.DriverPostgres: "5432",
-		drivers.DriverMSSQL:    "1433",
 		drivers.DriverMySQL:    "3306",
 		drivers.DriverSqlite:   "3306", // falls into default branch
 	}

@@ -145,7 +145,7 @@ func createConnectionInputs() []textinput.Model {
 	inputs[1].Width = 50
 
 	inputs[2] = textinput.New()
-	inputs[2].Placeholder = "Provider (mysql/postgres/sqlite3/sqlserver)"
+	inputs[2].Placeholder = "Provider (mysql/postgres/sqlite3)"
 	inputs[2].Width = 50
 
 	return inputs

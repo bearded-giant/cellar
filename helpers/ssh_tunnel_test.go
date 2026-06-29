@@ -653,7 +653,6 @@ func TestRemoteAddrFromURL(t *testing.T) {
 	}{
 		{"mysql://u:p@db.example.com:3306/foo", "3306", "db.example.com:3306"},
 		{"postgres://u@db.example.com/foo", "5432", "db.example.com:5432"},
-		{"sqlserver://u:p@host/db", "1433", "host:1433"},
 	}
 	for _, c := range cases {
 		got, err := remoteAddrFromURL(c.url, c.def)

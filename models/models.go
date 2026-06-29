@@ -40,7 +40,7 @@ type Connection struct {
 	SSHPassphrase   string `toml:"ssh_passphrase,omitempty"`
 	SSHPassword     string `toml:"ssh_password,omitempty"`
 
-	// Schemas filters the schemas shown in the tree (PostgreSQL/MSSQL only).
+	// Schemas filters the schemas shown in the tree (PostgreSQL only).
 	// If empty, all schemas are shown.
 	Schemas []string
 

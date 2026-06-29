@@ -22,8 +22,6 @@ func defaultDriverFor(provider string) drivers.Driver {
 		return &drivers.Postgres{}
 	case drivers.DriverSqlite:
 		return &drivers.SQLite{}
-	case drivers.DriverMSSQL:
-		return &drivers.MSSQL{}
 	default:
 		return nil
 	}
