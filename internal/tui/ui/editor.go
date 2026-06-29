@@ -271,7 +271,7 @@ func (m Model) viewEditor() string {
 	top := []string{"", title, ""}
 	top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
 	top = append(top, m.renderCompletions(w, completionAreaRows)...)
-	top = append(top, rule, "", m.queryStatusLine(), "", rule, "")
+	top = append(top, rule, "", m.queryStatusLine())
 
 	// footer pinned to the bottom: blank, rule, blank, keybinds
 	foot := []string{"", rule, "", m.editorFooter()}
