@@ -11,6 +11,7 @@ import (
 )
 
 func (m Model) openHistory() (tea.Model, tea.Cmd) {
+	m.HistoryCursor = 0
 	return m, m.Cmds.LoadHistory(m.connIdent())
 }
 
@@ -21,12 +22,16 @@ func (m Model) handleHistoryLoadedMsg(msg types.HistoryLoadedMsg) (tea.Model, te
 	}
 	items := msg.Items
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Timestamp.After(items[j].Timestamp) })
+	m.HistoryItems = items
 	if len(items) == 0 {
-		m.StatusMsg = "No query history yet"
+		// nothing left (empty on open, or last entry just deleted): close the modal
+		m.StatusMsg = "No query history"
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	}
-	m.HistoryItems = items
-	m.HistoryCursor = 0
+	if m.HistoryCursor >= len(items) {
+		m.HistoryCursor = len(items) - 1
+	}
 	m.Screen = types.ScreenHistory
 	return m, nil
 }
@@ -34,7 +39,7 @@ func (m Model) handleHistoryLoadedMsg(msg types.HistoryLoadedMsg) (tea.Model, te
 func (m Model) handleHistoryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen
 		return m, nil
 	case "up", "k":
 		if m.HistoryCursor > 0 {
@@ -43,6 +48,11 @@ func (m Model) handleHistoryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		if m.HistoryCursor < len(m.HistoryItems)-1 {
 			m.HistoryCursor++
+		}
+	case "d", "x":
+		if m.HistoryCursor < len(m.HistoryItems) {
+			it := m.HistoryItems[m.HistoryCursor]
+			return m, m.Cmds.DeleteHistory(m.connIdent(), it.QueryText, it.Timestamp)
 		}
 	case "enter":
 		if m.HistoryCursor < len(m.HistoryItems) {
@@ -84,6 +94,6 @@ func (m Model) viewHistory() string {
 		b.WriteString(dimStyle.Render(fmt.Sprintf("\n  %d of %d", m.HistoryCursor+1, len(m.HistoryItems))))
 	}
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  esc:cancel"))
+	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  d:delete  esc:cancel"))
 	return m.renderModal(b.String())
 }

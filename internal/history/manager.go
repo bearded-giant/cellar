@@ -20,10 +20,9 @@ const (
 	historyFileExtension = ".json"
 )
 
-// MaxPerConnection caps stored history entries per connection. Each binary
-// sets it from config at startup; defaults to 100 when unset. Kept app-free so
-// both the tview app and the bubbletea TUI can record history.
-var MaxPerConnection = 100
+// MaxPerConnection caps stored history entries per connection. Set from config
+// at startup; defaults to 50 when unset.
+var MaxPerConnection = 50
 
 // GetAppConfigDir returns the application's configuration directory. Resolves
 // the config root the same way app.GetConfigPath does (XDG_CONFIG_HOME, else
@@ -199,4 +198,36 @@ func AddQueryToHistory(connectionIdentifier string, queryText string) error {
 
 	logger.Info("Query successfully added/updated in history.", map[string]any{"connection": connectionIdentifier, "path": historyFilePath})
 	return nil
+}
+
+// DeleteQueryFromHistory removes the entry matching both queryText and ts from a
+// connection's history, rewrites the file, and returns the remaining items
+// (newest first).
+func DeleteQueryFromHistory(connectionIdentifier, queryText string, ts time.Time) ([]models.QueryHistoryItem, error) {
+	historyFilePath, err := GetHistoryFilePath(connectionIdentifier)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get history file path for delete: %w", err)
+	}
+	items, err := ReadHistory(historyFilePath, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	kept := items[:0]
+	for _, it := range items {
+		if it.QueryText == queryText && it.Timestamp.Equal(ts) {
+			continue
+		}
+		kept = append(kept, it)
+	}
+	sort.SliceStable(kept, func(i, j int) bool { return kept[i].Timestamp.After(kept[j].Timestamp) })
+
+	data, err := json.MarshalIndent(kept, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal history for %s: %w", connectionIdentifier, err)
+	}
+	if err := os.WriteFile(historyFilePath, data, 0600); err != nil {
+		return nil, fmt.Errorf("failed to write history file %s: %w", historyFilePath, err)
+	}
+	return kept, nil
 }

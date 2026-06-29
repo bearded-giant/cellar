@@ -27,7 +27,6 @@ func (m Model) viewHelp() string {
 	}{
 		{"Connections", [][2]string{
 			{"enter / b", "open (in-app browse)"},
-			{"L", "open in legacy cellar"},
 			{"t / a / e", "test / add / edit"},
 			{"D / d / r", "duplicate / delete / reload"},
 			{"q", "quit"},
@@ -50,13 +49,15 @@ func (m Model) viewHelp() string {
 			{"s / / / i", "sort / filter / meta views"},
 			{"enter / ⌫", "FK jump / back"},
 			{"v / J", "cell view / JSON"},
-			{"x / ctrl+y", "export / copy"},
+			{"x / y", "export / copy"},
+			{"H / Y", "history / saved queries"},
 		}},
 		{"SQL editor (e)", [][2]string{
 			{"ctrl+r", "run query"},
-			{"tab", "accept completion"},
+			{"tab", "accept completion / results"},
 			{"ctrl+z", "undo"},
-			{"ctrl+s / ctrl+q", "save / back"},
+			{"ctrl+h", "query history"},
+			{"ctrl+s / ctrl+q", "save / back to tree"},
 		}},
 		{"Tabs", [][2]string{
 			{"T", "open selected table in new tab"},

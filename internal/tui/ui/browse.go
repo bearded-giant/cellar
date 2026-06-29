@@ -140,12 +140,12 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openEditor()
 	case "x":
 		return m.openExport()
-	case "y":
+	case "y", "ctrl+y":
+		return m.openYank()
+	case "H":
 		return m.openHistory()
 	case "Y":
 		return m.openSavedQueries()
-	case "ctrl+y":
-		return m.openYank()
 	case "?":
 		return m.openHelp()
 	case "T":
@@ -307,13 +307,13 @@ func (m Model) browseFooter() string {
 	if m.Focus == types.FocusTree {
 		kb = []struct{ key, desc string }{
 			{"↑/↓", "nav"}, {"enter", "open"}, {"→", "expand"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	} else {
 		kb = []struct{ key, desc string }{
 			{"c/C", "edit/null"}, {"o", "add"}, {"d", "del"}, {"ctrl+s", "commit"},
 			{"enter", "fk"}, {"v", "view"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"J", "json"}, {"x", "export"}, {"ctrl+y", "copy"}, {"e", "sql"}, {"y/Y", "hist/saved"}, {"tab", "tree"}, {"q", "quit"},
+			{"J", "json"}, {"x", "export"}, {"y", "copy"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "tree"}, {"q", "quit"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, struct{ key, desc string }{"⌫", "back"})

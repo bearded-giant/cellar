@@ -2,6 +2,7 @@ package commands
 
 import (
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -171,6 +172,15 @@ func (c *Commands) LoadHistory(connIdent string) tea.Cmd {
 			return types.HistoryLoadedMsg{Err: err}
 		}
 		items, err := history.ReadHistory(path, 0)
+		return types.HistoryLoadedMsg{Items: items, Err: err}
+	}
+}
+
+// DeleteHistory removes one history entry (matched by text + timestamp) and
+// returns the remaining items via HistoryLoadedMsg so the modal refreshes.
+func (c *Commands) DeleteHistory(connIdent, queryText string, ts time.Time) tea.Cmd {
+	return func() tea.Msg {
+		items, err := history.DeleteQueryFromHistory(connIdent, queryText, ts)
 		return types.HistoryLoadedMsg{Items: items, Err: err}
 	}
 }

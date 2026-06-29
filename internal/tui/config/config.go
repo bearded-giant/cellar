@@ -26,7 +26,7 @@ func defaultConfig() *Config {
 		AppConfig: &models.AppConfig{
 			DefaultPageSize:              300,
 			SidebarOverlay:               false,
-			MaxQueryHistoryPerConnection: 100,
+			MaxQueryHistoryPerConnection: 50,
 			TreeWidth:                    30,
 			JSONViewerWordWrap:           false,
 			EnterOpensJSONViewer:         false,
