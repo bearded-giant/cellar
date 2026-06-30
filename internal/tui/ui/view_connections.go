@@ -321,7 +321,9 @@ func (m Model) viewAddConnection() string {
 	b.WriteString(dimStyle.Render(" SSH tunnel"))
 	b.WriteString("\n\n")
 	b.WriteString(helpStyle.Render("tab:next  space:toggle  enter:save  esc:cancel"))
-	return m.renderModal(b.String())
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("in a field: ctrl+a/ctrl+e home/end  ctrl+u/ctrl+k clear to start/end"))
+	return m.renderModalW(b.String(), m.formModalWidth())
 }
 
 func (m Model) viewEditConnection() string {
@@ -335,7 +337,9 @@ func (m Model) viewEditConnection() string {
 	b.WriteString(dimStyle.Render(" SSH tunnel"))
 	b.WriteString("\n\n")
 	b.WriteString(helpStyle.Render("tab:next  space:toggle  enter:save  esc:cancel"))
-	return m.renderModal(b.String())
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("in a field: ctrl+a/ctrl+e home/end  ctrl+u/ctrl+k clear to start/end"))
+	return m.renderModalW(b.String(), m.formModalWidth())
 }
 
 // renderConnForm renders the shared connection form: Name, URL, Provider text
@@ -426,7 +430,7 @@ func (m Model) viewSSHTunnel() string {
 	b.WriteString("\n")
 	b.WriteString(helpStyle.Render("tab:next  space:toggle  ctrl+t:test  enter:save  esc:cancel"))
 
-	return m.renderModal(b.String())
+	return m.renderModalW(b.String(), m.formModalWidth())
 }
 
 func (m Model) viewTestConnection() string {

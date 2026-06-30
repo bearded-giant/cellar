@@ -14,6 +14,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
 		m.Height = msg.Height
+		m.sizeFormInputs()
 		if m.Screen == types.ScreenEditor {
 			ew, eh, _ := m.queryLayout()
 			m.EditorArea.SetWidth(ew)

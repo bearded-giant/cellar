@@ -126,6 +126,37 @@ func New(cmds *commands.Commands) Model {
 	}
 }
 
+// formModalWidth is the width of the add/edit connection + SSH form modals.
+func (m Model) formModalWidth() int {
+	w := m.Width - 8
+	if w > 110 {
+		w = 110
+	}
+	if w < 40 {
+		w = 40
+	}
+	return w
+}
+
+// sizeFormInputs grows the connection + SSH text inputs to the form modal width
+// so long values (URLs, proxy commands) are visible/editable, not clipped at a
+// fixed 50 cols. textinput still scrolls horizontally with the cursor.
+func (m *Model) sizeFormInputs() {
+	if m.Width == 0 {
+		return
+	}
+	fieldW := m.formModalWidth() - 8 // border + padding + prompt
+	if fieldW < 20 {
+		fieldW = 20
+	}
+	for i := range m.ConnInputs {
+		m.ConnInputs[i].Width = fieldW
+	}
+	for i := range m.SSHInputs {
+		m.SSHInputs[i].Width = fieldW
+	}
+}
+
 func createConnectionInputs() []textinput.Model {
 	inputs := make([]textinput.Model, 3)
 
