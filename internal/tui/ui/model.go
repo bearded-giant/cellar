@@ -158,7 +158,7 @@ func (m *Model) sizeFormInputs() {
 }
 
 func createConnectionInputs() []textinput.Model {
-	inputs := make([]textinput.Model, 3)
+	inputs := make([]textinput.Model, 4)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Connection Name"
@@ -172,6 +172,10 @@ func createConnectionInputs() []textinput.Model {
 	inputs[2] = textinput.New()
 	inputs[2].Placeholder = "Provider (mysql/postgres/sqlite3)"
 	inputs[2].Width = 50
+
+	inputs[3] = textinput.New()
+	inputs[3].Placeholder = "Default schema (postgres, optional) e.g. public"
+	inputs[3].Width = 50
 
 	return inputs
 }
@@ -248,6 +252,7 @@ func (m *Model) populateConnInputs(conn models.Connection) {
 	m.ConnInputs[0].SetValue(conn.Name)
 	m.ConnInputs[1].SetValue(conn.URL)
 	m.ConnInputs[2].SetValue(conn.Provider)
+	m.ConnInputs[3].SetValue(conn.DefaultSchema)
 	m.ConnFocusIdx = 0
 	m.ConnReadOnly = conn.ReadOnly
 	m.SSHEnabled = conn.UseSSH
@@ -281,12 +286,13 @@ func (m *Model) convertCurrentInputsToConnection(inputs []textinput.Model, actio
 	}
 
 	conn := models.Connection{
-		Name:     inputs[0].Value(),
-		URL:      url,
-		Provider: provider,
-		DBName:   dbName,
-		ReadOnly: m.ConnReadOnly,
-		UseSSH:   m.SSHEnabled,
+		Name:          inputs[0].Value(),
+		URL:           url,
+		Provider:      provider,
+		DBName:        dbName,
+		DefaultSchema: strings.TrimSpace(inputs[3].Value()),
+		ReadOnly:      m.ConnReadOnly,
+		UseSSH:        m.SSHEnabled,
 	}
 
 	if m.PendingSSH != nil {

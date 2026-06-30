@@ -44,6 +44,10 @@ type Connection struct {
 	// If empty, all schemas are shown.
 	Schemas []string
 
+	// DefaultSchema (PostgreSQL) is auto-expanded + focused on connect so you
+	// land in its tables. Empty = no default. Does not hide other schemas.
+	DefaultSchema string `toml:"default_schema,omitempty"`
+
 	Commands []*Command
 }
 

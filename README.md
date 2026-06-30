@@ -38,6 +38,8 @@ sqlite:///absolute/path/to/file.db
 
 Connections are saved to `~/.config/cellar/config.toml`. Mark a connection read-only in the form and cellar refuses every write for it — edits, inserts, deletes, and any non-SELECT query.
 
+On Postgres you can set a default schema (the form's `Schema` field, or `--schema` on the CLI). When set, cellar auto-expands that schema and drops the cursor on it when you connect, so you land in its tables instead of `hdb_catalog`/`information_schema`. It doesn't hide the other schemas — they're still there, just collapsed.
+
 ### Adding connections from the command line
 
 If your URLs come from somewhere else — a Vault cred script, an `.envrc`, whatever — you can push them into cellar without the form:
@@ -46,7 +48,7 @@ If your URLs come from somewhere else — a Vault cred script, an `.envrc`, what
 cellar --add-connection --name "orders-prod" --url "mysql://user:pass@host:3306/orders" --read-only
 ```
 
-It upserts by name (re-running replaces the entry instead of duplicating it), so it's safe to call from a script that refreshes short-lived credentials. The provider is inferred from the URL scheme; pass `--provider` to override. Drop `--read-only` for a writable connection, and `--config` to target a non-default config file. The whole thing writes to `~/.config/cellar/config.toml` and exits without opening the TUI.
+It upserts by name (re-running replaces the entry instead of duplicating it), so it's safe to call from a script that refreshes short-lived credentials. The provider is inferred from the URL scheme; pass `--provider` to override. Add `--schema public` to set a Postgres default schema, drop `--read-only` for a writable connection, and `--config` to target a non-default config file. The whole thing writes to `~/.config/cellar/config.toml` and exits without opening the TUI.
 
 ### SSH tunneling
 

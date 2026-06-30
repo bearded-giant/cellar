@@ -229,7 +229,29 @@ func (m Model) handleTablesLoadedMsg(msg types.TablesLoadedMsg) (tea.Model, tea.
 	}
 	m.Browse.TablesByDB[msg.DB] = msg.Tables
 	m.rebuildTree()
+	m.expandDefaultSchema(msg.DB)
 	return m, nil
+}
+
+// expandDefaultSchema auto-expands and selects the connection's DefaultSchema
+// within db (postgres schema tier) so the user lands in its tables. Fires once
+// per table load; a no-op when unset, not a schema driver, or already expanded.
+func (m *Model) expandDefaultSchema(db string) {
+	if m.CurrentConn == nil || m.CurrentConn.DefaultSchema == "" || !m.Browse.UseSchemas {
+		return
+	}
+	gKey := db + treeKeySep + m.CurrentConn.DefaultSchema
+	if _, ok := m.Browse.Expanded[gKey]; ok {
+		return // already toggled by the user; don't fight them
+	}
+	m.Browse.Expanded[gKey] = true
+	m.rebuildTree()
+	for i, n := range m.Browse.Nodes {
+		if n.Key == gKey {
+			m.Browse.Cursor = i
+			break
+		}
+	}
 }
 
 func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, tea.Cmd) {

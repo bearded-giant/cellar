@@ -33,6 +33,7 @@ func main() {
 	connName := fs.String("name", "", "Connection name (with --add-connection)")
 	connURL := fs.String("url", "", "Connection URL (with --add-connection)")
 	connProvider := fs.String("provider", "", "Provider override; inferred from the URL when empty")
+	connSchema := fs.String("schema", "", "Default schema to auto-expand on connect (postgres, with --add-connection)")
 	connRO := fs.Bool("read-only", false, "Mark the connection read-only (with --add-connection)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: cellar [flags]\n\n")
@@ -44,6 +45,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "      --name string          Connection name (with --add-connection)\n")
 		fmt.Fprintf(os.Stderr, "      --url string           Connection URL (with --add-connection)\n")
 		fmt.Fprintf(os.Stderr, "      --provider string      Provider override (inferred from URL if empty)\n")
+		fmt.Fprintf(os.Stderr, "      --schema string        Default schema to auto-expand (postgres)\n")
 		fmt.Fprintf(os.Stderr, "      --read-only            Mark the connection read-only\n")
 	}
 
@@ -78,7 +80,7 @@ func main() {
 				provider = parsed.Driver
 			}
 		}
-		conn := models.Connection{Name: *connName, URL: *connURL, Provider: provider, ReadOnly: *connRO}
+		conn := models.Connection{Name: *connName, URL: *connURL, Provider: provider, DefaultSchema: *connSchema, ReadOnly: *connRO}
 		if err := config.UpsertConnection(path, conn); err != nil {
 			log.Fatalf("add connection: %v", err)
 		}
