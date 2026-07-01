@@ -67,7 +67,7 @@ func (m Model) viewHelp() string {
 			{"ctrl+r", "run query (ctrl+enter on some terminals)"},
 			{"tab", "cycle editor ⟷ results"},
 			{"ctrl+z / ctrl+y", "undo / query history"},
-			{"ctrl+s", "save query"},
+			{"ctrl+s / ctrl+o", "save query / open saved"},
 			{"esc", "back to tree"},
 			{"results: x/J/y/v", "export / json / copy / cell"},
 		}},

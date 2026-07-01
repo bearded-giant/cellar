@@ -153,6 +153,9 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+y":
 		m.EditorContent = m.EditorArea.Value() // preserve the buffer if recall is cancelled
 		return m.openHistory()
+	case "ctrl+o":
+		m.EditorContent = m.EditorArea.Value() // preserve the buffer if cancelled
+		return m.openSavedQueries()
 	// ctrl+enter is a shadow for run; most terminals can't distinguish it from
 	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
 	// the reliable bind.
@@ -446,7 +449,7 @@ func (m Model) editorFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
-			{"ctrl+s", "save"}, {"ctrl+y", "history"}, {"ctrl+g", "help"}, {"esc", "back"},
+			{"ctrl+s", "save"}, {"ctrl+o", "saved"}, {"ctrl+y", "history"}, {"ctrl+g", "help"}, {"esc", "back"},
 		}
 	}
 	var b strings.Builder

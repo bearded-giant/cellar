@@ -84,7 +84,7 @@ func (m Model) handleSavedQueriesLoadedMsg(msg types.SavedQueriesLoadedMsg) (tea
 func (m Model) handleSavedQueriesScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.GridReturnScreen // back to browse or the editor, wherever it opened
 		return m, nil
 	case "up", "k":
 		if m.SavedCursor > 0 {
