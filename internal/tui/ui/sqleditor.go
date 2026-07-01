@@ -239,6 +239,67 @@ func (e *sqlEditor) moveDown() {
 	}
 }
 
+func (e sqlEditor) currentLine() string { return e.lines[e.row] }
+
+// rowForOffset maps a rune offset into Value() to its logical line index.
+func (e sqlEditor) rowForOffset(off int) int {
+	if off < 0 {
+		off = 0
+	}
+	acc := 0
+	for i := range e.lines {
+		acc += e.lineLen(i) + 1
+		if off < acc {
+			return i
+		}
+	}
+	return len(e.lines) - 1
+}
+
+// toggleCommentSpan toggles "-- " across every non-blank line the rune span
+// [start,end) touches: uncomments when all are already commented, else comments.
+func (e *sqlEditor) toggleCommentSpan(start, end int) {
+	first := e.rowForOffset(start)
+	last := e.rowForOffset(max(end-1, start))
+	if first > last {
+		first, last = last, first
+	}
+
+	allCommented, any := true, false
+	for r := first; r <= last; r++ {
+		body := strings.TrimLeft(e.lines[r], " \t")
+		if body == "" {
+			continue
+		}
+		any = true
+		if !strings.HasPrefix(body, "--") {
+			allCommented = false
+		}
+	}
+	if !any {
+		return
+	}
+
+	e.pushUndo()
+	e.lastIns = false
+	for r := first; r <= last; r++ {
+		body := strings.TrimLeft(e.lines[r], " \t")
+		if body == "" {
+			continue
+		}
+		indent := e.lines[r][:len(e.lines[r])-len(body)]
+		switch {
+		case !allCommented:
+			e.lines[r] = indent + "-- " + body
+		case strings.HasPrefix(body, "-- "):
+			e.lines[r] = indent + body[len("-- "):]
+		default:
+			e.lines[r] = indent + body[len("--"):]
+		}
+	}
+	e.clampCol()
+}
+
 func (e *sqlEditor) clampCol() {
 	if e.col > e.lineLen(e.row) {
 		e.col = e.lineLen(e.row)

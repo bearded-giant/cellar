@@ -57,6 +57,7 @@ func (m Model) handleHistoryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		if m.HistoryCursor < len(m.HistoryItems) {
 			m.EditorContent = m.HistoryItems[m.HistoryCursor].QueryText
+			m.SavedName = "" // recalled query is a fresh scratch buffer
 			return m.openEditor()
 		}
 	}

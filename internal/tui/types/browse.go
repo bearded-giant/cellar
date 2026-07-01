@@ -8,8 +8,9 @@ type HistoryLoadedMsg struct {
 }
 
 type SavedQuerySavedMsg struct {
-	Name string
-	Err  error
+	Name  string
+	Query string
+	Err   error
 }
 
 type SavedQueriesLoadedMsg struct {

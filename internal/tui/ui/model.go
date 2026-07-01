@@ -81,6 +81,11 @@ type Model struct {
 	SaveNameInput textinput.Model
 	SavedItems    []models.SavedQuery
 	SavedCursor   int
+	// SavedName is the saved-query name the editor buffer is bound to ("" =
+	// unsaved scratch); SavedBaseline is its content at the last save/load, so
+	// the header can flag unsaved edits and ctrl+s re-saves in place.
+	SavedName     string
+	SavedBaseline string
 
 	CellViewLines  []string
 	CellViewScroll int

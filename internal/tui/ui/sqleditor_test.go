@@ -16,6 +16,37 @@ func drive(e sqlEditor, ms ...tea.KeyMsg) sqlEditor {
 	return e
 }
 
+func TestSQLEditor_ToggleCommentLine(t *testing.T) {
+	e := newEditor("  select 1", 40, 10)
+
+	e.toggleCommentSpan(0, e.lineLen(0))
+	if e.Value() != "  -- select 1" {
+		t.Fatalf("comment: %q", e.Value())
+	}
+	e.toggleCommentSpan(0, e.lineLen(0))
+	if e.Value() != "  select 1" {
+		t.Fatalf("uncomment: %q", e.Value())
+	}
+	e.undoPop()
+	if e.Value() != "  -- select 1" {
+		t.Fatalf("undo should restore the commented form: %q", e.Value())
+	}
+}
+
+func TestSQLEditor_ToggleCommentMultiLine(t *testing.T) {
+	e := newEditor("select a,\n  b\nfrom t", 40, 10)
+
+	e.toggleCommentSpan(0, len([]rune(e.Value())))
+	if e.Value() != "-- select a,\n  -- b\n-- from t" {
+		t.Fatalf("comment all: %q", e.Value())
+	}
+	// still-commented range toggles back off in one press
+	e.toggleCommentSpan(0, len([]rune(e.Value())))
+	if e.Value() != "select a,\n  b\nfrom t" {
+		t.Fatalf("uncomment all: %q", e.Value())
+	}
+}
+
 func TestSQLEditor_TypeNewlineBackspace(t *testing.T) {
 	e := newEditor("", 40, 10)
 	e = drive(e, typeRunes("SELECT"))

@@ -17,6 +17,10 @@ func (m Model) openSaveQuery() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.EditorContent = q
+	// bound to a saved query already: re-save in place, no name prompt
+	if m.SavedName != "" {
+		return m, m.Cmds.UpdateSavedQuery(m.connIdent(), m.SavedName, q)
+	}
 	ti := textinput.New()
 	ti.Placeholder = "query name"
 	ti.Width = 40
@@ -49,6 +53,8 @@ func (m Model) handleSavedQuerySavedMsg(msg types.SavedQuerySavedMsg) (tea.Model
 		m.StatusMsg = "Save failed: " + msg.Err.Error()
 		return m, nil
 	}
+	m.SavedName = msg.Name        // bind the buffer so ctrl+s re-saves in place
+	m.SavedBaseline = msg.Query   // clean point for the dirty (*) marker
 	m.StatusMsg = "Saved query: " + msg.Name
 	return m, nil
 }
@@ -96,8 +102,13 @@ func (m Model) handleSavedQueriesScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		if m.SavedCursor < len(m.SavedItems) {
-			m.EditorContent = m.SavedItems[m.SavedCursor].Query
-			return m.openEditor()
+			it := m.SavedItems[m.SavedCursor]
+			m.EditorContent = it.Query
+			mdl, cmd := m.openEditor()
+			m = mdl.(Model)
+			m.SavedName = it.Name
+			m.SavedBaseline = it.Query
+			return m, cmd
 		}
 	}
 	return m, nil

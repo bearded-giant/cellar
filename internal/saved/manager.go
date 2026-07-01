@@ -128,6 +128,23 @@ func SaveQuery(connectionIdentifier, name, query string) error {
 	return writeSavedQueries(connectionIdentifier, savedQueries)
 }
 
+// UpdateSavedQuery overwrites an existing saved query's SQL by name (appending
+// it if the name is not found), so re-saving an open query updates it in place.
+func UpdateSavedQuery(connectionIdentifier, name, query string) error {
+	savedQueries, err := ReadSavedQueries(connectionIdentifier)
+	if err != nil {
+		return err
+	}
+	for i := range savedQueries {
+		if savedQueries[i].Name == name {
+			savedQueries[i].Query = query
+			return writeSavedQueries(connectionIdentifier, savedQueries)
+		}
+	}
+	savedQueries = append(savedQueries, models.SavedQuery{Name: name, Query: query})
+	return writeSavedQueries(connectionIdentifier, savedQueries)
+}
+
 // DeleteSavedQuery deletes a saved query from the TOML file for a specific connection.
 func DeleteSavedQuery(connectionIdentifier, name string) error {
 	savedQueries, err := ReadSavedQueries(connectionIdentifier)

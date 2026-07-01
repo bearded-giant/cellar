@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -94,7 +95,57 @@ func (c *Commands) LoadMeta(driver drivers.Driver, db, table string, kind MetaKi
 func (c *Commands) SaveQuery(connIdent, name, query string) tea.Cmd {
 	return func() tea.Msg {
 		err := saved.SaveQuery(connIdent, name, query)
-		return types.SavedQuerySavedMsg{Name: name, Err: err}
+		return types.SavedQuerySavedMsg{Name: name, Query: query, Err: err}
+	}
+}
+
+// UpdateSavedQuery re-saves an already-named query in place.
+func (c *Commands) UpdateSavedQuery(connIdent, name, query string) tea.Cmd {
+	return func() tea.Msg {
+		err := saved.UpdateSavedQuery(connIdent, name, query)
+		return types.SavedQuerySavedMsg{Name: name, Query: query, Err: err}
+	}
+}
+
+// RunQueries executes statements in order (notebook-style), stopping at the
+// first error, and reports the last statement's result so the grid shows the
+// final SELECT (or the last DML's status).
+func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bool, connIdent string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil || len(stmts) == 0 {
+			return types.QueryExecutedMsg{}
+		}
+		var last types.QueryExecutedMsg
+		ok := 0
+		for i, q := range stmts {
+			if isSelectQuery(q) {
+				rows, total, err := driver.ExecuteQuery(q)
+				recordHistory(connIdent, q)
+				last = types.QueryExecutedMsg{Query: q, IsSelect: true, Rows: rows, Total: total, Err: err}
+				if err != nil {
+					last.Err = fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)
+					return last
+				}
+			} else {
+				if readOnly {
+					if err := drivers.ValidateQueryForReadOnly(q); err != nil {
+						return types.QueryExecutedMsg{Query: q, Err: fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)}
+					}
+				}
+				info, err := driver.ExecuteDMLStatement(q)
+				recordHistory(connIdent, q)
+				last = types.QueryExecutedMsg{Query: q, Info: info, Err: err}
+				if err != nil {
+					last.Err = fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)
+					return last
+				}
+			}
+			ok++
+		}
+		if !last.IsSelect {
+			last.Info = fmt.Sprintf("ran %d statements — %s", ok, last.Info)
+		}
+		return last
 	}
 }
 

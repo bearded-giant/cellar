@@ -8,6 +8,7 @@ import (
 
 	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/lib"
 )
 
 // completionAreaRows is the fixed band reserved below the editor for the
@@ -50,7 +51,9 @@ func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.EditorColsLoaded = map[string]bool{}
 	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
-	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns())
+	// drop mouse reporting so the terminal does native drag-to-select/copy in the
+	// editor; nothing here consumes mouse events (handleMouse only acts on Browse).
+	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns(), tea.DisableMouse)
 }
 
 // ensureRefColumns fires column-load commands for tables referenced in the
@@ -140,7 +143,7 @@ func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
 	m.EditorContent = m.EditorArea.Value()
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
-	return m, nil
+	return m, tea.EnableMouseCellMotion // re-arm wheel-scroll/click in the browse grid
 }
 
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -160,8 +163,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
 	// the reliable bind.
 	case "ctrl+r", "ctrl+enter":
-		query := m.EditorArea.Value()
-		m.EditorContent = query
+		m.EditorContent = m.EditorArea.Value()
+		// run only the statement under the cursor (';'-delimited); single-statement
+		// buffers return the whole text unchanged.
+		query := sqlmeta.StatementAt(m.EditorContent, m.EditorArea.cursorOffset())
 		if strings.TrimSpace(query) == "" {
 			return m, nil
 		}
@@ -169,6 +174,16 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.StatusMsg = "Running query..."
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
 		return m, m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent())
+	case "alt+r": // run every ';'-delimited statement in order (notebook)
+		m.EditorContent = m.EditorArea.Value()
+		stmts := sqlmeta.SplitStatements(m.EditorContent)
+		if len(stmts) == 0 {
+			return m, nil
+		}
+		m.Browse.GridLoading = true
+		m.StatusMsg = "Running all statements..."
+		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
+		return m, m.Cmds.RunQueries(m.ActiveDriver, stmts, readOnly, m.connIdent())
 	}
 
 	// results pane focused: single-key grid affordances + back/cycle.
@@ -216,6 +231,18 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "esc": // back one level: leave the workspace to the tree
 		return m.leaveQueryWorkspace()
+	case "alt+c": // toggle "-- " comment across the statement under the cursor
+		start, end := sqlmeta.StatementBoundsAt(m.EditorArea.Value(), m.EditorArea.cursorOffset())
+		m.EditorArea.toggleCommentSpan(start, end)
+		m.refreshCompletions()
+		return m, nil
+	case "alt+y": // yank the cursor line to the clipboard
+		if err := lib.NewClipboard().Write(m.EditorArea.currentLine()); err != nil {
+			m.StatusMsg = "Copy failed: " + err.Error()
+		} else {
+			m.StatusMsg = "Yanked line to clipboard"
+		}
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -372,11 +399,23 @@ func (m Model) queryStatusLine() string {
 	return successStyle.Render(msg)
 }
 
+// editorDirty reports whether the bound saved query has unsaved edits.
+func (m Model) editorDirty() bool {
+	return m.SavedName != "" && m.EditorArea.Value() != m.SavedBaseline
+}
+
 func (m Model) viewEditor() string {
 	w, h := m.Width, m.Height
 	rule := dimStyle.Render(strings.Repeat("─", max(w, 1)))
 
 	title := accentStyle.Render("SQL Query")
+	if m.SavedName != "" {
+		name := m.SavedName
+		if m.editorDirty() {
+			name += "*"
+		}
+		title += accentStyle.Render("  ·  " + name)
+	}
 	if m.CurrentConn != nil {
 		title += dimStyle.Render("  ·  " + m.CurrentConn.Name)
 	}
@@ -448,8 +487,9 @@ func (m Model) editorFooter() string {
 		}
 	} else {
 		kb = []struct{ key, desc string }{
-			{"ctrl+r", "run"}, {"tab", "complete / results"}, {"ctrl+z", "undo"},
-			{"ctrl+s", "save"}, {"ctrl+o", "saved"}, {"ctrl+y", "history"}, {"ctrl+g", "help"}, {"esc", "back"},
+			{"ctrl+r", "run stmt"}, {"alt+r", "run all"}, {"alt+c", "comment"}, {"alt+y", "yank"},
+			{"tab", "complete / results"}, {"ctrl+z", "undo"}, {"ctrl+s", "save"}, {"ctrl+o", "saved"},
+			{"ctrl+y", "history"}, {"esc", "back"},
 		}
 	}
 	var b strings.Builder
