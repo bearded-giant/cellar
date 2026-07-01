@@ -103,6 +103,10 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ConfirmReturnScreen = types.ScreenConnections
 			m.Screen = types.ScreenConfirmDelete
 		}
+	case "K":
+		return m.moveConnection(-1)
+	case "J":
+		return m.moveConnection(+1)
 	case "r":
 		m.Loading = true
 		return m, m.Cmds.LoadConnections()
@@ -110,6 +114,22 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openHelp()
 	}
 	return m, nil
+}
+
+// moveConnection swaps the selected connection with its neighbor and persists
+// the new order (the list loads in file order).
+func (m Model) moveConnection(delta int) (tea.Model, tea.Cmd) {
+	n := len(m.Connections)
+	i := m.SelectedConnIdx
+	j := i + delta
+	if n < 2 || j < 0 || j >= n {
+		return m, nil
+	}
+	m.Connections[i], m.Connections[j] = m.Connections[j], m.Connections[i]
+	m.SelectedConnIdx = j
+	m.ConnectionError = ""
+	order := append([]models.Connection(nil), m.Connections...) // snapshot for the async save
+	return m, m.Cmds.ReorderConnections(order)
 }
 
 func (m Model) handleAddConnectionScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

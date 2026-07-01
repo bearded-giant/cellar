@@ -19,6 +19,10 @@ type ConnectionSavedMsg struct {
 	Err        error
 }
 
+type ConnectionsReorderedMsg struct {
+	Err error
+}
+
 type ConnectionDeletedMsg struct {
 	Name string
 	Err  error

@@ -288,6 +288,7 @@ func (m Model) connFooterHelp() string {
 	keybindings := []struct{ key, desc string }{
 		{"↑/↓", "navigate"},
 		{"enter", "open"},
+		{"K/J", "move up/down"},
 		{"t", "test"},
 		{"a", "add"},
 		{"e", "edit"},

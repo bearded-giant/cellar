@@ -89,6 +89,14 @@ func (c *Commands) DeleteConnection(name string, existing []models.Connection) t
 	}
 }
 
+// ReorderConnections persists connections in the given order (the list is
+// loaded and displayed in file order).
+func (c *Commands) ReorderConnections(conns []models.Connection) tea.Cmd {
+	return func() tea.Msg {
+		return types.ConnectionsReorderedMsg{Err: c.saveConnections(conns)}
+	}
+}
+
 func (c *Commands) Connect(conn models.Connection) tea.Cmd {
 	return func() tea.Msg {
 		url, tunnel, err := c.openDial(context.Background(), conn)

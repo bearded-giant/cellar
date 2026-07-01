@@ -14,6 +14,46 @@ func newTestModel() Model {
 	return New(commands.New(nil))
 }
 
+func TestMoveConnection(t *testing.T) {
+	m := newTestModel()
+	m.Connections = []models.Connection{{Name: "a"}, {Name: "b"}, {Name: "c"}}
+
+	// move "a" (idx 0) down -> [b a c], selection follows to idx 1
+	m.SelectedConnIdx = 0
+	res, cmd := m.moveConnection(+1)
+	m = res.(Model)
+	if m.Connections[0].Name != "b" || m.Connections[1].Name != "a" {
+		t.Fatalf("after move down: %v", names(m.Connections))
+	}
+	if m.SelectedConnIdx != 1 {
+		t.Errorf("selection should follow the moved item to idx 1, got %d", m.SelectedConnIdx)
+	}
+	if cmd == nil {
+		t.Error("a move should fire a persist command")
+	}
+
+	// move up at the top edge is a no-op (no reorder, no command)
+	m.SelectedConnIdx = 0
+	res, cmd = m.moveConnection(-1)
+	if cmd != nil {
+		t.Error("move up at the top edge should be a no-op")
+	}
+	if names(res.(Model).Connections) != "b,a,c" {
+		t.Errorf("edge move should not reorder, got %v", names(res.(Model).Connections))
+	}
+}
+
+func names(cs []models.Connection) string {
+	out := ""
+	for i, c := range cs {
+		if i > 0 {
+			out += ","
+		}
+		out += c.Name
+	}
+	return out
+}
+
 func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
 	t.Run("from add form returns to add form, not the list", func(t *testing.T) {
 		m := newTestModel()

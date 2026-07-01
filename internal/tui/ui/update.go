@@ -42,6 +42,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleConnectionSavedMsg(msg)
 	case types.ConnectionDeletedMsg:
 		return m.handleConnectionDeletedMsg(msg)
+	case types.ConnectionsReorderedMsg:
+		return m.handleConnectionsReorderedMsg(msg)
 	case types.ConnectedMsg:
 		return m.handleConnectedMsg(msg)
 	case types.TestResultMsg:
@@ -177,6 +179,13 @@ func (m Model) handleConnectionSavedMsg(msg types.ConnectionSavedMsg) (tea.Model
 	m.EditingConnection = nil
 	m.DuplicatingFrom = nil
 	m.resetConnInputs()
+	return m, nil
+}
+
+func (m Model) handleConnectionsReorderedMsg(msg types.ConnectionsReorderedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.StatusMsg = "Reorder failed: " + msg.Err.Error()
+	}
 	return m, nil
 }
 

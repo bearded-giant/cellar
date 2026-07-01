@@ -36,6 +36,7 @@ func (m Model) viewHelp() string {
 		}},
 		{"Connections", [][2]string{
 			{"enter / b", "open (in-app browse)"},
+			{"K / J", "move connection up / down"},
 			{"t / a / e", "test / add / edit"},
 			{"D / d / r", "duplicate / delete / reload"},
 		}},
