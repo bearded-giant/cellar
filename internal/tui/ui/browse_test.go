@@ -100,7 +100,7 @@ func TestVisibleWindow(t *testing.T) {
 	cases := []struct {
 		total, cursor, height, wantStart, wantEnd int
 	}{
-		{5, 0, 10, 0, 5},  // everything fits
+		{5, 0, 10, 0, 5}, // everything fits
 		{100, 0, 10, 0, 10},
 		{100, 50, 10, 41, 51}, // cursor kept in view
 		{100, 99, 10, 90, 100},

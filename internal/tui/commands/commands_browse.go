@@ -10,6 +10,7 @@ import (
 	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/internal/history"
 	"github.com/bearded-giant/cellar/internal/saved"
+	"github.com/bearded-giant/cellar/internal/state"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
@@ -146,6 +147,26 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 			last.Info = fmt.Sprintf("ran %d statements — %s", ok, last.Info)
 		}
 		return last
+	}
+}
+
+// LoadQueryState reads the connection's persisted query buffers (restore on
+// connect).
+func (c *Commands) LoadQueryState(connIdent string) tea.Cmd {
+	return func() tea.Msg {
+		st, err := state.Load(connIdent)
+		return types.QueryStateLoadedMsg{State: st, Err: err}
+	}
+}
+
+// SaveQueryState persists the connection's query buffers (autosave on run;
+// disconnect/quit backstops).
+func (c *Commands) SaveQueryState(connIdent string, st state.State) tea.Cmd {
+	return func() tea.Msg {
+		if connIdent == "" {
+			return types.QueryStateSavedMsg{}
+		}
+		return types.QueryStateSavedMsg{Err: state.Save(connIdent, st)}
 	}
 }
 

@@ -74,6 +74,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSavedQuerySavedMsg(msg)
 	case types.SavedQueriesLoadedMsg:
 		return m.handleSavedQueriesLoadedMsg(msg)
+	case types.QueryStateLoadedMsg:
+		return m.handleQueryStateLoadedMsg(msg)
+	case types.QueryStateSavedMsg:
+		return m.handleQueryStateSavedMsg(msg)
 	}
 
 	return m, nil
@@ -231,7 +235,10 @@ func (m Model) handleConnectedMsg(msg types.ConnectedMsg) (tea.Model, tea.Cmd) {
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
 	m.StatusMsg = "Connected — " + msg.Connection.Name
-	return m, m.Cmds.LoadDatabases(msg.Driver)
+	return m, tea.Batch(
+		m.Cmds.LoadDatabases(msg.Driver),
+		m.Cmds.LoadQueryState(msg.Connection.Name),
+	)
 }
 
 func (m Model) handleTestResultMsg(msg types.TestResultMsg) (tea.Model, tea.Cmd) {

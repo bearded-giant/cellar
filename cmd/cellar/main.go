@@ -109,7 +109,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if fm, ok := finalModel.(ui.Model); ok && fm.ActiveTunnel != nil {
-		_ = fm.ActiveTunnel.Close()
+	if fm, ok := finalModel.(ui.Model); ok {
+		fm.PersistQueryState() // quit backstop for the in-flight scratch SQL
+		if fm.ActiveTunnel != nil {
+			_ = fm.ActiveTunnel.Close()
+		}
 	}
 }

@@ -63,10 +63,15 @@ type Model struct {
 	// opens.
 	EditorArea    sqlEditor
 	EditorContent string
-	Completer     *sqlmeta.Autocompleter
-	Completions   []sqlmeta.CompletionItem
-	CompCursor    int
-	CompVisible   bool
+	// QueryTabs are the per-connection SQL buffer snapshots; the active one
+	// lives in the EditorArea/EditorContent/SavedName/SavedBaseline mirrors
+	// (same pattern as m.Browse vs m.Tabs). Persisted via internal/state.
+	QueryTabs      []queryTab
+	QueryTabActive int
+	Completer      *sqlmeta.Autocompleter
+	Completions    []sqlmeta.CompletionItem
+	CompCursor     int
+	CompVisible    bool
 	// EditorColsLoaded tracks tables whose columns have been fetched into the
 	// completer (keyed by lowercased bare name) so each loads at most once.
 	EditorColsLoaded map[string]bool

@@ -53,8 +53,8 @@ func (m Model) handleSavedQuerySavedMsg(msg types.SavedQuerySavedMsg) (tea.Model
 		m.StatusMsg = "Save failed: " + msg.Err.Error()
 		return m, nil
 	}
-	m.SavedName = msg.Name        // bind the buffer so ctrl+s re-saves in place
-	m.SavedBaseline = msg.Query   // clean point for the dirty (*) marker
+	m.SavedName = msg.Name      // bind the buffer so ctrl+s re-saves in place
+	m.SavedBaseline = msg.Query // clean point for the dirty (*) marker
 	m.StatusMsg = "Saved query: " + msg.Name
 	return m, nil
 }

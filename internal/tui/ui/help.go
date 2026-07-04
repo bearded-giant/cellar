@@ -66,10 +66,13 @@ func (m Model) viewHelp() string {
 		{"Query workspace (e)", [][2]string{
 			{"ctrl+r", "run query (ctrl+enter on some terminals)"},
 			{"tab", "cycle editor ⟷ results"},
+			{"alt+t / alt+w", "new / close query buffer"},
+			{"alt+] / alt+[", "next / prev query buffer"},
 			{"ctrl+z / ctrl+y", "undo / query history"},
 			{"ctrl+s / ctrl+o", "save query / open saved"},
 			{"esc", "back to tree"},
 			{"results: x/J/y/v", "export / json / copy / cell"},
+			{"", "buffers autosave on run; restored on reconnect"},
 		}},
 		{"Tabs", [][2]string{
 			{"T", "open selected table in new tab"},

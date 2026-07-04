@@ -76,6 +76,7 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 	m.Tabs = []browseState{m.Browse}
 	m.TabActive = 0
 	m.GridReturnScreen = types.ScreenBrowse
+	m.resetQueryTabs() // fresh connection: buffers restored via LoadQueryState
 }
 
 // resetPending resets the per-table view state (on table switch / FK jump).
@@ -180,6 +181,7 @@ func (m Model) confirmDisconnect() (tea.Model, tea.Cmd) {
 // ponytail: pool object lingers until GC; add Driver.Close() when a real
 // disconnect/reconnect leak shows up.
 func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
+	m.PersistQueryState() // backstop; autosave-on-run covers the common path
 	if m.ActiveTunnel != nil {
 		_ = m.ActiveTunnel.Close()
 		m.ActiveTunnel = nil
@@ -189,6 +191,7 @@ func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
 	m.Browse = browseState{}
 	m.Tabs = nil
 	m.TabActive = 0
+	m.resetQueryTabs()
 	m.Focus = types.FocusTree
 	m.Screen = types.ScreenConnections
 	m.StatusMsg = "Disconnected"

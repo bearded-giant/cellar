@@ -1,10 +1,24 @@
 package types
 
-import "github.com/bearded-giant/cellar/models"
+import (
+	"github.com/bearded-giant/cellar/internal/state"
+	"github.com/bearded-giant/cellar/models"
+)
 
 type HistoryLoadedMsg struct {
 	Items []models.QueryHistoryItem
 	Err   error
+}
+
+// QueryStateLoadedMsg carries a connection's persisted query buffers, restored
+// on connect. Load failure is non-fatal (start blank).
+type QueryStateLoadedMsg struct {
+	State state.State
+	Err   error
+}
+
+type QueryStateSavedMsg struct {
+	Err error
 }
 
 type SavedQuerySavedMsg struct {

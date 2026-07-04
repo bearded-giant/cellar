@@ -44,6 +44,7 @@ func (m Model) newEditorArea(content string) sqlEditor {
 }
 
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
+	m.ensureQueryTabs()
 	m.EditorArea = m.newEditorArea(m.EditorContent)
 	m.Completer = m.buildCompleter()
 	m.CompVisible = false
@@ -159,6 +160,14 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+o":
 		m.EditorContent = m.EditorArea.Value() // preserve the buffer if cancelled
 		return m.openSavedQueries()
+	case "alt+t":
+		return m.newQueryTab()
+	case "alt+]":
+		return m.switchQueryTab(+1)
+	case "alt+[":
+		return m.switchQueryTab(-1)
+	case "alt+w":
+		return m.closeQueryTab()
 	// ctrl+enter is a shadow for run; most terminals can't distinguish it from
 	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
 	// the reliable bind.
@@ -173,7 +182,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Browse.GridLoading = true
 		m.StatusMsg = "Running query..."
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
-		return m, m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent())
+		return m, tea.Batch(
+			m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent()),
+			m.autosaveQueryState(),
+		)
 	case "alt+r": // run every ';'-delimited statement in order (notebook)
 		m.EditorContent = m.EditorArea.Value()
 		stmts := sqlmeta.SplitStatements(m.EditorContent)
@@ -183,7 +195,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Browse.GridLoading = true
 		m.StatusMsg = "Running all statements..."
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
-		return m, m.Cmds.RunQueries(m.ActiveDriver, stmts, readOnly, m.connIdent())
+		return m, tea.Batch(
+			m.Cmds.RunQueries(m.ActiveDriver, stmts, readOnly, m.connIdent()),
+			m.autosaveQueryState(),
+		)
 	}
 
 	// results pane focused: single-key grid affordances + back/cycle.
@@ -425,8 +440,13 @@ func (m Model) viewEditor() string {
 		title += dimStyle.Render("   editing — tab to results")
 	}
 
-	// top: blank, header, blank, editor, completion band, rule, blank, status, blank, rule, blank
-	top := []string{"", title, ""}
+	// top: blank, header, [query tab bar], blank, editor, completion band, rule,
+	// blank, status, blank, rule, blank
+	top := []string{"", title}
+	if tb := m.queryTabBar(w); tb != "" {
+		top = append(top, tb)
+	}
+	top = append(top, "")
 	top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
 	top = append(top, m.renderCompletions(w, completionAreaRows)...)
 	top = append(top, rule, "", m.queryStatusLine())
@@ -488,6 +508,7 @@ func (m Model) editorFooter() string {
 	} else {
 		kb = []struct{ key, desc string }{
 			{"ctrl+r", "run stmt"}, {"alt+r", "run all"}, {"alt+c", "comment"}, {"alt+y", "yank"},
+			{"alt+t/]/[/w", "tabs"},
 			{"tab", "complete / results"}, {"ctrl+z", "undo"}, {"ctrl+s", "save"}, {"ctrl+o", "saved"},
 			{"ctrl+y", "history"}, {"esc", "back"},
 		}
