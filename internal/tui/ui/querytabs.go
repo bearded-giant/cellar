@@ -148,6 +148,30 @@ func (m Model) PersistQueryState() {
 	_ = state.Save(m.CurrentConn.Name, m.queryStateSnapshot())
 }
 
+// openQueryInEditor loads a saved query / history entry into the workspace.
+// A clean or blank active buffer is replaced in place; unsaved scratch gets a
+// new tab instead so a load never clobbers it (dirty-buffer guard).
+func (m Model) openQueryInEditor(content, savedName, baseline string) (tea.Model, tea.Cmd) {
+	m.ensureQueryTabs()
+	dirty := strings.TrimSpace(m.EditorContent) != "" &&
+		m.EditorContent != content &&
+		(m.SavedName == "" || m.EditorContent != m.SavedBaseline)
+	if dirty {
+		m.syncActiveQueryTab()
+		m.QueryTabs = append(m.QueryTabs, queryTab{})
+		m.QueryTabActive = len(m.QueryTabs) - 1
+	}
+	m.EditorContent = content
+	m.SavedName = savedName
+	m.SavedBaseline = baseline
+	mdl, cmd := m.openEditor()
+	out := mdl.(Model)
+	if dirty {
+		out.StatusMsg = "Opened in new tab — unsaved buffer kept"
+	}
+	return out, cmd
+}
+
 // handleQueryStateLoadedMsg restores the persisted buffers on connect. Errors
 // and empty state are non-fatal: start blank.
 func (m Model) handleQueryStateLoadedMsg(msg types.QueryStateLoadedMsg) (tea.Model, tea.Cmd) {

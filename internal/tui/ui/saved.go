@@ -103,12 +103,7 @@ func (m Model) handleSavedQueriesScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		if m.SavedCursor < len(m.SavedItems) {
 			it := m.SavedItems[m.SavedCursor]
-			m.EditorContent = it.Query
-			mdl, cmd := m.openEditor()
-			m = mdl.(Model)
-			m.SavedName = it.Name
-			m.SavedBaseline = it.Query
-			return m, cmd
+			return m.openQueryInEditor(it.Query, it.Name, it.Query)
 		}
 	}
 	return m, nil

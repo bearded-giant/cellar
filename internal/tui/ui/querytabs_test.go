@@ -154,6 +154,51 @@ func TestPersistQueryState_RoundTripAcrossReconnect(t *testing.T) {
 	}
 }
 
+func TestOpenQueryInEditor_DirtyScratchGetsNewTab(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select wip")
+	res, _ := m.leaveQueryWorkspace() // back to browse, EditorContent synced
+	m = res.(Model)
+
+	res, _ = m.openQueryInEditor("select saved", "mysaved", "select saved")
+	m = res.(Model)
+	if len(m.QueryTabs) != 2 || m.QueryTabActive != 1 {
+		t.Fatalf("dirty buffer should push a new tab, got %d tabs active=%d", len(m.QueryTabs), m.QueryTabActive)
+	}
+	if m.EditorArea.Value() != "select saved" || m.SavedName != "mysaved" {
+		t.Fatalf("new tab should hold the loaded query, got %q/%q", m.EditorArea.Value(), m.SavedName)
+	}
+	if m.QueryTabs[0].Content != "select wip" {
+		t.Fatalf("original scratch must survive in tab 0, got %q", m.QueryTabs[0].Content)
+	}
+}
+
+func TestOpenQueryInEditor_BlankBufferReplacedInPlace(t *testing.T) {
+	m := editorModel(t)
+	res, _ := m.openQueryInEditor("select 1", "", "")
+	m = res.(Model)
+	if len(m.QueryTabs) != 1 || m.EditorArea.Value() != "select 1" {
+		t.Fatalf("blank buffer should be replaced in place, got %d tabs %q", len(m.QueryTabs), m.EditorArea.Value())
+	}
+}
+
+func TestOpenQueryInEditor_CleanBoundBufferReplacedInPlace(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select a")
+	m.SavedName, m.SavedBaseline = "aye", "select a" // bound + clean: recoverable
+	res, _ := m.leaveQueryWorkspace()
+	m = res.(Model)
+
+	res, _ = m.openQueryInEditor("select b", "bee", "select b")
+	m = res.(Model)
+	if len(m.QueryTabs) != 1 {
+		t.Fatalf("clean bound buffer should be replaced, not tabbed, got %d tabs", len(m.QueryTabs))
+	}
+	if m.EditorArea.Value() != "select b" || m.SavedName != "bee" {
+		t.Fatalf("loaded query should be live, got %q/%q", m.EditorArea.Value(), m.SavedName)
+	}
+}
+
 func TestPersistQueryState_NeverHadBuffersLeavesFileAlone(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	if err := state.Save("prod", state.State{Tabs: []state.Tab{{SQL: "keep me"}}}); err != nil {
