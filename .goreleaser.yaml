@@ -16,7 +16,9 @@ before:
     - go generate ./...
 
 builds:
-  - env:
+  - main: ./cmd/cellar
+    binary: cellar
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -24,7 +26,7 @@ builds:
       - darwin
 
 archives:
-  - format: tar.gz
+  - formats: ['tar.gz']
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
@@ -36,7 +38,7 @@ archives:
     # use zip for windows archives
     format_overrides:
       - goos: windows
-        format: zip
+        formats: ['zip']
 
 changelog:
   sort: asc
@@ -44,12 +46,3 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-brews:
-  - 
-    name: lazysql
-    homepage: https://github.com/jorgerojas26/lazysql
-    repository:
-      owner: jorgerojas26
-      name: homebrew-lazysql
-    test: |
-      system "#{bin}/lazysql version"
