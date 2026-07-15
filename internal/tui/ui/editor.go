@@ -502,7 +502,7 @@ func (m Model) editorFooter() string {
 	var kb []struct{ key, desc string }
 	if m.Focus == types.FocusGrid {
 		kb = []struct{ key, desc string }{
-			{"↑/↓", "scroll"}, {"n/p", "page"}, {"v", "cell"}, {"J", "json"},
+			{"↑/↓", "scroll"}, {"n/p", "page"}, {"v", "cell"}, {"w", "wide"}, {"J", "json"},
 			{"x", "export"}, {"y", "copy"}, {"?", "help"}, {"tab", "editor"}, {"esc", "back"},
 		}
 	} else {

@@ -55,6 +55,7 @@ func (m Model) viewHelp() string {
 			{"s / / / i", "sort / filter / meta views"},
 			{"enter / ⌫", "FK jump / back"},
 			{"v", "cell view"},
+			{"w", "wide cells (full values inline)"},
 			{"y", "copy (cell / row)"},
 			{"d / o", "DELETE / INSERT SQL → editor (review + run)"},
 			{"H / Y", "history / saved queries"},
@@ -71,7 +72,7 @@ func (m Model) viewHelp() string {
 			{"ctrl+z / ctrl+y", "undo / query history"},
 			{"ctrl+s / ctrl+o", "save query / open saved"},
 			{"esc", "back to tree"},
-			{"results: x/J/y/v", "export / json / copy / cell"},
+			{"results: x/J/y/v/w", "export / json / copy / cell / wide"},
 			{"", "buffers autosave on run; restored on reconnect"},
 		}},
 		{"Tabs", [][2]string{

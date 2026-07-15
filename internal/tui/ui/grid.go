@@ -11,6 +11,15 @@ import (
 
 const maxCellWidth = 40
 
+// cellCap is the per-column truncation width: the default cap, or the full pane
+// width when WideCells is on so hashes/tokens read inline.
+func (m Model) cellCap() int {
+	if m.Browse.WideCells && m.Width > maxCellWidth {
+		return m.Width
+	}
+	return maxCellWidth
+}
+
 // displayCell maps the driver's row sentinels to display text. GetRecords emits
 // "NULL&" for SQL NULL and "EMPTY&" for the empty string.
 func displayCell(s string) string {
@@ -209,6 +218,9 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.popCrumb()
 	case "v":
 		return m.openCellView()
+	case "w":
+		m.Browse.WideCells = !m.Browse.WideCells
+		return m, nil
 	}
 	return m, nil
 }
@@ -291,6 +303,9 @@ func (m Model) renderGridLines(width, height int, showTitle bool) []string {
 		if m.Browse.ViewJSON {
 			title += "  [json]"
 		}
+		if m.Browse.WideCells {
+			title += "  [wide]"
+		}
 		if m.Browse.GridLoading {
 			title += "  loading…"
 		}
@@ -322,7 +337,7 @@ func (m Model) renderGridLines(width, height int, showTitle bool) []string {
 		return lines
 	}
 
-	widths := colWidths(m.Browse.Columns, m.Browse.Rows, maxCellWidth)
+	widths := colWidths(m.Browse.Columns, m.Browse.Rows, m.cellCap())
 	cs, ce := visibleColsForCursor(widths, m.Browse.ColCursor, width)
 
 	add(strings.Repeat("─", width), dim) // top border of the column header

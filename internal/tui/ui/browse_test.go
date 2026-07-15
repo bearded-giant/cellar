@@ -132,6 +132,21 @@ func TestColWidths(t *testing.T) {
 	}
 }
 
+func TestCellCap(t *testing.T) {
+	m := Model{Width: 200}
+	if got := m.cellCap(); got != maxCellWidth {
+		t.Errorf("default cap = %d, want %d", got, maxCellWidth)
+	}
+	m.Browse.WideCells = true
+	if got := m.cellCap(); got != 200 {
+		t.Errorf("wide cap = %d, want 200 (pane width)", got)
+	}
+	m.Width = 20 // narrower than the default cap: don't shrink below it
+	if got := m.cellCap(); got != maxCellWidth {
+		t.Errorf("wide cap on narrow pane = %d, want %d", got, maxCellWidth)
+	}
+}
+
 func TestVisibleColsForCursor(t *testing.T) {
 	widths := []int{10, 10, 10} // each needs 10 (+3 sep)
 	s, e := visibleColsForCursor(widths, 0, 30)

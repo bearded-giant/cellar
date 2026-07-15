@@ -45,6 +45,10 @@ type browseState struct {
 	ViewJSON  bool
 	JSONLines []string
 
+	// WideCells lifts the per-cell truncation cap to the pane width so full
+	// hashes/tokens show inline (toggle with `w`).
+	WideCells bool
+
 	// PkColumns is the loaded table's primary key (empty -> whole-row fallback).
 	PkColumns []string
 
@@ -351,7 +355,7 @@ func (m Model) browseFooter() string {
 		// editor (run there); no in-grid editing. export/json are query-only.
 		kb = []kbd{
 			{"↑/↓/←/→", "move"}, {"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"v", "cell"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
+			{"v", "cell"}, {"w", "wide"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, kbd{"⌫", "fk-back"})
