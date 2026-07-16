@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/lib"
 )
 
 // prettyCellLines renders a cell value for the full-screen viewer: JSON is
@@ -44,6 +45,13 @@ func (m Model) handleCellViewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "q", "v":
 		m.Screen = m.GridReturnScreen
+	case "y": // copy the raw cell value and drop back to the grid (where status shows)
+		m.Screen = m.GridReturnScreen
+		if err := lib.NewClipboard().Write(m.yankCell()); err != nil {
+			m.StatusMsg = "Copy failed: " + err.Error()
+		} else {
+			m.StatusMsg = "Copied cell to clipboard"
+		}
 	case "up", "k":
 		if m.CellViewScroll > 0 {
 			m.CellViewScroll--
@@ -80,6 +88,7 @@ func (m Model) viewCellView() string {
 	}
 	footer := badge("↑/↓", "236", "255") + dimStyle.Render(" scroll  ") +
 		badge("g/G", "236", "255") + dimStyle.Render(" top/bottom  ") +
+		badge("y", "236", "255") + dimStyle.Render(" copy  ") +
 		badge("esc", "236", "255") + dimStyle.Render(" back")
 	return title + "\n" + strings.Join(rows, "\n") + "\n" + footer
 }
