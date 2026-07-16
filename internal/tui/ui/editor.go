@@ -499,19 +499,21 @@ func (m Model) renderCompletions(width, rows int) []string {
 }
 
 func (m Model) editorFooter() string {
-	var kb []struct{ key, desc string }
+	type kbd = struct{ key, desc string }
+	// help leads so it survives a narrow-terminal clip; ctrl+g works in both panes.
+	kb := []kbd{{"ctrl+g", "help"}}
 	if m.Focus == types.FocusGrid {
-		kb = []struct{ key, desc string }{
-			{"↑/↓", "scroll"}, {"n/p", "page"}, {"v", "cell"}, {"w", "wide"}, {"J", "json"},
-			{"x", "export"}, {"y", "copy"}, {"?", "help"}, {"tab", "editor"}, {"esc", "back"},
-		}
+		kb = append(kb,
+			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v", "cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
+			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"tab", "editor"}, kbd{"esc", "back"},
+		)
 	} else {
-		kb = []struct{ key, desc string }{
-			{"ctrl+r", "run stmt"}, {"alt+r", "run all"}, {"alt+c", "comment"}, {"alt+y", "yank"},
-			{"alt+t/]/[/w", "tabs"},
-			{"tab", "complete / results"}, {"ctrl+z", "undo"}, {"ctrl+s", "save"}, {"ctrl+o", "saved"},
-			{"ctrl+y", "history"}, {"esc", "back"},
-		}
+		kb = append(kb,
+			kbd{"ctrl+r", "run stmt"}, kbd{"alt+r", "run all"}, kbd{"alt+c", "comment"}, kbd{"alt+y", "yank"},
+			kbd{"alt+t/]/[/w", "tabs"},
+			kbd{"tab", "complete / results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"}, kbd{"ctrl+o", "saved"},
+			kbd{"ctrl+y", "history"}, kbd{"esc", "back"},
+		)
 	}
 	var b strings.Builder
 	for i, k := range kb {

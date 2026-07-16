@@ -15,6 +15,11 @@ var (
 	selectedRowStyle = lipgloss.NewStyle().Background(lipgloss.Color("39")).Foreground(lipgloss.Color("0")).Bold(true)
 	headerRowStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 
+	// query-tab bar: active gets its own green fill (distinct from the cyan-39
+	// accent shared by the title + selected cell); inactive stays legible.
+	queryTabActiveStyle   = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0")).Bold(true)
+	queryTabInactiveStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
+
 	logoStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Bold(true)
 
 	statsBoxStyle = lipgloss.NewStyle().

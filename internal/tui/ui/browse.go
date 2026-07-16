@@ -343,12 +343,12 @@ func (m Model) browseFooter() string {
 	case m.Focus == types.FocusTree:
 		kb = []kbd{
 			{"↑/↓", "nav"}, {"→/enter", "open"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"?", "help"}, {"q", "disconnect"},
+			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	case len(m.Browse.Columns) == 0:
 		// grid focused but nothing loaded — only the cross-pane actions apply
 		kb = []kbd{
-			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"?", "help"}, {"q", "tree"},
+			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"q", "tree"},
 		}
 	default:
 		// table preview: read + navigate. d/o generate DELETE/INSERT SQL into the
@@ -365,6 +365,8 @@ func (m Model) browseFooter() string {
 	if len(m.Tabs) > 1 {
 		kb = append(kb, kbd{"]/[", "switch"}, kbd{"X", "close tab"})
 	}
+	// help leads so it survives a narrow-terminal clip
+	kb = append([]kbd{{"ctrl+g", "help"}}, kb...)
 	var b strings.Builder
 	for i, k := range kb {
 		b.WriteString(badge(k.key, "236", "255"))

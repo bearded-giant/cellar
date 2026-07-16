@@ -242,9 +242,9 @@ func (m Model) queryTabBar(width int) string {
 		}
 		used += len([]rune(seg))
 		if i == m.QueryTabActive {
-			b.WriteString(selectedRowStyle.Render(seg))
+			b.WriteString(queryTabActiveStyle.Render(seg))
 		} else {
-			b.WriteString(dimStyle.Render(seg))
+			b.WriteString(queryTabInactiveStyle.Render(seg))
 		}
 	}
 	return b.String()
