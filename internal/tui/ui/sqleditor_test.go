@@ -80,6 +80,33 @@ func TestSQLEditor_InsertMidLine(t *testing.T) {
 	}
 }
 
+func TestSQLEditor_PasteMultiline(t *testing.T) {
+	e := newEditor("", 40, 10)
+	e = drive(e, typeRunes("WITH x AS (\r\n  select 1\r\n)\nSELECT * FROM x;"))
+	want := "WITH x AS (\n  select 1\n)\nSELECT * FROM x;"
+	if e.Value() != want {
+		t.Fatalf("paste value = %q, want %q", e.Value(), want)
+	}
+	if len(e.lines) != 4 {
+		t.Fatalf("paste produced %d logical lines, want 4", len(e.lines))
+	}
+	if got := e.cursorOffset(); got != len([]rune(want)) {
+		t.Fatalf("cursor offset = %d, want %d (end)", got, len([]rune(want)))
+	}
+}
+
+func TestSQLEditor_PasteMidLineSplice(t *testing.T) {
+	e := newEditor("SELECT  FROM t", 40, 10)
+	e.row, e.col = 0, 7 // between "SELECT " and "FROM"
+	e = drive(e, typeRunes("a,\nb"))
+	if e.Value() != "SELECT a,\nb FROM t" {
+		t.Fatalf("mid-line paste splice: %q", e.Value())
+	}
+	if e.row != 1 || e.col != 1 {
+		t.Fatalf("cursor at (%d,%d), want (1,1)", e.row, e.col)
+	}
+}
+
 func TestSQLEditor_DeleteForwardJoins(t *testing.T) {
 	e := newEditor("a\nb", 40, 10)
 	e.row, e.col = 0, 1 // end of line "a"

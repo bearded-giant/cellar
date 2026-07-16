@@ -158,6 +158,12 @@ func (e sqlEditor) Update(msg tea.KeyMsg) (sqlEditor, tea.Cmd) {
 }
 
 func (e *sqlEditor) insert(s string) {
+	// a bracketed paste arrives as one KeyRunes msg with newlines embedded; split
+	// it into logical lines instead of stuffing them into a single line.
+	if strings.ContainsAny(s, "\r\n") {
+		e.insertMultiline(s)
+		return
+	}
 	ins := []rune(s)
 	line := []rune(e.lines[e.row])
 	out := make([]rune, 0, len(line)+len(ins))
@@ -166,6 +172,26 @@ func (e *sqlEditor) insert(s string) {
 	out = append(out, line[e.col:]...)
 	e.lines[e.row] = string(out)
 	e.col += len(ins)
+}
+
+func (e *sqlEditor) insertMultiline(s string) {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	segs := strings.Split(s, "\n")
+	last := len(segs) - 1
+
+	line := []rune(e.lines[e.row])
+	before, after := string(line[:e.col]), string(line[e.col:])
+	e.lines[e.row] = before + segs[0]
+
+	mid := make([]string, last)
+	copy(mid, segs[1:])
+	mid[last-1] += after
+	tail := append(mid, e.lines[e.row+1:]...)
+	e.lines = append(e.lines[:e.row+1], tail...)
+
+	e.row += last
+	e.col = len([]rune(segs[last]))
 }
 
 func (e *sqlEditor) insertNewline() {
