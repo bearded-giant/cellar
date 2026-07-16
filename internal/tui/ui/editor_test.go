@@ -138,6 +138,38 @@ func TestEditor_NoPopupWithoutPrefix(t *testing.T) {
 	}
 }
 
+func TestEditor_RunClearsPopupSoTabReachesResults(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	m.EditorArea.SetValue("select token fro") // "fro" -> FROM popup
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if !m.CompVisible {
+		t.Fatal("expected completion popup for 'fro'")
+	}
+
+	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlR})
+	m = res2.(Model)
+	if m.CompVisible {
+		t.Error("running a query must dismiss the completion popup (else tab is eaten)")
+	}
+
+	res3, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{
+		IsSelect: true,
+		Rows:     [][]string{{"token"}, {"abc"}},
+		Total:    1,
+	})
+	m = res3.(Model)
+
+	res4, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyTab})
+	if got := res4.(Model).Focus; got != types.FocusGrid {
+		t.Errorf("after run, tab should reach the results pane; Focus=%v", got)
+	}
+}
+
 type fakeErr struct{}
 
 func (fakeErr) Error() string { return "boom" }

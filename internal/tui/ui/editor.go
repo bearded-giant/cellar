@@ -179,6 +179,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if strings.TrimSpace(query) == "" {
 			return m, nil
 		}
+		m.dismissCompletions() // else a lingering popup eats the tab-to-results
 		m.Browse.GridLoading = true
 		m.StatusMsg = "Running query..."
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
@@ -192,6 +193,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(stmts) == 0 {
 			return m, nil
 		}
+		m.dismissCompletions() // else a lingering popup eats the tab-to-results
 		m.Browse.GridLoading = true
 		m.StatusMsg = "Running all statements..."
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
@@ -281,6 +283,11 @@ func currentPrefix(text string, off int) string {
 		break
 	}
 	return string(r[i:off])
+}
+
+func (m *Model) dismissCompletions() {
+	m.CompVisible = false
+	m.Completions = nil
 }
 
 func (m *Model) refreshCompletions() {
