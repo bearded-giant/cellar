@@ -499,7 +499,6 @@ func (m Model) renderCompletions(width, rows int) []string {
 }
 
 func (m Model) editorFooter() string {
-	type kbd = struct{ key, desc string }
 	// help leads so it survives a narrow-terminal clip; ctrl+g works in both panes.
 	kb := []kbd{{"ctrl+g", "help"}}
 	if m.Focus == types.FocusGrid {
@@ -515,14 +514,5 @@ func (m Model) editorFooter() string {
 			kbd{"ctrl+y", "history"}, kbd{"esc", "back"},
 		)
 	}
-	var b strings.Builder
-	for i, k := range kb {
-		b.WriteString(badge(k.key, "236", "255"))
-		b.WriteString(" ")
-		b.WriteString(dimStyle.Render(k.desc))
-		if i < len(kb)-1 {
-			b.WriteString("  ")
-		}
-	}
-	return b.String()
+	return renderKeyHints(kb, m.Width)
 }

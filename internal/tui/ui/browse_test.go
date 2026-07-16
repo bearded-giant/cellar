@@ -2,6 +2,7 @@ package ui
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -129,6 +130,26 @@ func TestColWidths(t *testing.T) {
 	wide := colWidths([]string{"c"}, [][]string{{"this-is-a-very-long-cell-value-exceeding-the-cap"}}, 10)
 	if wide[0] != 10 {
 		t.Errorf("capped width = %d, want 10", wide[0])
+	}
+}
+
+func TestRenderKeyHints_ClipsWithEllipsis(t *testing.T) {
+	kb := []kbd{{"ctrl+g", "help"}, {"a", "alpha"}, {"b", "bravo"}, {"c", "charlie"}}
+
+	full := renderKeyHints(kb, 200)
+	if !strings.Contains(full, "charlie") || strings.Contains(full, "…") {
+		t.Errorf("wide render should show all hints uncut: %q", full)
+	}
+
+	narrow := renderKeyHints(kb, 20)
+	if !strings.Contains(narrow, "help") {
+		t.Errorf("clip dropped the leading help hint: %q", narrow)
+	}
+	if !strings.Contains(narrow, "…") {
+		t.Errorf("clip should be marked with …: %q", narrow)
+	}
+	if strings.Contains(narrow, "charlie") {
+		t.Errorf("clip should have dropped trailing hints: %q", narrow)
 	}
 }
 

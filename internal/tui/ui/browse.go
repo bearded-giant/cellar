@@ -336,8 +336,40 @@ func (m Model) viewBrowse() string {
 	return b.String()
 }
 
+type kbd = struct{ key, desc string }
+
+// renderKeyHints lays out footer badges left-to-right, stopping before `width`
+// and marking a clip with a trailing … so hidden binds read as hidden rather
+// than silently vanishing. Callers put ctrl+g (help) first so it always shows.
+func renderKeyHints(kb []kbd, width int) string {
+	if width < 1 {
+		width = 1
+	}
+	var b strings.Builder
+	used := 0
+	for i, k := range kb {
+		seg := len([]rune(k.key)) + 2 + 1 + len([]rune(k.desc)) // badge pad + " " + desc
+		if i > 0 {
+			seg += 2 // "  " separator
+		}
+		if used+seg > width {
+			if used+1 <= width {
+				b.WriteString(dimStyle.Render("…"))
+			}
+			break
+		}
+		if i > 0 {
+			b.WriteString("  ")
+		}
+		b.WriteString(badge(k.key, "236", "255"))
+		b.WriteString(" ")
+		b.WriteString(dimStyle.Render(k.desc))
+		used += seg
+	}
+	return b.String()
+}
+
 func (m Model) browseFooter() string {
-	type kbd = struct{ key, desc string }
 	var kb []kbd
 	switch {
 	case m.Focus == types.FocusTree:
@@ -367,16 +399,7 @@ func (m Model) browseFooter() string {
 	}
 	// help leads so it survives a narrow-terminal clip
 	kb = append([]kbd{{"ctrl+g", "help"}}, kb...)
-	var b strings.Builder
-	for i, k := range kb {
-		b.WriteString(badge(k.key, "236", "255"))
-		b.WriteString(" ")
-		b.WriteString(dimStyle.Render(k.desc))
-		if i < len(kb)-1 {
-			b.WriteString("  ")
-		}
-	}
-	return b.String()
+	return renderKeyHints(kb, m.Width)
 }
 
 // fitHeight forces lines to exactly height entries, padding short blocks with
