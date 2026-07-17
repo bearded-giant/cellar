@@ -29,6 +29,7 @@ func (m Model) freshTab() browseState {
 		UseSchemas: b.UseSchemas,
 		Databases:  b.Databases,
 		TablesByDB: b.TablesByDB,
+		ViewsByDB:  b.ViewsByDB,
 		Expanded:   b.Expanded,
 		Nodes:      b.Nodes,
 		Cursor:     b.Cursor,
@@ -50,7 +51,7 @@ func (m Model) openSelectedInNewTab() (tea.Model, tea.Cmd) {
 	m.Browse = nb
 
 	if m.Browse.Cursor < len(m.Browse.Nodes) {
-		if node := m.Browse.Nodes[m.Browse.Cursor]; node.Kind == kindTable {
+		if node := m.Browse.Nodes[m.Browse.Cursor]; node.Kind == kindTable || node.Kind == kindView {
 			return m.openTable(node)
 		}
 	}

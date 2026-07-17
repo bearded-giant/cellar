@@ -58,6 +58,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleDatabasesLoadedMsg(msg)
 	case types.TablesLoadedMsg:
 		return m.handleTablesLoadedMsg(msg)
+	case types.ViewsLoadedMsg:
+		return m.handleViewsLoadedMsg(msg)
 	case types.RecordsLoadedMsg:
 		return m.handleRecordsLoadedMsg(msg)
 	case types.QueryExecutedMsg:

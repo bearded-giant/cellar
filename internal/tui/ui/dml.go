@@ -44,6 +44,10 @@ func (m Model) generateDelete() (tea.Model, tea.Cmd) {
 	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || m.ActiveDriver == nil {
 		return m, nil
 	}
+	if m.Browse.IsView {
+		m.StatusMsg = "Views are read-only — no DELETE generation"
+		return m, nil
+	}
 	if m.Browse.RowCursor < 0 || m.Browse.RowCursor >= len(m.Browse.Rows) {
 		m.StatusMsg = "No row selected"
 		return m, nil
@@ -57,6 +61,10 @@ func (m Model) generateDelete() (tea.Model, tea.Cmd) {
 // for the current table into the SQL editor.
 func (m Model) generateInsert() (tea.Model, tea.Cmd) {
 	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || len(m.Browse.Columns) == 0 {
+		return m, nil
+	}
+	if m.Browse.IsView {
+		m.StatusMsg = "Views are read-only — no INSERT generation"
 		return m, nil
 	}
 	placeholders := make([]string, len(m.Browse.Columns))

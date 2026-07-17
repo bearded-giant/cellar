@@ -15,6 +15,7 @@ const (
 	kindDB nodeKind = iota
 	kindGroup
 	kindTable
+	kindView
 )
 
 type treeNode struct {
@@ -43,8 +44,9 @@ func flattenTree(b browseState) []treeNode {
 	var nodes []treeNode
 	for _, db := range b.Databases {
 		groups, loaded := b.TablesByDB[db]
+		views := b.ViewsByDB[db]
 		dbMatches := match(db)
-		if filtering && !dbMatches && !loadedHasMatch(groups, match) {
+		if filtering && !dbMatches && !loadedHasMatch(groups, match) && !loadedHasMatch(views, match) {
 			continue
 		}
 		dbExpanded := b.Expanded[db] || (filtering && loaded)
@@ -57,14 +59,15 @@ func flattenTree(b browseState) []treeNode {
 		}
 
 		if b.UseSchemas {
-			for _, g := range sortedKeys(groups) {
+			for _, g := range unionKeys(groups, views) {
 				gMatches := match(g)
 				tableMatch := anyMatch(groups[g], match)
-				if filtering && !dbMatches && !gMatches && !tableMatch {
+				viewMatch := anyMatch(views[g], match)
+				if filtering && !dbMatches && !gMatches && !tableMatch && !viewMatch {
 					continue
 				}
 				gKey := db + treeKeySep + g
-				gExpanded := b.Expanded[gKey] || (filtering && (dbMatches || gMatches || tableMatch))
+				gExpanded := b.Expanded[gKey] || (filtering && (dbMatches || gMatches || tableMatch || viewMatch))
 				nodes = append(nodes, treeNode{
 					Key: gKey, Label: g, Kind: kindGroup, Depth: 1,
 					DB: db, Group: g, Expanded: gExpanded, HasKids: true,
@@ -81,6 +84,7 @@ func flattenTree(b browseState) []treeNode {
 						DB: db, Group: g, Table: g + "." + t,
 					})
 				}
+				nodes = appendViewNodes(nodes, b, filtering, dbMatches || gMatches, match, gKey, db, g, views[g], 2)
 			}
 			continue
 		}
@@ -99,8 +103,73 @@ func flattenTree(b browseState) []treeNode {
 				DB: db, Table: t,
 			})
 		}
+		var flat []string
+		for _, g := range sortedKeys(views) {
+			flat = append(flat, views[g]...)
+		}
+		nodes = appendViewNodes(nodes, b, filtering, dbMatches, match, db, db, "", flat, 1)
 	}
 	return nodes
+}
+
+// appendViewNodes adds a "views" group (and its children when expanded) after a
+// scope's tables. Absent entirely when the scope has no views; view refs are
+// schema-qualified when group is set (schema drivers), bare otherwise. The
+// group key embeds an empty segment so it can never collide with a table key.
+func appendViewNodes(nodes []treeNode, b browseState, filtering, ancestorMatch bool, match func(string) bool, parentKey, db, group string, views []string, depth int) []treeNode {
+	if filtering && !ancestorMatch {
+		var keep []string
+		for _, v := range views {
+			if match(v) {
+				keep = append(keep, v)
+			}
+		}
+		views = keep
+	}
+	if len(views) == 0 {
+		return nodes
+	}
+	key := parentKey + treeKeySep + treeKeySep + "views"
+	expanded := b.Expanded[key] || filtering
+	nodes = append(nodes, treeNode{
+		Key: key, Label: "views", Kind: kindGroup, Depth: depth,
+		DB: db, Group: group, Expanded: expanded, HasKids: true,
+	})
+	if !expanded {
+		return nodes
+	}
+	for _, v := range sortedCopy(views) {
+		ref := v
+		if group != "" {
+			ref = group + "." + v
+		}
+		nodes = append(nodes, treeNode{
+			Key: key + treeKeySep + v, Label: v, Kind: kindView, Depth: depth + 1,
+			DB: db, Group: group, Table: ref,
+		})
+	}
+	return nodes
+}
+
+// unionKeys returns the sorted union of both maps' keys (a schema can hold only
+// views, so the schema tier can't iterate tables alone).
+func unionKeys(a, b map[string][]string) []string {
+	seen := map[string]bool{}
+	var keys []string
+	for k := range a {
+		if !seen[k] {
+			seen[k] = true
+			keys = append(keys, k)
+		}
+	}
+	for k := range b {
+		if !seen[k] {
+			seen[k] = true
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func anyMatch(ss []string, match func(string) bool) bool {
@@ -138,8 +207,8 @@ func sortedCopy(ss []string) []string {
 	return out
 }
 
-// openTable loads a table node into the active tab's grid (shared by the tree
-// Enter path and "open in new tab").
+// openTable loads a table or view node into the active tab's grid (shared by
+// the tree Enter path and "open in new tab").
 func (m Model) openTable(node treeNode) (tea.Model, tea.Cmd) {
 	m.Browse.TableDB = node.DB
 	m.Browse.Table = node.Table
@@ -151,9 +220,13 @@ func (m Model) openTable(node treeNode) (tea.Model, tea.Cmd) {
 	m.Browse.FKMap = nil
 	m.Browse.Crumbs = nil
 	m.resetPending()
+	m.Browse.IsView = node.Kind == kindView
 	m.Browse.GridErr = ""
 	m.Browse.GridLoading = true
 	m.Focus = types.FocusGrid
+	if m.Browse.IsView { // views have no PK/FK metadata to fetch
+		return m, m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit)
+	}
 	return m, tea.Batch(
 		m.Cmds.LoadRecords(m.ActiveDriver, node.DB, node.Table, "", "", 0, m.Browse.Limit),
 		m.Cmds.LoadPrimaryKey(m.ActiveDriver, node.DB, node.Table),
@@ -184,7 +257,7 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		node := m.Browse.Nodes[m.Browse.Cursor]
 		switch node.Kind {
-		case kindTable:
+		case kindTable, kindView:
 			return m.openTable(node)
 		case kindDB:
 			if m.Browse.Expanded[node.Key] {
@@ -195,7 +268,10 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Browse.Expanded[node.Key] = true
 			m.rebuildTree()
 			if _, loaded := m.Browse.TablesByDB[node.DB]; !loaded {
-				return m, m.Cmds.LoadTables(m.ActiveDriver, node.DB)
+				return m, tea.Batch(
+					m.Cmds.LoadTables(m.ActiveDriver, node.DB),
+					m.Cmds.LoadViews(m.ActiveDriver, node.DB),
+				)
 			}
 		case kindGroup:
 			m.Browse.Expanded[node.Key] = !m.Browse.Expanded[node.Key]
@@ -218,8 +294,11 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func treeIcon(n treeNode) string {
-	if n.Kind == kindTable {
+	switch n.Kind {
+	case kindTable:
 		return "• "
+	case kindView:
+		return "◇ "
 	}
 	if n.Expanded {
 		return "▾ "

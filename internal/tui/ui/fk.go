@@ -133,6 +133,7 @@ func (m Model) navigateTable(db, table, label, where, sort string) (tea.Model, t
 	m.Browse.ViewJSON = false
 	m.Browse.PkColumns = nil
 	m.Browse.FKMap = nil
+	m.Browse.IsView = false // FK targets are always tables
 	m.Browse.GridLoading = true
 	m.Focus = types.FocusGrid
 	return m, tea.Batch(

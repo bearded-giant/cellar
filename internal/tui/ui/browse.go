@@ -20,6 +20,7 @@ type browseState struct {
 
 	Databases  []string
 	TablesByDB map[string]map[string][]string // db -> group(schema) -> tables
+	ViewsByDB  map[string]map[string][]string // db -> group(schema) -> views
 	Expanded   map[string]bool                // node key -> expanded
 
 	Nodes  []treeNode // flattened visible set, rebuilt on tree change
@@ -28,6 +29,7 @@ type browseState struct {
 	TableDB string // database arg for the loaded table
 	Table   string // schema-qualified ref passed to the driver
 	Label   string // display name of the loaded table
+	IsView  bool   // loaded object is a view: no PK/FK meta, no DML generation
 
 	Columns   []string
 	Rows      [][]string // data rows only (header stripped off)
@@ -74,6 +76,7 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 	m.Browse = browseState{
 		UseSchemas: useSchemas,
 		TablesByDB: map[string]map[string][]string{},
+		ViewsByDB:  map[string]map[string][]string{},
 		Expanded:   map[string]bool{},
 		Limit:      browsePageSize,
 	}
@@ -85,6 +88,7 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 
 // resetPending resets the per-table view state (on table switch / FK jump).
 func (m *Model) resetPending() {
+	m.Browse.IsView = false
 	m.Browse.ColCursor = 0
 	m.Browse.Sort = ""
 	m.Browse.Where = ""
@@ -222,7 +226,10 @@ func (m Model) handleDatabasesLoadedMsg(msg types.DatabasesLoadedMsg) (tea.Model
 	if target != "" {
 		m.Browse.Expanded[target] = true
 		m.rebuildTree()
-		return m, m.Cmds.LoadTables(m.ActiveDriver, target)
+		return m, tea.Batch(
+			m.Cmds.LoadTables(m.ActiveDriver, target),
+			m.Cmds.LoadViews(m.ActiveDriver, target),
+		)
 	}
 	m.rebuildTree()
 	return m, nil
@@ -239,6 +246,19 @@ func (m Model) handleTablesLoadedMsg(msg types.TablesLoadedMsg) (tea.Model, tea.
 	m.Browse.TablesByDB[msg.DB] = msg.Tables
 	m.rebuildTree()
 	m.expandDefaultSchema(msg.DB)
+	return m, nil
+}
+
+func (m Model) handleViewsLoadedMsg(msg types.ViewsLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.Err != nil {
+		m.Browse.GridErr = "Error loading views: " + msg.Err.Error()
+		return m, nil
+	}
+	if m.Browse.ViewsByDB == nil {
+		m.Browse.ViewsByDB = map[string]map[string][]string{}
+	}
+	m.Browse.ViewsByDB[msg.DB] = msg.Views
+	m.rebuildTree()
 	return m, nil
 }
 
