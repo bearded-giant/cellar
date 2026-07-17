@@ -16,9 +16,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Height = msg.Height
 		m.sizeFormInputs()
 		if m.Screen == types.ScreenEditor {
-			ew, eh, _ := m.queryLayout()
+			ew, _, _ := m.queryLayout()
 			m.EditorArea.SetWidth(ew)
-			m.EditorArea.SetHeight(eh)
+			m.syncEditorHeight()
 		}
 		return m, nil
 

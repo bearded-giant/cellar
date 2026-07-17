@@ -24,13 +24,7 @@ func (m Model) queryLayout() (editorW, editorH, resultsH int) {
 	if editorW < 10 {
 		editorW = 10
 	}
-	editorH = h / 4
-	if editorH < 4 {
-		editorH = 4
-	}
-	if editorH > 10 {
-		editorH = 10
-	}
+	editorH = m.editorHeight(len(m.EditorArea.lines))
 	resultsH = h - editorH - completionAreaRows - 4 // title, breather, footer, status
 	if resultsH < 3 {
 		resultsH = 3
@@ -38,9 +32,35 @@ func (m Model) queryLayout() (editorW, editorH, resultsH int) {
 	return editorW, editorH, resultsH
 }
 
+// editorHeight sizes the editor pane to the query so large pastes stay visible:
+// it grows with the line count, capped generously while editing and to a third
+// of the window once a query has run so the results pane keeps room.
+func (m Model) editorHeight(lines int) int {
+	maxH := m.Height - 18 // ~chrome + a few results rows while editing
+	if len(m.Browse.QueryRows) > 0 || m.Browse.GridErr != "" {
+		maxH = m.Height / 3
+	}
+	if maxH < 4 {
+		maxH = 4
+	}
+	eh := lines
+	if eh < 4 {
+		eh = 4
+	}
+	if eh > maxH {
+		eh = maxH
+	}
+	return eh
+}
+
+func (m *Model) syncEditorHeight() {
+	m.EditorArea.SetHeight(m.editorHeight(len(m.EditorArea.lines)))
+}
+
 func (m Model) newEditorArea(content string) sqlEditor {
-	ew, eh, _ := m.queryLayout()
-	return newEditor(content, ew, eh)
+	ew, _, _ := m.queryLayout()
+	lines := strings.Count(content, "\n") + 1
+	return newEditor(content, ew, m.editorHeight(lines))
 }
 
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
@@ -264,6 +284,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	m.EditorArea, cmd = m.EditorArea.Update(msg)
+	m.syncEditorHeight()
 	m.refreshCompletions()
 	return m, tea.Batch(cmd, m.ensureRefColumns())
 }
@@ -428,6 +449,7 @@ func (m Model) editorDirty() bool {
 
 func (m Model) viewEditor() string {
 	w, h := m.Width, m.Height
+	m.syncEditorHeight() // grow/shrink the pane to the query + results state
 	rule := dimStyle.Render(strings.Repeat("─", max(w, 1)))
 
 	title := accentStyle.Render("SQL Query")
