@@ -26,6 +26,40 @@ func prettyCellLines(value string) []string {
 	return strings.Split(v, "\n")
 }
 
+// wrapLine soft-wraps s into rune-counted chunks of at most width; width <= 0
+// disables wrapping. Chunks concatenate back to the original line exactly.
+func wrapLine(s string, width int) []string {
+	r := []rune(s)
+	if width <= 0 || len(r) <= width {
+		return []string{s}
+	}
+	out := make([]string, 0, (len(r)+width-1)/width)
+	for len(r) > width {
+		out = append(out, string(r[:width]))
+		r = r[width:]
+	}
+	return append(out, string(r))
+}
+
+func wrapLines(lines []string, width int) []string {
+	out := make([]string, 0, len(lines))
+	for _, l := range lines {
+		out = append(out, wrapLine(l, width)...)
+	}
+	return out
+}
+
+func (m Model) cellViewWrapWidth() int {
+	if m.Width < 20 || m.Height < 8 {
+		return 0
+	}
+	return m.Width
+}
+
+func (m Model) cellViewDisplayLines() []string {
+	return wrapLines(m.CellViewLines, m.cellViewWrapWidth())
+}
+
 func (m Model) openCellView() (tea.Model, tea.Cmd) {
 	if len(m.Browse.Columns) == 0 {
 		return m, nil
@@ -41,7 +75,10 @@ func (m Model) openCellView() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCellViewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	last := len(m.CellViewLines) - 1
+	last := len(m.cellViewDisplayLines()) - 1
+	if m.CellViewScroll > last { // width may have shrunk/grown the wrapped line count
+		m.CellViewScroll = max(last, 0)
+	}
 	switch msg.String() {
 	case "esc", "q", "v":
 		m.Screen = m.GridReturnScreen
@@ -78,10 +115,15 @@ func (m Model) viewCellView() string {
 	if bodyH < 1 {
 		bodyH = 1
 	}
-	start, end := visibleWindow(len(m.CellViewLines), m.CellViewScroll, bodyH)
+	lines := m.cellViewDisplayLines()
+	scroll := m.CellViewScroll
+	if last := len(lines) - 1; scroll > last {
+		scroll = max(last, 0)
+	}
+	start, end := visibleWindow(len(lines), scroll, bodyH)
 	rows := make([]string, 0, bodyH)
 	for i := start; i < end; i++ {
-		rows = append(rows, normalStyle.Render(padRunes(m.CellViewLines[i], w)))
+		rows = append(rows, normalStyle.Render(padRunes(lines[i], w)))
 	}
 	for len(rows) < bodyH {
 		rows = append(rows, strings.Repeat(" ", w))
