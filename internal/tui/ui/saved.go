@@ -76,7 +76,8 @@ func (m Model) viewSaveQuery() string {
 	return m.renderModal(body)
 }
 
-// openSavedQueries (from browse) loads the saved-query list.
+// openSavedQueries opens the saved side of the query picker (ctrl+o); tab/h/l
+// toggles over to history.
 func (m Model) openSavedQueries() (tea.Model, tea.Cmd) {
 	return m, m.Cmds.LoadSavedQueries(m.connIdent())
 }
@@ -86,10 +87,7 @@ func (m Model) handleSavedQueriesLoadedMsg(msg types.SavedQueriesLoadedMsg) (tea
 		m.StatusMsg = "Saved queries error: " + msg.Err.Error()
 		return m, nil
 	}
-	if len(msg.Items) == 0 {
-		m.StatusMsg = "No saved queries"
-		return m, nil
-	}
+	// an empty list still opens so the history side stays reachable via toggle
 	m.SavedItems = msg.Items
 	m.SavedCursor = 0
 	m.Screen = types.ScreenSavedQueries
@@ -101,6 +99,8 @@ func (m Model) handleSavedQueriesScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "q":
 		m.Screen = m.GridReturnScreen // back to browse or the editor, wherever it opened
 		return m, nil
+	case "tab", "h", "l":
+		return m.openHistory()
 	case "up", "k":
 		if m.SavedCursor > 0 {
 			m.SavedCursor--
@@ -118,10 +118,25 @@ func (m Model) handleSavedQueriesScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// pickerHeader titles the two-list query picker with the active side lit.
+func pickerHeader(historyActive bool) string {
+	saved, hist := titleStyle.Render("Saved Queries"), dimStyle.Render("History")
+	if historyActive {
+		saved, hist = dimStyle.Render("Saved Queries"), titleStyle.Render("History")
+	}
+	return saved + dimStyle.Render("  │  ") + hist
+}
+
 func (m Model) viewSavedQueries() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Saved Queries"))
+	b.WriteString(pickerHeader(false))
 	b.WriteString("\n\n")
+	if len(m.SavedItems) == 0 {
+		b.WriteString(dimStyle.Render("(empty)"))
+		b.WriteString("\n\n")
+		b.WriteString(helpStyle.Render("tab:history  esc:close"))
+		return m.renderModal(b.String())
+	}
 	innerW := min(80, max(m.Width-14, 30))
 	for i, it := range m.SavedItems {
 		q := strings.ReplaceAll(it.Query, "\n", " ")
@@ -134,6 +149,6 @@ func (m Model) viewSavedQueries() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  esc:cancel"))
+	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  tab:history  esc:close"))
 	return m.renderModal(b.String())
 }

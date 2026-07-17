@@ -10,6 +10,8 @@ import (
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
+// openHistory opens the history side of the query picker; tab/h/l toggles back
+// to saved queries.
 func (m Model) openHistory() (tea.Model, tea.Cmd) {
 	m.HistoryCursor = 0
 	return m, m.Cmds.LoadHistory(m.connIdent())
@@ -22,15 +24,11 @@ func (m Model) handleHistoryLoadedMsg(msg types.HistoryLoadedMsg) (tea.Model, te
 	}
 	items := msg.Items
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Timestamp.After(items[j].Timestamp) })
+	// an empty list still opens (renders "(empty)") so the saved side stays
+	// reachable via toggle
 	m.HistoryItems = items
-	if len(items) == 0 {
-		// nothing left (empty on open, or last entry just deleted): close the modal
-		m.StatusMsg = "No query history"
-		m.Screen = m.GridReturnScreen
-		return m, nil
-	}
 	if m.HistoryCursor >= len(items) {
-		m.HistoryCursor = len(items) - 1
+		m.HistoryCursor = max(len(items)-1, 0)
 	}
 	m.Screen = types.ScreenHistory
 	return m, nil
@@ -41,6 +39,8 @@ func (m Model) handleHistoryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "q":
 		m.Screen = m.GridReturnScreen
 		return m, nil
+	case "tab", "h", "l":
+		return m.openSavedQueries()
 	case "up", "k":
 		if m.HistoryCursor > 0 {
 			m.HistoryCursor--
@@ -65,10 +65,12 @@ func (m Model) handleHistoryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) viewHistory() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Query History"))
+	b.WriteString(pickerHeader(true))
 	b.WriteString("\n\n")
 	if len(m.HistoryItems) == 0 {
 		b.WriteString(dimStyle.Render("(empty)"))
+		b.WriteString("\n\n")
+		b.WriteString(helpStyle.Render("tab:saved  esc:close"))
 		return m.renderModal(b.String())
 	}
 
@@ -99,6 +101,6 @@ func (m Model) viewHistory() string {
 		b.WriteString(dimStyle.Render(fmt.Sprintf("\n  %d of %d", m.HistoryCursor+1, len(m.HistoryItems))))
 	}
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  d:delete  esc:cancel"))
+	b.WriteString(helpStyle.Render("↑/↓ select  enter:load into editor  d:delete  tab:saved  esc:close"))
 	return m.renderModalW(b.String(), modalW)
 }

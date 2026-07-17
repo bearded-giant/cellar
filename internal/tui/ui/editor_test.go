@@ -357,6 +357,58 @@ func TestCompletion_EngagedEscDismissesOnly(t *testing.T) {
 	}
 }
 
+func TestEditorResults_EscReturnsToEditorNotTree(t *testing.T) {
+	m := editorModel(t)
+	m.Focus = types.FocusGrid
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.Screen != types.ScreenEditor || m.Focus != types.FocusEditor {
+		t.Fatalf("results esc should refocus the editor, got screen=%v focus=%v", m.Screen, m.Focus)
+	}
+
+	m.Focus = types.FocusGrid
+	m = press(t, m, keyMsg('q'))
+	if m.Screen != types.ScreenBrowse {
+		t.Errorf("results q should still leave the workspace, got %v", m.Screen)
+	}
+}
+
+func TestEditorResults_BracketsSwitchQueryTabs(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	res, _ := m.newQueryTab()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 2")
+	m.Focus = types.FocusGrid
+
+	m = press(t, m, keyMsg('['))
+	if m.QueryTabActive != 0 || m.EditorArea.Value() != "select 1" {
+		t.Fatalf("[ in results should switch to the prev query tab, got active=%d %q",
+			m.QueryTabActive, m.EditorArea.Value())
+	}
+	m.Focus = types.FocusGrid
+	m = press(t, m, keyMsg(']'))
+	if m.QueryTabActive != 1 || m.EditorArea.Value() != "select 2" {
+		t.Fatalf("] in results should switch to the next query tab, got active=%d %q",
+			m.QueryTabActive, m.EditorArea.Value())
+	}
+}
+
+func TestEditor_CommentToggleOnCtrlUnderscore(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	m.EditorArea.CursorEnd()
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	if m.EditorArea.Value() != "-- select 1" {
+		t.Fatalf("ctrl+_ should comment the statement, got %q", m.EditorArea.Value())
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	if m.EditorArea.Value() != "select 1" {
+		t.Errorf("second ctrl+_ should uncomment, got %q", m.EditorArea.Value())
+	}
+}
+
 func TestCompletionMinPrefix(t *testing.T) {
 	if got := completionMinPrefix(false); got != 2 {
 		t.Errorf("hidden popup threshold = %d, want 2", got)

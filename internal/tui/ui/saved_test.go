@@ -88,6 +88,100 @@ func TestSaveQuery_ReSaveOverwritesInPlace(t *testing.T) {
 	}
 }
 
+// runCmd runs a tea.Cmd synchronously and feeds its msg back through Update.
+func runCmd(t *testing.T, m Model, cmd tea.Cmd) Model {
+	t.Helper()
+	if cmd == nil {
+		t.Fatal("expected a command")
+	}
+	res, _ := m.Update(cmd())
+	return res.(Model)
+}
+
+func TestQueryPicker_TabTogglesBetweenSavedAndHistory(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+
+	// ctrl+o from browse opens the saved side, even with nothing saved yet
+	res, cmd := m.handleBrowseScreen(tea.KeyMsg{Type: tea.KeyCtrlO})
+	m = runCmd(t, res.(Model), cmd)
+	if m.Screen != types.ScreenSavedQueries {
+		t.Fatalf("ctrl+o should open the saved picker, got %v", m.Screen)
+	}
+
+	// tab flips to the history side (empty list still opens)
+	res, cmd = m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyTab})
+	m = runCmd(t, res.(Model), cmd)
+	if m.Screen != types.ScreenHistory {
+		t.Fatalf("tab should flip to history, got %v", m.Screen)
+	}
+
+	// and back again
+	res, cmd = m.handleHistoryScreen(tea.KeyMsg{Type: tea.KeyTab})
+	m = runCmd(t, res.(Model), cmd)
+	if m.Screen != types.ScreenSavedQueries {
+		t.Fatalf("tab should flip back to saved, got %v", m.Screen)
+	}
+
+	// esc closes back to where the picker opened
+	res, _ = m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyEsc})
+	if got := res.(Model).Screen; got != types.ScreenBrowse {
+		t.Errorf("esc should close to browse, got %v", got)
+	}
+}
+
+func TestQueryPicker_CtrlOFromEditorPreservesBuffer(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select wip")
+
+	res, cmd := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlO})
+	m = res.(Model)
+	if m.EditorContent != "select wip" {
+		t.Errorf("ctrl+o must snapshot the live buffer, got %q", m.EditorContent)
+	}
+	m = runCmd(t, m, cmd)
+	if m.Screen != types.ScreenSavedQueries {
+		t.Fatalf("ctrl+o should open the picker from the editor, got %v", m.Screen)
+	}
+	if m.GridReturnScreen != types.ScreenEditor {
+		t.Error("picker opened from the editor should close back to it")
+	}
+}
+
+func TestQueryPicker_EmptyHistoryStaysOpen(t *testing.T) {
+	m := browseModel()
+	res, _ := m.handleHistoryLoadedMsg(types.HistoryLoadedMsg{})
+	m = res.(Model)
+	if m.Screen != types.ScreenHistory {
+		t.Errorf("empty history should still open the picker, got %v", m.Screen)
+	}
+	if m.HistoryCursor != 0 {
+		t.Errorf("empty history cursor = %d, want 0", m.HistoryCursor)
+	}
+	// enter/d on the empty list must be no-ops, not panics
+	res, _ = m.handleHistoryScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	if got := res.(Model).Screen; got != types.ScreenHistory {
+		t.Errorf("enter on empty history should be a no-op, got %v", got)
+	}
+	res, _ = m.handleHistoryScreen(keyMsg('d'))
+	_ = res
+}
+
+func TestBrowse_HistorySavedShortcutsRemoved(t *testing.T) {
+	m := browseModel()
+	for _, r := range []rune{'H', 'Y'} {
+		res, cmd := m.handleBrowseScreen(keyMsg(r))
+		if got := res.(Model).Screen; got != types.ScreenBrowse || cmd != nil {
+			t.Errorf("%q should no longer open a modal (screen=%v cmd=%v)", r, got, cmd)
+		}
+	}
+}
+
 func TestSaveQueryScreen_FiresSaveCmd(t *testing.T) {
 	m := browseModel()
 	m.Width, m.Height = 100, 30

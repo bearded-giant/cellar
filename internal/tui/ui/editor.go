@@ -174,19 +174,16 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+s":
 		return m.openSaveQuery()
-	case "ctrl+y":
-		m.EditorContent = m.EditorArea.Value() // preserve the buffer if recall is cancelled
-		return m.openHistory()
-	case "ctrl+o":
+	case "ctrl+o": // saved + history picker
 		m.EditorContent = m.EditorArea.Value() // preserve the buffer if cancelled
 		return m.openSavedQueries()
-	case "alt+t":
+	case "ctrl+t":
 		return m.newQueryTab()
-	case "alt+]":
+	case "ctrl+pgdown":
 		return m.switchQueryTab(+1)
-	case "alt+[":
+	case "ctrl+pgup":
 		return m.switchQueryTab(-1)
-	case "alt+w":
+	case "ctrl+w":
 		return m.closeQueryTab()
 	// ctrl+enter is a shadow for run; most terminals can't distinguish it from
 	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
@@ -226,11 +223,15 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// results pane focused: single-key grid affordances + back/cycle.
 	if m.Focus == types.FocusGrid {
 		switch msg.String() {
-		case "tab":
+		case "tab", "esc": // esc backs up one level: results -> editor text
 			m.Focus = types.FocusEditor
 			return m, nil
-		case "esc", "q":
+		case "q":
 			return m.leaveQueryWorkspace()
+		case "]":
+			return m.switchQueryTab(+1)
+		case "[":
+			return m.switchQueryTab(-1)
 		case "x":
 			return m.openExport()
 		case "y":
@@ -297,12 +298,13 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "esc": // back one level: leave the workspace to the tree
 		return m.leaveQueryWorkspace()
-	case "alt+c": // toggle "-- " comment across the statement under the cursor
+	// ctrl+/ arrives as the ctrl+_ byte in legacy terminals (kitty sends the name)
+	case "ctrl+_", "ctrl+/": // toggle "-- " comment across the statement under the cursor
 		start, end := sqlmeta.StatementBoundsAt(m.EditorArea.Value(), m.EditorArea.cursorOffset())
 		m.EditorArea.toggleCommentSpan(start, end)
 		m.refreshCompletions()
 		return m, nil
-	case "alt+y": // yank the cursor line to the clipboard
+	case "ctrl+y": // yank the cursor line to the clipboard
 		if err := lib.NewClipboard().Write(m.EditorArea.currentLine()); err != nil {
 			m.StatusMsg = "Copy failed: " + err.Error()
 		} else {
@@ -610,14 +612,14 @@ func (m Model) editorFooter() string {
 	if m.Focus == types.FocusGrid {
 		kb = append(kb,
 			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v", "cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
-			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"tab", "editor"}, kbd{"esc", "back"},
+			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"]/[", "query tab"}, kbd{"tab/esc", "editor"}, kbd{"q", "back"},
 		)
 	} else {
 		kb = append(kb,
-			kbd{"ctrl+r", "run stmt"}, kbd{"alt+r", "run all"}, kbd{"alt+c", "comment"}, kbd{"alt+y", "yank"},
-			kbd{"alt+t/]/[/w", "tabs"},
-			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"}, kbd{"ctrl+o", "saved"},
-			kbd{"ctrl+y", "history"}, kbd{"esc", "back"},
+			kbd{"ctrl+r", "run stmt"}, kbd{"alt+r", "run all"}, kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
+			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+pgup/pgdn", "switch tab"},
+			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"},
+			kbd{"ctrl+o", "queries"}, kbd{"esc", "back"},
 		)
 	}
 	return renderKeyHints(kb, m.Width)

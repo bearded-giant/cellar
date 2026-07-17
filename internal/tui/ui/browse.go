@@ -138,11 +138,9 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openEditor()
 	case "x":
 		return m.openExport()
-	case "y", "ctrl+y":
+	case "y":
 		return m.openYank()
-	case "H":
-		return m.openHistory()
-	case "Y":
+	case "ctrl+o": // saved + history picker
 		return m.openSavedQueries()
 	case "?":
 		return m.openHelp()
@@ -375,19 +373,19 @@ func (m Model) browseFooter() string {
 	case m.Focus == types.FocusTree:
 		kb = []kbd{
 			{"↑/↓", "nav"}, {"→/enter", "open"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"/", "search"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	case len(m.Browse.Columns) == 0:
 		// grid focused but nothing loaded — only the cross-pane actions apply
 		kb = []kbd{
-			{"←/tab", "tree"}, {"e", "sql"}, {"H/Y", "hist/saved"}, {"q", "tree"},
+			{"←/tab", "tree"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"q", "tree"},
 		}
 	default:
 		// table preview: read + navigate. d/o generate DELETE/INSERT SQL into the
 		// editor (run there); no in-grid editing. export/json are query-only.
 		kb = []kbd{
 			{"↑/↓/←/→", "move"}, {"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"v", "cell"}, {"w", "wide"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"tab/←", "tree"}, {"q", "tree"},
+			{"v", "cell"}, {"w", "wide"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, kbd{"⌫", "fk-back"})
