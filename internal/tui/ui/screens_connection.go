@@ -40,6 +40,8 @@ func formatConnectError(err error) string {
 }
 
 func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	vis := m.visibleConnIndices()
+	m.SelectedConnIdx = clampIndex(m.SelectedConnIdx, len(vis))
 	switch msg.String() {
 	case "up", "k":
 		if m.SelectedConnIdx > 0 {
@@ -47,13 +49,12 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ConnectionError = ""
 		}
 	case "down", "j":
-		if m.SelectedConnIdx < len(m.Connections)-1 {
+		if m.SelectedConnIdx < len(vis)-1 {
 			m.SelectedConnIdx++
 			m.ConnectionError = ""
 		}
 	case "enter", "b":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			conn := m.Connections[m.SelectedConnIdx]
+		if conn, ok := m.visibleSelectedConn(vis); ok {
 			m.CurrentConn = &conn
 			m.Loading = true
 			m.Connecting = true
@@ -63,8 +64,7 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(m.Cmds.Connect(conn), m.Spinner.Tick)
 		}
 	case "t":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			conn := m.Connections[m.SelectedConnIdx]
+		if conn, ok := m.visibleSelectedConn(vis); ok {
 			m.Loading = true
 			m.TestResult = ""
 			m.TestReturnScreen = types.ScreenConnections
@@ -77,16 +77,14 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.EditingConnection = nil
 		m.DuplicatingFrom = nil
 	case "e":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			conn := m.Connections[m.SelectedConnIdx]
+		if conn, ok := m.visibleSelectedConn(vis); ok {
 			m.EditingConnection = &conn
 			m.DuplicatingFrom = nil
 			m.populateConnInputs(conn)
 			m.Screen = types.ScreenEditConnection
 		}
 	case "D":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
-			src := m.Connections[m.SelectedConnIdx]
+		if src, ok := m.visibleSelectedConn(vis); ok {
 			srcCopy := src
 			m.DuplicatingFrom = &srcCopy
 			dup := src
@@ -97,19 +95,29 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ConnectionError = ""
 		}
 	case "d", "delete", "backspace":
-		if len(m.Connections) > 0 && m.SelectedConnIdx < len(m.Connections) {
+		if conn, ok := m.visibleSelectedConn(vis); ok {
 			m.ConfirmType = "connection"
-			m.ConfirmData = m.Connections[m.SelectedConnIdx]
+			m.ConfirmData = conn
 			m.ConfirmReturnScreen = types.ScreenConnections
 			m.Screen = types.ScreenConfirmDelete
 		}
-	case "K":
-		return m.moveConnection(-1)
-	case "J":
+	case "K", "J":
+		// reorder is a no-op while filtered: visible neighbors aren't adjacent
+		// in the real list, so a swap would scramble the saved order
+		if m.ConnFilter != "" {
+			return m, nil
+		}
+		if msg.String() == "K" {
+			return m.moveConnection(-1)
+		}
 		return m.moveConnection(+1)
 	case "r":
 		m.Loading = true
 		return m, m.Cmds.LoadConnections()
+	case "/":
+		return m.openConnFilter()
+	case "esc":
+		m.ConnFilter = ""
 	case "?":
 		return m.openHelp()
 	}

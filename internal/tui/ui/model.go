@@ -26,6 +26,9 @@ type Model struct {
 
 	Connections     []models.Connection
 	SelectedConnIdx int
+	// ConnFilter narrows the connections list; SelectedConnIdx then indexes the
+	// filtered (visible) set, not m.Connections.
+	ConnFilter string
 
 	ConnInputs        []textinput.Model
 	ConnFocusIdx      int
@@ -79,6 +82,7 @@ type Model struct {
 	ExportInput     textinput.Model
 	FilterInput     textinput.Model
 	TreeFilterInput textinput.Model
+	ConnFilterInput textinput.Model
 
 	HistoryItems  []models.QueryHistoryItem
 	HistoryCursor int

@@ -50,7 +50,7 @@ func (m Model) View() string {
 		types.ScreenExport, types.ScreenHistory,
 		types.ScreenFilter,
 		types.ScreenSaveQuery, types.ScreenSavedQueries,
-		types.ScreenYank, types.ScreenTreeFilter:
+		types.ScreenYank, types.ScreenTreeFilter, types.ScreenConnFilter:
 		vPos = lipgloss.Center
 	}
 
@@ -94,6 +94,8 @@ func (m Model) getScreenView() string {
 		return m.viewCellView()
 	case types.ScreenTreeFilter:
 		return m.viewTreeFilter()
+	case types.ScreenConnFilter:
+		return m.viewConnFilter()
 	default:
 		return m.viewConnections()
 	}
@@ -151,13 +153,27 @@ func (m Model) viewConnections() string {
 		b.WriteString("\n\n")
 	}
 
+	vis := m.visibleConnIndices()
+	filtering := m.Screen == types.ScreenConnFilter || m.ConnFilter != ""
+
 	sectionTitle := fmt.Sprintf("╭─ Saved Connections (%d) ", len(m.Connections))
+	if filtering {
+		sectionTitle = fmt.Sprintf("╭─ Saved Connections (%d/%d) ", len(vis), len(m.Connections))
+	}
 	if pad := 50 - len([]rune(sectionTitle)); pad > 0 {
 		sectionTitle += strings.Repeat("─", pad)
 	}
 	sectionTitle += "╮"
 	b.WriteString(accentStyle.Render(sectionTitle))
 	b.WriteString("\n")
+
+	if m.Screen == types.ScreenConnFilter {
+		b.WriteString(" " + keyStyle.Render("/") + " " + m.ConnFilterInput.View())
+		b.WriteString("\n")
+	} else if m.ConnFilter != "" {
+		b.WriteString(" " + keyStyle.Render("/") + " " + accentStyle.Render(m.ConnFilter) + dimStyle.Render("  esc clears"))
+		b.WriteString("\n")
+	}
 
 	if len(m.Connections) == 0 {
 		b.WriteString("\n")
@@ -167,38 +183,24 @@ func (m Model) viewConnections() string {
 			Render("  No connections saved.\n\n  Press 'a' to add your first connection.")
 		b.WriteString(emptyBox)
 		b.WriteString("\n")
+	} else if len(vis) == 0 {
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("  No connections match the filter."))
+		b.WriteString("\n\n")
 	} else {
 		b.WriteString("\n")
 
 		maxVisible := max((m.Height-22)/4, 3)
-
-		selectedIdx := m.SelectedConnIdx
-		if selectedIdx >= len(m.Connections) {
-			selectedIdx = len(m.Connections) - 1
-		}
-		if selectedIdx < 0 {
-			selectedIdx = 0
-		}
-
-		startIdx := 0
-		if selectedIdx >= maxVisible {
-			startIdx = selectedIdx - maxVisible + 1
-		}
-		endIdx := startIdx + maxVisible
-		if endIdx > len(m.Connections) {
-			endIdx = len(m.Connections)
-			if endIdx-startIdx < maxVisible {
-				startIdx = max(endIdx-maxVisible, 0)
-			}
-		}
+		selectedIdx := clampIndex(m.SelectedConnIdx, len(vis))
+		startIdx, endIdx := scrollWindow(selectedIdx, len(vis), maxVisible)
 
 		for i := startIdx; i < endIdx; i++ {
-			b.WriteString(m.renderConnCard(m.Connections[i], i == selectedIdx))
+			b.WriteString(m.renderConnCard(m.Connections[vis[i]], i == selectedIdx))
 			b.WriteString("\n")
 		}
 
-		if len(m.Connections) > maxVisible {
-			scrollInfo := fmt.Sprintf("  ↕ %d-%d of %d connections", startIdx+1, endIdx, len(m.Connections))
+		if len(vis) > maxVisible {
+			scrollInfo := fmt.Sprintf("  ↕ %d-%d of %d connections", startIdx+1, endIdx, len(vis))
 			b.WriteString(dimStyle.Render(scrollInfo))
 			b.WriteString("\n")
 		}
@@ -207,7 +209,11 @@ func (m Model) viewConnections() string {
 	b.WriteString(accentStyle.Render("╰" + strings.Repeat("─", 54) + "╯"))
 	b.WriteString("\n\n")
 
-	b.WriteString(m.connFooterHelp())
+	if m.Screen == types.ScreenConnFilter {
+		b.WriteString(helpStyle.Render("type to filter name/host · enter:apply · esc:clear"))
+	} else {
+		b.WriteString(m.connFooterHelp())
+	}
 
 	return b.String()
 }
@@ -294,6 +300,7 @@ func (m Model) connFooterHelp() string {
 		{"e", "edit"},
 		{"D", "duplicate"},
 		{"d", "delete"},
+		{"/", "filter"},
 		{"r", "reload"},
 		{"?", "help"},
 		{"ctrl+c", "quit"},

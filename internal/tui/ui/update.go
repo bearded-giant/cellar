@@ -130,6 +130,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCellViewScreen(msg)
 	case types.ScreenTreeFilter:
 		return m.handleTreeFilterScreen(msg)
+	case types.ScreenConnFilter:
+		return m.handleConnFilterScreen(msg)
 	case types.ScreenHelp:
 		return m.handleHelpScreen(msg)
 	}

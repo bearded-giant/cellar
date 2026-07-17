@@ -20,6 +20,7 @@ const (
 	ScreenCellView
 	ScreenTreeFilter
 	ScreenHelp
+	ScreenConnFilter
 )
 
 func (s Screen) String() string {
@@ -41,6 +42,7 @@ func (s Screen) String() string {
 		ScreenCellView:       "Cell",
 		ScreenTreeFilter:     "Filter Tree",
 		ScreenHelp:           "Help",
+		ScreenConnFilter:     "Filter Connections",
 	}
 	if name, ok := names[s]; ok {
 		return name

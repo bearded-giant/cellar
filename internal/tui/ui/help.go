@@ -39,6 +39,7 @@ func (m Model) viewHelp() string {
 			{"K / J", "move connection up / down"},
 			{"t / a / e", "test / add / edit"},
 			{"D / d / r", "duplicate / delete / reload"},
+			{"/", "filter list (esc clears)"},
 		}},
 		{"Schema tree", [][2]string{
 			{"↑/↓  j/k", "navigate"},
