@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -196,6 +197,113 @@ func TestOpenQueryInEditor_CleanBoundBufferReplacedInPlace(t *testing.T) {
 	}
 	if m.EditorArea.Value() != "select b" || m.SavedName != "bee" {
 		t.Fatalf("loaded query should be live, got %q/%q", m.EditorArea.Value(), m.SavedName)
+	}
+}
+
+func TestQueryTabs_DefaultNameUntitled(t *testing.T) {
+	m := editorModel(t)
+	if m.QueryTabs[0].Name != "untitled" {
+		t.Errorf("seed tab Name = %q, want untitled", m.QueryTabs[0].Name)
+	}
+	res, _ := m.handleEditorScreen(altKey('t'))
+	m = res.(Model)
+	if m.QueryTabs[1].Name != "untitled" {
+		t.Errorf("new tab Name = %q, want untitled", m.QueryTabs[1].Name)
+	}
+}
+
+func TestQueryTabLabel_SavedNameWinsOverName(t *testing.T) {
+	m := editorModel(t)
+	m.QueryTabs = []queryTab{
+		{Name: "untitled"},
+		{Name: "renamed"},
+		{Name: "renamed", SavedName: "bound"},
+		{}, // restored from an older state file
+	}
+	m.QueryTabActive = 0
+	for i, want := range []string{"untitled", "renamed", "bound", "untitled"} {
+		if got := m.queryTabLabel(i); got != want {
+			t.Errorf("label(%d) = %q, want %q", i, got, want)
+		}
+	}
+}
+
+func TestQueryTabLabel_ActiveTabReadsLiveSavedName(t *testing.T) {
+	m := editorModel(t)
+	m.SavedName = "just saved"
+	if got := m.queryTabLabel(0); got != "just saved" {
+		t.Errorf("active label = %q, want live SavedName", got)
+	}
+}
+
+func TestQueryTabBar_RendersWithSingleTab(t *testing.T) {
+	m := editorModel(t)
+	bar := m.queryTabBar(80)
+	if bar == "" {
+		t.Fatal("tab bar should render with one tab")
+	}
+	if !strings.Contains(bar, "1:untitled") {
+		t.Errorf("bar = %q, want a ' 1:untitled ' segment", bar)
+	}
+}
+
+func TestQueryTabBar_TruncatesLongLabels(t *testing.T) {
+	m := editorModel(t)
+	m.QueryTabs[0].Name = "a really long query name"
+	bar := m.queryTabBar(80)
+	if !strings.Contains(bar, "…") {
+		t.Errorf("bar = %q, want a 14-rune truncated label", bar)
+	}
+	if strings.Contains(bar, "a really long query name") {
+		t.Errorf("bar = %q, label should be truncated", bar)
+	}
+}
+
+func TestSaveFlow_NamesTabOnSave(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	res, _ := m.openSaveQuery()
+	m = res.(Model)
+	if m.SaveNameInput.Value() != "" {
+		t.Errorf("untitled tab must not pre-fill the prompt, got %q", m.SaveNameInput.Value())
+	}
+
+	res, _ = m.handleSavedQuerySavedMsg(types.SavedQuerySavedMsg{Name: "daily", Query: "select 1"})
+	m = res.(Model)
+	if m.QueryTabs[0].Name != "daily" || m.SavedName != "daily" {
+		t.Errorf("after save, tab Name/SavedName = %q/%q, want daily/daily", m.QueryTabs[0].Name, m.SavedName)
+	}
+}
+
+func TestSaveFlow_PrefillsNonUntitledTabName(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	m.QueryTabs[0].Name = "report"
+	res, _ := m.openSaveQuery()
+	m = res.(Model)
+	if m.SaveNameInput.Value() != "report" {
+		t.Errorf("prompt should pre-fill with tab name, got %q", m.SaveNameInput.Value())
+	}
+}
+
+func TestQueryState_TabNameRoundTrips(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := editorModel(t)
+	m.CurrentConn = &models.Connection{Name: "prod"}
+	m.EditorArea.SetValue("select 1")
+	m.QueryTabs[0].Name = "daily"
+	m.PersistQueryState()
+
+	st, err := state.Load("prod")
+	if err != nil || len(st.Tabs) != 1 || st.Tabs[0].Name != "daily" {
+		t.Fatalf("persisted Name = %+v (err %v), want daily", st.Tabs, err)
+	}
+
+	m2 := browseModel()
+	res, _ := m2.handleQueryStateLoadedMsg(types.QueryStateLoadedMsg{State: st})
+	m2 = res.(Model)
+	if m2.QueryTabs[0].Name != "daily" {
+		t.Errorf("restored Name = %q, want daily", m2.QueryTabs[0].Name)
 	}
 }
 

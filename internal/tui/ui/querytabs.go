@@ -17,7 +17,7 @@ import (
 // queryTab is one SQL buffer in the query workspace, distinct from the grid
 // browse tabs (m.Tabs).
 type queryTab struct {
-	Name          string // optional display name (rename is future polish)
+	Name          string // display name ("untitled" until the save flow names it)
 	Content       string
 	SavedName     string
 	SavedBaseline string
@@ -27,6 +27,7 @@ type queryTab struct {
 func (m *Model) ensureQueryTabs() {
 	if len(m.QueryTabs) == 0 {
 		m.QueryTabs = []queryTab{{
+			Name:          "untitled",
 			Content:       m.EditorContent,
 			SavedName:     m.SavedName,
 			SavedBaseline: m.SavedBaseline,
@@ -68,7 +69,7 @@ func (m *Model) loadQueryTab(i int) {
 func (m Model) newQueryTab() (tea.Model, tea.Cmd) {
 	m.ensureQueryTabs()
 	m.syncActiveQueryTab()
-	m.QueryTabs = append(m.QueryTabs, queryTab{})
+	m.QueryTabs = append(m.QueryTabs, queryTab{Name: "untitled"})
 	m.loadQueryTab(len(m.QueryTabs) - 1)
 	return m, nil
 }
@@ -157,7 +158,7 @@ func (m Model) openQueryInEditor(content, savedName, baseline string) (tea.Model
 		(m.SavedName == "" || m.EditorContent != m.SavedBaseline)
 	if dirty {
 		m.syncActiveQueryTab()
-		m.QueryTabs = append(m.QueryTabs, queryTab{})
+		m.QueryTabs = append(m.QueryTabs, queryTab{Name: "untitled"})
 		m.QueryTabActive = len(m.QueryTabs) - 1
 	}
 	m.EditorContent = content
@@ -209,37 +210,42 @@ func (m Model) handleQueryStateSavedMsg(msg types.QueryStateSavedMsg) (tea.Model
 	return m, nil
 }
 
+// queryTabLabel is the tab's saved-query name when bound (Name and SavedName
+// converge after a save), else its display name.
 func (m Model) queryTabLabel(i int) string {
 	t := m.QueryTabs[i]
 	if i == m.QueryTabActive {
 		t.SavedName = m.SavedName
-		t.Content = m.EditorArea.Value()
 	}
 	switch {
-	case t.Name != "":
-		return t.Name
 	case t.SavedName != "":
 		return t.SavedName
+	case t.Name != "":
+		return t.Name
 	}
-	if first := strings.TrimSpace(strings.SplitN(t.Content, "\n", 2)[0]); first != "" {
-		return first
-	}
-	return "scratch"
+	return "untitled" // pre-naming tabs restored from older state files
 }
 
 func (m Model) queryTabBar(width int) string {
-	if len(m.QueryTabs) <= 1 {
-		return "" // single buffer: no bar
+	if len(m.QueryTabs) == 0 {
+		return ""
 	}
 	var b strings.Builder
 	used := 0
 	for i := range m.QueryTabs {
-		seg := fmt.Sprintf(" %d %s ", i+1, truncateRunes(m.queryTabLabel(i), 18))
-		if used+len([]rune(seg)) > width {
+		seg := fmt.Sprintf(" %d:%s ", i+1, truncateRunes(m.queryTabLabel(i), 14))
+		w := len([]rune(seg))
+		if i > 0 {
+			w++ // segment gap
+		}
+		if used+w > width {
 			b.WriteString(dimStyle.Render("…"))
 			break
 		}
-		used += len([]rune(seg))
+		if i > 0 {
+			b.WriteString(" ")
+		}
+		used += w
 		if i == m.QueryTabActive {
 			b.WriteString(queryTabActiveStyle.Render(seg))
 		} else {

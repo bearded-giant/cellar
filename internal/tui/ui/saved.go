@@ -24,6 +24,12 @@ func (m Model) openSaveQuery() (tea.Model, tea.Cmd) {
 	ti := textinput.New()
 	ti.Placeholder = "query name"
 	ti.Width = 40
+	if i := m.QueryTabActive; i >= 0 && i < len(m.QueryTabs) {
+		if name := m.QueryTabs[i].Name; name != "" && name != "untitled" {
+			ti.SetValue(name)
+			ti.CursorEnd()
+		}
+	}
 	ti.Focus()
 	m.SaveNameInput = ti
 	m.Screen = types.ScreenSaveQuery
@@ -55,6 +61,9 @@ func (m Model) handleSavedQuerySavedMsg(msg types.SavedQuerySavedMsg) (tea.Model
 	}
 	m.SavedName = msg.Name      // bind the buffer so ctrl+s re-saves in place
 	m.SavedBaseline = msg.Query // clean point for the dirty (*) marker
+	if i := m.QueryTabActive; i >= 0 && i < len(m.QueryTabs) {
+		m.QueryTabs[i].Name = msg.Name // tab name converges with the saved name
+	}
 	m.StatusMsg = "Saved query: " + msg.Name
 	return m, nil
 }
