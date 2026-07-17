@@ -99,7 +99,7 @@ func (db *Postgres) GetTables(database string) (map[string][]string, error) {
 		defer conn.Close()
 	}
 
-	query := "SELECT table_name, table_schema FROM information_schema.tables WHERE table_catalog = $1"
+	query := "SELECT table_name, table_schema FROM information_schema.tables WHERE table_catalog = $1 AND table_type = 'BASE TABLE'"
 	rows, err := conn.Query(query, database)
 	if err != nil {
 		return nil, err
@@ -814,8 +814,45 @@ func (db *Postgres) GetProcedures(_ string) (map[string][]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (db *Postgres) GetViews(_ string) (map[string][]string, error) {
-	return nil, errors.New("not implemented")
+func (db *Postgres) GetViews(database string) (map[string][]string, error) {
+	if database == "" {
+		return nil, errors.New("database name is required")
+	}
+
+	conn, needsClose, err := db.connectionFor(database)
+	if err != nil {
+		return nil, err
+	}
+	if needsClose {
+		defer conn.Close()
+	}
+
+	// matviews are absent from information_schema; pg_matviews fills them in
+	// unmarked so name-based definition lookup works for both kinds
+	query := "SELECT table_name, table_schema FROM information_schema.tables WHERE table_catalog = $1 AND table_type = 'VIEW' UNION ALL SELECT matviewname, schemaname FROM pg_matviews"
+	rows, err := conn.Query(query, database)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	views := make(map[string][]string)
+	for rows.Next() {
+		var (
+			viewName   string
+			viewSchema string
+		)
+		if err := rows.Scan(&viewName, &viewSchema); err != nil {
+			return nil, err
+		}
+
+		views[viewSchema] = append(views[viewSchema], viewName)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return views, nil
 }
 
 func (db *Postgres) SupportsProgramming() bool {
@@ -834,6 +871,156 @@ func (db *Postgres) GetProcedureDefinition(_ string, _ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (db *Postgres) GetViewDefinition(_ string, _ string) (string, error) {
-	return "", errors.New("not implemented")
+func (db *Postgres) GetViewDefinition(database string, name string) (string, error) {
+	if database == "" {
+		return "", errors.New("database name is required")
+	}
+	if name == "" {
+		return "", errors.New("view name is required")
+	}
+
+	splitViewString := strings.Split(name, ".")
+	if len(splitViewString) != 2 {
+		return "", errors.New("view must be in the format schema.view")
+	}
+
+	conn, needsClose, err := db.connectionFor(database)
+	if err != nil {
+		return "", err
+	}
+	if needsClose {
+		defer conn.Close()
+	}
+
+	viewSchema := splitViewString[0]
+	viewName := splitViewString[1]
+
+	var definition string
+	err = conn.QueryRow("SELECT definition FROM pg_matviews WHERE schemaname = $1 AND matviewname = $2", viewSchema, viewName).Scan(&definition)
+	if err == nil {
+		return strings.TrimSpace(definition), nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+
+	err = conn.QueryRow("SELECT pg_get_viewdef(format('%I.%I', $1::text, $2::text)::regclass, true)", viewSchema, viewName).Scan(&definition)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(definition), nil
+}
+
+func (db *Postgres) GetTableDDL(database, table string) (string, error) {
+	if database == "" {
+		return "", errors.New("database name is required")
+	}
+	if table == "" {
+		return "", errors.New("table name is required")
+	}
+
+	splitTableString := strings.Split(table, ".")
+	if len(splitTableString) != 2 {
+		return "", errors.New("table must be in the format schema.table")
+	}
+
+	conn, needsClose, err := db.connectionFor(database)
+	if err != nil {
+		return "", err
+	}
+	if needsClose {
+		defer conn.Close()
+	}
+
+	tableSchema := splitTableString[0]
+	tableName := splitTableString[1]
+
+	colQuery := "SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, COALESCE(pg_get_expr(ad.adbin, ad.adrelid), '') FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum"
+	colRows, err := conn.Query(colQuery, tableSchema, tableName)
+	if err != nil {
+		return "", err
+	}
+	defer colRows.Close()
+
+	var defs []string
+	for colRows.Next() {
+		var (
+			colName    string
+			colType    string
+			notNull    bool
+			defaultVal string
+		)
+		if err := colRows.Scan(&colName, &colType, &notNull, &defaultVal); err != nil {
+			return "", err
+		}
+		line := fmt.Sprintf("    %q %s", colName, colType)
+		if notNull {
+			line += " NOT NULL"
+		}
+		if defaultVal != "" {
+			line += " DEFAULT " + defaultVal
+		}
+		defs = append(defs, line)
+	}
+	if err := colRows.Err(); err != nil {
+		return "", err
+	}
+	if len(defs) == 0 {
+		return "", fmt.Errorf("table %s.%s not found", tableSchema, tableName)
+	}
+
+	pkQuery := "SELECT con.conname, pg_get_constraintdef(con.oid) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'p' AND n.nspname = $1 AND c.relname = $2"
+	var pkName, pkDef string
+	err = conn.QueryRow(pkQuery, tableSchema, tableName).Scan(&pkName, &pkDef)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	if err == nil {
+		defs = append(defs, fmt.Sprintf("    CONSTRAINT %q %s", pkName, pkDef))
+	}
+
+	stmts := []string{fmt.Sprintf("CREATE TABLE %q.%q (\n%s\n);", tableSchema, tableName, strings.Join(defs, ",\n"))}
+
+	fkQuery := "SELECT con.conname, pg_get_constraintdef(con.oid) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'f' AND n.nspname = $1 AND c.relname = $2 ORDER BY con.conname"
+	fkRows, err := conn.Query(fkQuery, tableSchema, tableName)
+	if err != nil {
+		return "", err
+	}
+	defer fkRows.Close()
+
+	for fkRows.Next() {
+		var fkName, fkDef string
+		if err := fkRows.Scan(&fkName, &fkDef); err != nil {
+			return "", err
+		}
+		stmts = append(stmts, fmt.Sprintf("ALTER TABLE %q.%q ADD CONSTRAINT %q %s;", tableSchema, tableName, fkName, fkDef))
+	}
+	if err := fkRows.Err(); err != nil {
+		return "", err
+	}
+
+	idxQuery := "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND tablename = $2 ORDER BY indexname"
+	idxRows, err := conn.Query(idxQuery, tableSchema, tableName)
+	if err != nil {
+		return "", err
+	}
+	defer idxRows.Close()
+
+	for idxRows.Next() {
+		var idxName, idxDef string
+		if err := idxRows.Scan(&idxName, &idxDef); err != nil {
+			return "", err
+		}
+		// the pk's backing index is already covered by the CONSTRAINT line
+		if idxName == pkName {
+			continue
+		}
+		stmts = append(stmts, idxDef+";")
+	}
+	if err := idxRows.Err(); err != nil {
+		return "", err
+	}
+
+	return strings.Join(stmts, "\n\n"), nil
 }

@@ -186,7 +186,7 @@ func TestMySQL_ErrorScenarios(t *testing.T) {
 		{
 			name: "GetTables error",
 			setupMock: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(fmt.Sprintf("SHOW TABLES FROM `%s`", testDBNameMySQL)).WillReturnError(errors.New("query error"))
+				mock.ExpectQuery(fmt.Sprintf("SHOW FULL TABLES FROM `%s`", testDBNameMySQL)).WillReturnError(errors.New("query error"))
 			},
 			testFunc: func(db *MySQL) error {
 				_, err := db.GetTables("test_db")
@@ -579,11 +579,11 @@ func TestMySQL_GetTables(t *testing.T) {
 	mysql := &MySQL{Connection: db}
 
 	// Set up mock expectations
-	rows := sqlmock.NewRows([]string{"Tables_in_test_db"}).
-		AddRow("test_table").
-		AddRow("another_table")
+	rows := sqlmock.NewRows([]string{"Tables_in_test_db", "Table_type"}).
+		AddRow("test_table", "BASE TABLE").
+		AddRow("another_table", "BASE TABLE")
 
-	mock.ExpectQuery("SHOW TABLES FROM `test_db`").WillReturnRows(rows)
+	mock.ExpectQuery("SHOW FULL TABLES FROM `test_db` WHERE Table_type = 'BASE TABLE'").WillReturnRows(rows)
 
 	tables, err := mysql.GetTables("test_db")
 	if err != nil {
@@ -600,6 +600,135 @@ func TestMySQL_GetTables(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_GetViews(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating mock: %s", err)
+	}
+	defer db.Close()
+
+	mysql := &MySQL{Connection: db}
+
+	rows := sqlmock.NewRows([]string{"Tables_in_test_db", "Table_type"}).
+		AddRow("v_users", "VIEW").
+		AddRow("v_orders", "VIEW")
+
+	mock.ExpectQuery("SHOW FULL TABLES FROM `test_db` WHERE Table_type = 'VIEW'").WillReturnRows(rows)
+
+	views, err := mysql.GetViews("test_db")
+	if err != nil {
+		t.Fatalf("GetViews failed: %v", err)
+	}
+
+	expected := map[string][]string{
+		"test_db": {"v_users", "v_orders"},
+	}
+
+	if !reflect.DeepEqual(views, expected) {
+		t.Fatalf("Expected %v, got %v", expected, views)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_GetViews_EmptyDatabase(t *testing.T) {
+	mysql := &MySQL{}
+	if _, err := mysql.GetViews(""); err == nil {
+		t.Fatal("expected error for empty database name")
+	}
+}
+
+func TestMySQL_GetViewDefinition(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating mock: %s", err)
+	}
+	defer db.Close()
+
+	mysql := &MySQL{Connection: db}
+
+	createStmt := "CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_users` AS select `id`,`name` from `users`"
+	rows := sqlmock.NewRows([]string{"View", "Create View", "character_set_client", "collation_connection"}).
+		AddRow("v_users", createStmt, "utf8mb4", "utf8mb4_unicode_ci")
+
+	mock.ExpectQuery("SHOW CREATE VIEW `test_db`.`v_users`").WillReturnRows(rows)
+
+	def, err := mysql.GetViewDefinition("test_db", "v_users")
+	if err != nil {
+		t.Fatalf("GetViewDefinition failed: %v", err)
+	}
+
+	if def != createStmt {
+		t.Fatalf("Expected %q, got %q", createStmt, def)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_GetViewDefinition_NoRows(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating mock: %s", err)
+	}
+	defer db.Close()
+
+	mysql := &MySQL{Connection: db}
+
+	mock.ExpectQuery("SHOW CREATE VIEW `test_db`.`missing`").
+		WillReturnRows(sqlmock.NewRows([]string{"View", "Create View", "character_set_client", "collation_connection"}))
+
+	if _, err := mysql.GetViewDefinition("test_db", "missing"); err == nil {
+		t.Fatal("expected error for missing view")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_GetTableDDL(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating mock: %s", err)
+	}
+	defer db.Close()
+
+	mysql := &MySQL{Connection: db}
+
+	createStmt := "CREATE TABLE `test_table` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `name` varchar(255) DEFAULT NULL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB"
+	rows := sqlmock.NewRows([]string{"Table", "Create Table"}).
+		AddRow("test_table", createStmt)
+
+	mock.ExpectQuery("SHOW CREATE TABLE `test_db`.`test_table`").WillReturnRows(rows)
+
+	ddl, err := mysql.GetTableDDL(testDBNameMySQL, testDBTableNameMySQL)
+	if err != nil {
+		t.Fatalf("GetTableDDL failed: %v", err)
+	}
+
+	if ddl != createStmt {
+		t.Fatalf("Expected %q, got %q", createStmt, ddl)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_GetTableDDL_EmptyArgs(t *testing.T) {
+	mysql := &MySQL{}
+	if _, err := mysql.GetTableDDL("", "t"); err == nil {
+		t.Fatal("expected error for empty database name")
+	}
+	if _, err := mysql.GetTableDDL("db", ""); err == nil {
+		t.Fatal("expected error for empty table name")
 	}
 }
 

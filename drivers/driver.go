@@ -27,6 +27,7 @@ type Driver interface {
 	GetFunctionDefinition(database string, name string) (string, error)
 	GetProcedureDefinition(database string, name string) (string, error)
 	GetViewDefinition(database string, name string) (string, error)
+	GetTableDDL(database, table string) (string, error)
 
 	FormatArg(arg any, colype models.CellValueType) any
 	FormatArgForQueryString(arg any) string

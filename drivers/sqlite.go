@@ -566,8 +566,33 @@ func (db *SQLite) GetProcedures(_ string) (map[string][]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (db *SQLite) GetViews(_ string) (map[string][]string, error) {
-	return nil, errors.New("not implemented")
+func (db *SQLite) GetViews(database string) (map[string][]string, error) {
+	if database == "" {
+		return nil, errors.New("database name is required")
+	}
+
+	rows, err := db.Connection.Query("SELECT name FROM sqlite_master WHERE type='view'")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	views := make(map[string][]string)
+
+	for rows.Next() {
+		var view string
+		err = rows.Scan(&view)
+		if err != nil {
+			return nil, err
+		}
+
+		views[database] = append(views[database], view)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return views, nil
 }
 
 func (db *SQLite) SupportsProgramming() bool {
@@ -586,6 +611,55 @@ func (db *SQLite) GetProcedureDefinition(_ string, _ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (db *SQLite) GetViewDefinition(_ string, _ string) (string, error) {
-	return "", errors.New("not implemented")
+func (db *SQLite) GetViewDefinition(_ string, name string) (string, error) {
+	if name == "" {
+		return "", errors.New("view name is required")
+	}
+
+	var definition sql.NullString
+	err := db.Connection.QueryRow("SELECT sql FROM sqlite_master WHERE type='view' AND name = ?", name).Scan(&definition)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("view %q not found", name)
+		}
+		return "", err
+	}
+
+	return definition.String, nil
+}
+
+func (db *SQLite) GetTableDDL(_, table string) (string, error) {
+	if table == "" {
+		return "", errors.New("table name is required")
+	}
+
+	var ddl sql.NullString
+	err := db.Connection.QueryRow("SELECT sql FROM sqlite_master WHERE type='table' AND name = ?", table).Scan(&ddl)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("table %q not found", table)
+		}
+		return "", err
+	}
+
+	stmts := []string{strings.TrimSpace(ddl.String) + ";"}
+
+	rows, err := db.Connection.Query("SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL ORDER BY name", table)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var idx string
+		if err := rows.Scan(&idx); err != nil {
+			return "", err
+		}
+		stmts = append(stmts, strings.TrimSpace(idx)+";")
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+
+	return strings.Join(stmts, "\n\n"), nil
 }

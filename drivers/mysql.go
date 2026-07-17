@@ -77,7 +77,7 @@ func (db *MySQL) GetTables(database string) (map[string][]string, error) {
 		return nil, errors.New("database name is required")
 	}
 
-	rows, err := db.Connection.Query(fmt.Sprintf("SHOW TABLES FROM `%s`", database))
+	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM `%s` WHERE Table_type = 'BASE TABLE'", database))
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +85,8 @@ func (db *MySQL) GetTables(database string) (map[string][]string, error) {
 
 	tables := make(map[string][]string)
 	for rows.Next() {
-		var table string
-		err = rows.Scan(&table)
+		var table, tableType string
+		err = rows.Scan(&table, &tableType)
 		if err != nil {
 			return nil, err
 		}
@@ -578,8 +578,32 @@ func (db *MySQL) GetProcedures(_ string) (map[string][]string, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (db *MySQL) GetViews(_ string) (map[string][]string, error) {
-	return nil, errors.New("not implemented")
+func (db *MySQL) GetViews(database string) (map[string][]string, error) {
+	if database == "" {
+		return nil, errors.New("database name is required")
+	}
+
+	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM `%s` WHERE Table_type = 'VIEW'", database))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	views := make(map[string][]string)
+	for rows.Next() {
+		var view, tableType string
+		err = rows.Scan(&view, &tableType)
+		if err != nil {
+			return nil, err
+		}
+
+		views[database] = append(views[database], view)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return views, nil
 }
 
 func (db *MySQL) SupportsProgramming() bool {
@@ -598,6 +622,71 @@ func (db *MySQL) GetProcedureDefinition(_ string, _ string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
-func (db *MySQL) GetViewDefinition(_ string, _ string) (string, error) {
-	return "", errors.New("not implemented")
+func (db *MySQL) GetViewDefinition(database string, name string) (string, error) {
+	if database == "" {
+		return "", errors.New("database name is required")
+	}
+	if name == "" {
+		return "", errors.New("view name is required")
+	}
+
+	return db.showCreate(fmt.Sprintf("SHOW CREATE VIEW %s", db.formatTableName(database, name)), "Create View")
+}
+
+func (db *MySQL) GetTableDDL(database, table string) (string, error) {
+	if database == "" {
+		return "", errors.New("database name is required")
+	}
+	if table == "" {
+		return "", errors.New("table name is required")
+	}
+
+	return db.showCreate(fmt.Sprintf("SHOW CREATE TABLE %s", db.formatTableName(database, table)), "Create Table")
+}
+
+// showCreate runs a SHOW CREATE statement and extracts the named column, since
+// the result's column count varies by server version and object type.
+func (db *MySQL) showCreate(query, column string) (string, error) {
+	rows, err := db.Connection.Query(query)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return "", err
+	}
+
+	idx := -1
+	for i, c := range columns {
+		if c == column {
+			idx = i
+		}
+	}
+	if idx == -1 {
+		return "", fmt.Errorf("column %q missing from result", column)
+	}
+
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return "", err
+		}
+		return "", errors.New("no rows returned")
+	}
+
+	rowValues := make([]any, len(columns))
+	for i := range columns {
+		rowValues[i] = new(sql.RawBytes)
+	}
+	if err := rows.Scan(rowValues...); err != nil {
+		return "", err
+	}
+
+	result := string(*rowValues[idx].(*sql.RawBytes))
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+
+	return result, nil
 }

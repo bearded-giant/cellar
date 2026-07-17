@@ -57,6 +57,42 @@ func (c *Commands) LoadTables(driver drivers.Driver, db string) tea.Cmd {
 	}
 }
 
+// LoadViews lists the views in a database, grouped like LoadTables. Postgres
+// includes materialized views.
+func (c *Commands) LoadViews(driver drivers.Driver, db string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil {
+			return types.ViewsLoadedMsg{DB: db}
+		}
+		views, err := driver.GetViews(db)
+		return types.ViewsLoadedMsg{DB: db, Views: views, Err: err}
+	}
+}
+
+// LoadViewDefinition fetches a view's SQL definition. name is schema-qualified
+// ("schema.view") for schema drivers, bare otherwise.
+func (c *Commands) LoadViewDefinition(driver drivers.Driver, db, name string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil {
+			return types.ViewDefinitionLoadedMsg{View: name}
+		}
+		def, err := driver.GetViewDefinition(db, name)
+		return types.ViewDefinitionLoadedMsg{View: name, Definition: def, Err: err}
+	}
+}
+
+// LoadTableDDL fetches a table's CREATE DDL. table is schema-qualified
+// ("schema.table") for schema drivers, bare otherwise.
+func (c *Commands) LoadTableDDL(driver drivers.Driver, db, table string) tea.Cmd {
+	return func() tea.Msg {
+		if driver == nil {
+			return types.TableDDLLoadedMsg{Table: table}
+		}
+		ddl, err := driver.GetTableDDL(db, table)
+		return types.TableDDLLoadedMsg{Table: table, DDL: ddl, Err: err}
+	}
+}
+
 // MetaKind selects which table-metadata view LoadMeta fetches.
 type MetaKind int
 

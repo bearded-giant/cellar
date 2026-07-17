@@ -35,6 +35,51 @@ func TestLoadTables(t *testing.T) {
 	}
 }
 
+func TestLoadViews(t *testing.T) {
+	stub := &stubDriver{views: map[string][]string{"public": {"v_users"}}}
+	c := &Commands{}
+	msg := c.LoadViews(stub, "app")().(types.ViewsLoadedMsg)
+	if msg.DB != "app" {
+		t.Errorf("DB = %q, want app", msg.DB)
+	}
+	if !reflect.DeepEqual(msg.Views, map[string][]string{"public": {"v_users"}}) {
+		t.Errorf("Views = %v", msg.Views)
+	}
+	if nilMsg := c.LoadViews(nil, "x")().(types.ViewsLoadedMsg); nilMsg.DB != "x" || nilMsg.Views != nil {
+		t.Errorf("nil driver should echo DB with no views: %+v", nilMsg)
+	}
+}
+
+func TestLoadViewDefinition(t *testing.T) {
+	stub := &stubDriver{viewDef: "CREATE VIEW v AS SELECT 1"}
+	c := &Commands{}
+	msg := c.LoadViewDefinition(stub, "app", "public.v")().(types.ViewDefinitionLoadedMsg)
+	if msg.View != "public.v" {
+		t.Errorf("View = %q", msg.View)
+	}
+	if msg.Definition != "CREATE VIEW v AS SELECT 1" {
+		t.Errorf("Definition = %q", msg.Definition)
+	}
+	if nilMsg := c.LoadViewDefinition(nil, "app", "v")().(types.ViewDefinitionLoadedMsg); nilMsg.View != "v" {
+		t.Errorf("nil driver should echo view name: %+v", nilMsg)
+	}
+}
+
+func TestLoadTableDDL(t *testing.T) {
+	stub := &stubDriver{ddl: "CREATE TABLE t (id INTEGER);"}
+	c := &Commands{}
+	msg := c.LoadTableDDL(stub, "app", "public.t")().(types.TableDDLLoadedMsg)
+	if msg.Table != "public.t" {
+		t.Errorf("Table = %q", msg.Table)
+	}
+	if msg.DDL != "CREATE TABLE t (id INTEGER);" {
+		t.Errorf("DDL = %q", msg.DDL)
+	}
+	if nilMsg := c.LoadTableDDL(nil, "app", "t")().(types.TableDDLLoadedMsg); nilMsg.Table != "t" {
+		t.Errorf("nil driver should echo table name: %+v", nilMsg)
+	}
+}
+
 func TestLoadRecords_PassesArgsAndReturnsRows(t *testing.T) {
 	stub := &stubDriver{
 		records:      [][]string{{"id", "name"}, {"1", "alpha"}},

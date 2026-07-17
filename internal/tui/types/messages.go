@@ -47,3 +47,27 @@ type TestResultMsg struct {
 type SSHTestMsg struct {
 	Err error
 }
+
+// ViewsLoadedMsg mirrors TablesLoadedMsg for views: group -> view names
+// (schema-grouped on schema drivers, database-grouped otherwise).
+type ViewsLoadedMsg struct {
+	DB    string
+	Views map[string][]string
+	Err   error
+}
+
+// ViewDefinitionLoadedMsg carries a view's SQL definition. View echoes the
+// requested name (schema-qualified on schema drivers).
+type ViewDefinitionLoadedMsg struct {
+	View       string
+	Definition string
+	Err        error
+}
+
+// TableDDLLoadedMsg carries a table's CREATE DDL (plus index/constraint
+// statements where the driver returns them).
+type TableDDLLoadedMsg struct {
+	Table string
+	DDL   string
+	Err   error
+}

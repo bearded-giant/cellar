@@ -31,6 +31,10 @@ type stubDriver struct {
 	dmlErr     error
 	ranQuery   string // last ExecuteQuery arg
 	ranDML     string // last ExecuteDMLStatement arg
+
+	views   map[string][]string
+	viewDef string
+	ddl     string
 }
 
 func (s *stubDriver) Connect(urlstr string) error {
@@ -70,10 +74,11 @@ func (s *stubDriver) SupportsProgramming() bool                                 
 func (s *stubDriver) UseSchemas() bool                                          { return s.useSchemas }
 func (s *stubDriver) GetFunctions(string) (map[string][]string, error)          { return nil, nil }
 func (s *stubDriver) GetProcedures(string) (map[string][]string, error)         { return nil, nil }
-func (s *stubDriver) GetViews(string) (map[string][]string, error)              { return nil, nil }
+func (s *stubDriver) GetViews(string) (map[string][]string, error)              { return s.views, nil }
 func (s *stubDriver) GetFunctionDefinition(string, string) (string, error)      { return "", nil }
 func (s *stubDriver) GetProcedureDefinition(string, string) (string, error)     { return "", nil }
-func (s *stubDriver) GetViewDefinition(string, string) (string, error)          { return "", nil }
+func (s *stubDriver) GetViewDefinition(string, string) (string, error)          { return s.viewDef, nil }
+func (s *stubDriver) GetTableDDL(string, string) (string, error)                { return s.ddl, nil }
 func (s *stubDriver) FormatArg(arg any, _ models.CellValueType) any             { return arg }
 func (s *stubDriver) FormatArgForQueryString(any) string                        { return "" }
 func (s *stubDriver) FormatReference(reference string) string                   { return reference }

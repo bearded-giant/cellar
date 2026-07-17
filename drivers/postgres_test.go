@@ -171,6 +171,218 @@ func TestPostgres_ErrorScenarios(t *testing.T) {
 	}
 }
 
+func TestPostgres_GetTables_FiltersToBaseTables(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	rows := sqlmock.NewRows([]string{"table_name", "table_schema"}).
+		AddRow("users", "public").
+		AddRow("events", "audit")
+
+	mock.ExpectQuery("SELECT table_name, table_schema FROM information_schema.tables WHERE table_catalog = $1 AND table_type = 'BASE TABLE'").
+		WithArgs(DBNamePostgres).
+		WillReturnRows(rows)
+
+	tables, err := pg.GetTables(DBNamePostgres)
+	if err != nil {
+		t.Fatalf("GetTables failed: %v", err)
+	}
+
+	expected := map[string][]string{
+		"public": {"users"},
+		"audit":  {"events"},
+	}
+	if !reflect.DeepEqual(tables, expected) {
+		t.Fatalf("Expected %v, got %v", expected, tables)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_GetViews(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	rows := sqlmock.NewRows([]string{"table_name", "table_schema"}).
+		AddRow("v_users", "public").
+		AddRow("mv_daily_totals", "public")
+
+	mock.ExpectQuery("SELECT table_name, table_schema FROM information_schema.tables WHERE table_catalog = $1 AND table_type = 'VIEW' UNION ALL SELECT matviewname, schemaname FROM pg_matviews").
+		WithArgs(DBNamePostgres).
+		WillReturnRows(rows)
+
+	views, err := pg.GetViews(DBNamePostgres)
+	if err != nil {
+		t.Fatalf("GetViews failed: %v", err)
+	}
+
+	expected := map[string][]string{
+		"public": {"v_users", "mv_daily_totals"},
+	}
+	if !reflect.DeepEqual(views, expected) {
+		t.Fatalf("Expected %v, got %v", expected, views)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_GetViewDefinition_View(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	// not a matview -> falls through to pg_get_viewdef
+	mock.ExpectQuery("SELECT definition FROM pg_matviews WHERE schemaname = $1 AND matviewname = $2").
+		WithArgs(schemaPostgres, "v_users").
+		WillReturnRows(sqlmock.NewRows([]string{"definition"}))
+
+	mock.ExpectQuery("SELECT pg_get_viewdef(format('%I.%I', $1::text, $2::text)::regclass, true)").
+		WithArgs(schemaPostgres, "v_users").
+		WillReturnRows(sqlmock.NewRows([]string{"pg_get_viewdef"}).AddRow(" SELECT id, name FROM users;"))
+
+	def, err := pg.GetViewDefinition(DBNamePostgres, "public.v_users")
+	if err != nil {
+		t.Fatalf("GetViewDefinition failed: %v", err)
+	}
+
+	if def != "SELECT id, name FROM users;" {
+		t.Fatalf("definition = %q", def)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_GetViewDefinition_MaterializedView(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	mock.ExpectQuery("SELECT definition FROM pg_matviews WHERE schemaname = $1 AND matviewname = $2").
+		WithArgs(schemaPostgres, "mv_daily_totals").
+		WillReturnRows(sqlmock.NewRows([]string{"definition"}).AddRow(" SELECT day, sum(amount) FROM orders GROUP BY day;"))
+
+	def, err := pg.GetViewDefinition(DBNamePostgres, "public.mv_daily_totals")
+	if err != nil {
+		t.Fatalf("GetViewDefinition failed: %v", err)
+	}
+
+	if def != "SELECT day, sum(amount) FROM orders GROUP BY day;" {
+		t.Fatalf("definition = %q", def)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_GetViewDefinition_RequiresSchemaQualifiedName(t *testing.T) {
+	pg := &Postgres{}
+	if _, err := pg.GetViewDefinition(DBNamePostgres, "bare_view"); err == nil {
+		t.Fatal("expected error for unqualified view name")
+	}
+}
+
+func TestPostgres_GetTableDDL(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	mock.ExpectQuery("SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, COALESCE(pg_get_expr(ad.adbin, ad.adrelid), '') FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum").
+		WithArgs(schemaPostgres, tableNamePostgres).
+		WillReturnRows(sqlmock.NewRows([]string{"attname", "format_type", "attnotnull", "default"}).
+			AddRow("id", "integer", true, "nextval('test_table_id_seq'::regclass)").
+			AddRow("name", "character varying(255)", false, ""))
+
+	mock.ExpectQuery("SELECT con.conname, pg_get_constraintdef(con.oid) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'p' AND n.nspname = $1 AND c.relname = $2").
+		WithArgs(schemaPostgres, tableNamePostgres).
+		WillReturnRows(sqlmock.NewRows([]string{"conname", "condef"}).
+			AddRow("test_table_pkey", "PRIMARY KEY (id)"))
+
+	mock.ExpectQuery("SELECT con.conname, pg_get_constraintdef(con.oid) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'f' AND n.nspname = $1 AND c.relname = $2 ORDER BY con.conname").
+		WithArgs(schemaPostgres, tableNamePostgres).
+		WillReturnRows(sqlmock.NewRows([]string{"conname", "condef"}).
+			AddRow("fk_user", "FOREIGN KEY (user_id) REFERENCES users(id)"))
+
+	mock.ExpectQuery("SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND tablename = $2 ORDER BY indexname").
+		WithArgs(schemaPostgres, tableNamePostgres).
+		WillReturnRows(sqlmock.NewRows([]string{"indexname", "indexdef"}).
+			AddRow("idx_name", "CREATE INDEX idx_name ON public.test_table USING btree (name)").
+			AddRow("test_table_pkey", "CREATE UNIQUE INDEX test_table_pkey ON public.test_table USING btree (id)"))
+
+	ddl, err := pg.GetTableDDL(DBNamePostgres, schemaAndTablePostgres)
+	if err != nil {
+		t.Fatalf("GetTableDDL failed: %v", err)
+	}
+
+	expected := `CREATE TABLE "public"."test_table" (
+    "id" integer NOT NULL DEFAULT nextval('test_table_id_seq'::regclass),
+    "name" character varying(255),
+    CONSTRAINT "test_table_pkey" PRIMARY KEY (id)
+);
+
+ALTER TABLE "public"."test_table" ADD CONSTRAINT "fk_user" FOREIGN KEY (user_id) REFERENCES users(id);
+
+CREATE INDEX idx_name ON public.test_table USING btree (name);`
+
+	if ddl != expected {
+		t.Fatalf("DDL mismatch.\nExpected:\n%s\nGot:\n%s", expected, ddl)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_GetTableDDL_TableNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	mock.ExpectQuery("SELECT a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, COALESCE(pg_get_expr(ad.adbin, ad.adrelid), '') FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum").
+		WithArgs(schemaPostgres, "missing").
+		WillReturnRows(sqlmock.NewRows([]string{"attname", "format_type", "attnotnull", "default"}))
+
+	if _, err := pg.GetTableDDL(DBNamePostgres, "public.missing"); err == nil {
+		t.Fatal("expected error for missing table")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
 func TestPostgres_GetTableColumns(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {

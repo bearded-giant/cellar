@@ -21,14 +21,15 @@ func connectRealSQLite(t *testing.T, urlstr string) *SQLite {
 	return db
 }
 
-// seedRealSQLite creates users (PK) + orders (FK to users, indexed) and rows.
-// users has 10 rows; user10 has a NULL email.
+// seedRealSQLite creates users (PK) + orders (FK to users, indexed), a view
+// over users, and rows. users has 10 rows; user10 has a NULL email.
 func seedRealSQLite(t *testing.T, db *SQLite) {
 	t.Helper()
 	stmts := []string{
 		`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT)`,
 		`CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount REAL, FOREIGN KEY (user_id) REFERENCES users (id))`,
 		`CREATE INDEX idx_orders_user_id ON orders (user_id)`,
+		`CREATE VIEW user_emails AS SELECT id, email FROM users WHERE email IS NOT NULL`,
 	}
 	for _, stmt := range stmts {
 		if _, err := db.Connection.Exec(stmt); err != nil {
@@ -160,9 +161,71 @@ func TestSQLite_RealFile_GetTables(t *testing.T) {
 	want := map[string]bool{"users": true, "orders": true}
 	for _, tbl := range got {
 		delete(want, tbl)
+		if tbl == "user_emails" {
+			t.Errorf("GetTables must exclude views; got %v", got)
+		}
 	}
 	if len(want) != 0 {
 		t.Errorf("GetTables missing %v; got %v", want, got)
+	}
+}
+
+func TestSQLite_RealFile_GetViews(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	views, err := db.GetViews("cellar_test.db")
+	if err != nil {
+		t.Fatalf("GetViews: %v", err)
+	}
+	if !reflect.DeepEqual(views, map[string][]string{"cellar_test.db": {"user_emails"}}) {
+		t.Errorf("GetViews = %v, want map[cellar_test.db:[user_emails]]", views)
+	}
+}
+
+func TestSQLite_RealFile_GetViewDefinition(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	def, err := db.GetViewDefinition("", "user_emails")
+	if err != nil {
+		t.Fatalf("GetViewDefinition: %v", err)
+	}
+	want := "CREATE VIEW user_emails AS SELECT id, email FROM users WHERE email IS NOT NULL"
+	if def != want {
+		t.Errorf("definition = %q, want %q", def, want)
+	}
+
+	if _, err := db.GetViewDefinition("", "missing_view"); err == nil {
+		t.Error("expected error for missing view")
+	}
+}
+
+func TestSQLite_RealFile_GetTableDDL(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	ddl, err := db.GetTableDDL("", "orders")
+	if err != nil {
+		t.Fatalf("GetTableDDL: %v", err)
+	}
+	want := "CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount REAL, FOREIGN KEY (user_id) REFERENCES users (id));\n\nCREATE INDEX idx_orders_user_id ON orders (user_id);"
+	if ddl != want {
+		t.Errorf("DDL = %q, want %q", ddl, want)
+	}
+
+	if _, err := db.GetTableDDL("", "missing_table"); err == nil {
+		t.Error("expected error for missing table")
+	}
+}
+
+func TestSQLite_RealFile_GetTableDDL_NoIndexes(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	ddl, err := db.GetTableDDL("", "users")
+	if err != nil {
+		t.Fatalf("GetTableDDL: %v", err)
+	}
+	want := "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL, email TEXT);"
+	if ddl != want {
+		t.Errorf("DDL = %q, want %q", ddl, want)
 	}
 }
 
