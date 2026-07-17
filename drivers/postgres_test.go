@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -483,7 +484,7 @@ func TestPostgres_GetRecords(t *testing.T) {
 
 	mock.ExpectQuery(fmt.Sprintf(`SELECT COUNT\(\*\) FROM "%s"."%s"`, schemaPostgres, tableNamePostgres)).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-	records, total, _, err := pg.GetRecords(DBNamePostgres, schemaAndTablePostgres, "", "", 0, DefaultRowLimit)
+	records, total, _, err := pg.GetRecords(context.Background(), DBNamePostgres, schemaAndTablePostgres, "", "", 0, DefaultRowLimit)
 	if err != nil {
 		t.Fatalf("GetRecords failed: %v", err)
 	}
@@ -617,6 +618,30 @@ func TestPostgres_GetIndexes(t *testing.T) {
 
 	if !reflect.DeepEqual(indexes, expected) {
 		t.Fatalf("Expected %v, got %v", expected, indexes)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgres_ExecuteQuery_PreCancelledContext(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Error creating mock: %v", err)
+	}
+	defer db.Close()
+
+	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, _, err := pg.ExecuteQuery(ctx, "SELECT 1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if _, err := pg.ExecuteDMLStatement(ctx, "UPDATE t SET x = 1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -429,7 +430,7 @@ func (db *Postgres) GetIndexes(database, table string) ([][]string, error) {
 	return indexes, nil
 }
 
-func (db *Postgres) GetRecords(database, table, where, sort string, offset, limit int) (records [][]string, totalRecords int, queryString string, err error) {
+func (db *Postgres) GetRecords(ctx context.Context, database, table, where, sort string, offset, limit int) (records [][]string, totalRecords int, queryString string, err error) {
 	if database == "" {
 		return nil, 0, "", errors.New("database name is required")
 	}
@@ -467,7 +468,7 @@ func (db *Postgres) GetRecords(database, table, where, sort string, offset, limi
 		limit = DefaultRowLimit
 	}
 
-	paginatedRows, err := conn.Query(queryString, limit, offset)
+	paginatedRows, err := conn.QueryContext(ctx, queryString, limit, offset)
 	if err != nil {
 		return nil, 0, queryString, err
 	}
@@ -522,7 +523,7 @@ func (db *Postgres) GetRecords(database, table, where, sort string, offset, limi
 		countQuery += fmt.Sprintf(" %s", where)
 	}
 
-	countRow := conn.QueryRow(countQuery)
+	countRow := conn.QueryRowContext(ctx, countQuery)
 
 	if err := countRow.Scan(&totalRecords); err != nil {
 		return records, 0, queryString, err
@@ -535,8 +536,8 @@ func (db *Postgres) GetRecords(database, table, where, sort string, offset, limi
 	return records, totalRecords, queryString, nil
 }
 
-func (db *Postgres) ExecuteDMLStatement(query string) (result string, err error) {
-	res, err := db.Connection.Exec(query)
+func (db *Postgres) ExecuteDMLStatement(ctx context.Context, query string) (result string, err error) {
+	res, err := db.Connection.ExecContext(ctx, query)
 	if err != nil {
 		return result, err
 	}
@@ -547,8 +548,8 @@ func (db *Postgres) ExecuteDMLStatement(query string) (result string, err error)
 	return fmt.Sprintf("%d rows affected", rowsAffected), nil
 }
 
-func (db *Postgres) ExecuteQuery(query string) ([][]string, int, error) {
-	rows, err := db.Connection.Query(query)
+func (db *Postgres) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
 	}

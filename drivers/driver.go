@@ -1,6 +1,8 @@
 package drivers
 
 import (
+	"context"
+
 	"github.com/bearded-giant/cellar/models"
 )
 
@@ -13,9 +15,11 @@ type Driver interface {
 	GetConstraints(database, table string) ([][]string, error)
 	GetForeignKeys(database, table string) ([][]string, error)
 	GetIndexes(database, table string) ([][]string, error)
-	GetRecords(database, table, where, sort string, offset, limit int) ([][]string, int, string, error)
-	ExecuteDMLStatement(query string) (string, error)
-	ExecuteQuery(query string) ([][]string, int, error)
+	// the long-running paths take a context so an in-flight query can be
+	// cancelled; metadata getters stay ctx-less (fast)
+	GetRecords(ctx context.Context, database, table, where, sort string, offset, limit int) ([][]string, int, string, error)
+	ExecuteDMLStatement(ctx context.Context, query string) (string, error)
+	ExecuteQuery(ctx context.Context, query string) ([][]string, int, error)
 	GetProvider() string
 	GetPrimaryKeyColumnNames(database, table string) ([]string, error)
 

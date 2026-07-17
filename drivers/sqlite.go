@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -297,7 +298,7 @@ func (db *SQLite) GetIndexes(_, table string) (results [][]string, err error) {
 	return results, nil
 }
 
-func (db *SQLite) GetRecords(_, table, where, sort string, offset, limit int) (paginatedResults [][]string, totalRecords int, queryString string, err error) {
+func (db *SQLite) GetRecords(ctx context.Context, _, table, where, sort string, offset, limit int) (paginatedResults [][]string, totalRecords int, queryString string, err error) {
 	if table == "" {
 		return nil, 0, "", errors.New("table name is required")
 	}
@@ -319,7 +320,7 @@ func (db *SQLite) GetRecords(_, table, where, sort string, offset, limit int) (p
 
 	queryString += " LIMIT ?, ?"
 
-	paginatedRows, err := db.Connection.Query(queryString, offset, limit)
+	paginatedRows, err := db.Connection.QueryContext(ctx, queryString, offset, limit)
 	if err != nil {
 		return nil, 0, queryString, err
 	}
@@ -374,7 +375,7 @@ func (db *SQLite) GetRecords(_, table, where, sort string, offset, limit int) (p
 	if where != "" { // Add WHERE clause to count query as well if it exists
 		countQuery += fmt.Sprintf(" %s", where)
 	}
-	countRow := db.Connection.QueryRow(countQuery)
+	countRow := db.Connection.QueryRowContext(ctx, countQuery)
 	if err := countRow.Scan(&totalRecords); err != nil {
 		return paginatedResults, 0, queryString, err
 	}
@@ -385,8 +386,8 @@ func (db *SQLite) GetRecords(_, table, where, sort string, offset, limit int) (p
 	return paginatedResults, totalRecords, queryString, nil
 }
 
-func (db *SQLite) ExecuteQuery(query string) ([][]string, int, error) {
-	rows, err := db.Connection.Query(query)
+func (db *SQLite) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -430,8 +431,8 @@ func (db *SQLite) ExecuteQuery(query string) ([][]string, int, error) {
 	return results, len(records), nil
 }
 
-func (db *SQLite) ExecuteDMLStatement(query string) (result string, err error) {
-	res, err := db.Connection.Exec(query)
+func (db *SQLite) ExecuteDMLStatement(ctx context.Context, query string) (result string, err error) {
+	res, err := db.Connection.ExecContext(ctx, query)
 	if err != nil {
 		return "", err
 	}

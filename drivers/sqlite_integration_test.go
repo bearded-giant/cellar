@@ -1,11 +1,13 @@
 package drivers
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xo/dburl"
 )
@@ -324,7 +326,7 @@ func TestSQLite_RealFile_GetPrimaryKeyColumnNames(t *testing.T) {
 func TestSQLite_RealFile_ExecuteQuery(t *testing.T) {
 	db := seededRealSQLite(t)
 
-	results, count, err := db.ExecuteQuery(`SELECT id, name FROM users WHERE id <= 2 ORDER BY id`)
+	results, count, err := db.ExecuteQuery(context.Background(), `SELECT id, name FROM users WHERE id <= 2 ORDER BY id`)
 	if err != nil {
 		t.Fatalf("ExecuteQuery: %v", err)
 	}
@@ -344,7 +346,7 @@ func TestSQLite_RealFile_ExecuteQuery(t *testing.T) {
 func TestSQLite_RealFile_ExecuteDMLStatement(t *testing.T) {
 	db := seededRealSQLite(t)
 
-	result, err := db.ExecuteDMLStatement(`UPDATE users SET name = 'renamed' WHERE id = 1`)
+	result, err := db.ExecuteDMLStatement(context.Background(), `UPDATE users SET name = 'renamed' WHERE id = 1`)
 	if err != nil {
 		t.Fatalf("ExecuteDMLStatement: %v", err)
 	}
@@ -364,7 +366,7 @@ func TestSQLite_RealFile_ExecuteDMLStatement(t *testing.T) {
 func TestSQLite_RealFile_GetRecords_Pagination(t *testing.T) {
 	db := seededRealSQLite(t)
 
-	firstPage, total, queryString, err := db.GetRecords("", "users", "", "id", 0, 4)
+	firstPage, total, queryString, err := db.GetRecords(context.Background(), "", "users", "", "id", 0, 4)
 	if err != nil {
 		t.Fatalf("GetRecords page 1: %v", err)
 	}
@@ -386,7 +388,7 @@ func TestSQLite_RealFile_GetRecords_Pagination(t *testing.T) {
 		t.Errorf("queryString %q missing interpolated LIMIT 0, 4", queryString)
 	}
 
-	secondPage, total, _, err := db.GetRecords("", "users", "", "id", 4, 4)
+	secondPage, total, _, err := db.GetRecords(context.Background(), "", "users", "", "id", 4, 4)
 	if err != nil {
 		t.Fatalf("GetRecords page 2: %v", err)
 	}
@@ -400,10 +402,50 @@ func TestSQLite_RealFile_GetRecords_Pagination(t *testing.T) {
 	}
 }
 
+// modernc's sqlite interrupts a running statement when the context is
+// cancelled; a long recursive CTE must return promptly with an error.
+func TestSQLite_RealFile_ExecuteQuery_ContextCancel(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		_, _, err := db.ExecuteQuery(ctx, `WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 10000000000) SELECT count(*) FROM cnt`)
+		errCh <- err
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	start := time.Now()
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Fatal("expected error after context cancel, got nil")
+		}
+		if elapsed := time.Since(start); elapsed > 3*time.Second {
+			t.Errorf("query took %v to return after cancel; want prompt error", elapsed)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("query did not return within 10s of cancel")
+	}
+}
+
+func TestSQLite_RealFile_ExecuteQuery_PreCancelledContext(t *testing.T) {
+	db := seededRealSQLite(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, _, err := db.ExecuteQuery(ctx, `SELECT id FROM users`); err == nil {
+		t.Fatal("expected error for pre-cancelled context")
+	}
+}
+
 func TestSQLite_RealFile_GetRecords_WhereAndNullMarker(t *testing.T) {
 	db := seededRealSQLite(t)
 
-	records, total, _, err := db.GetRecords("", "users", "WHERE id > 8", "id", 0, DefaultRowLimit)
+	records, total, _, err := db.GetRecords(context.Background(), "", "users", "WHERE id > 8", "id", 0, DefaultRowLimit)
 	if err != nil {
 		t.Fatalf("GetRecords with where: %v", err)
 	}

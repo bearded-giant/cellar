@@ -56,16 +56,16 @@ func (s *stubDriver) GetTableColumns(string, string) ([][]string, error) { retur
 func (s *stubDriver) GetConstraints(string, string) ([][]string, error)  { return nil, nil }
 func (s *stubDriver) GetForeignKeys(string, string) ([][]string, error)  { return nil, nil }
 func (s *stubDriver) GetIndexes(string, string) ([][]string, error)      { return nil, nil }
-func (s *stubDriver) GetRecords(db, table, where, sort string, _, _ int) ([][]string, int, string, error) {
+func (s *stubDriver) GetRecords(_ context.Context, db, table, where, sort string, _, _ int) ([][]string, int, string, error) {
 	s.lastGetArgs = []string{db, table, where, sort}
 	return s.records, s.recordsTotal, "", s.recordsErr
 }
-func (s *stubDriver) ExecuteDMLStatement(q string) (string, error) {
+func (s *stubDriver) ExecuteDMLStatement(_ context.Context, q string) (string, error) {
 	s.ranDML = q
 	return s.dmlInfo, s.dmlErr
 }
 
-func (s *stubDriver) ExecuteQuery(q string) ([][]string, int, error) {
+func (s *stubDriver) ExecuteQuery(_ context.Context, q string) ([][]string, int, error) {
 	s.ranQuery = q
 	return s.queryRows, s.queryTotal, s.queryErr
 }

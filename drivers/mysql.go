@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -299,7 +300,7 @@ func (db *MySQL) GetIndexes(database, table string) (results [][]string, err err
 	return results, nil
 }
 
-func (db *MySQL) GetRecords(database, table, where, sort string, offset, limit int) (paginatedResults [][]string, totalRecords int, queryString string, err error) {
+func (db *MySQL) GetRecords(ctx context.Context, database, table, where, sort string, offset, limit int) (paginatedResults [][]string, totalRecords int, queryString string, err error) {
 	if table == "" {
 		return nil, 0, "", errors.New("table name is required")
 	}
@@ -325,7 +326,7 @@ func (db *MySQL) GetRecords(database, table, where, sort string, offset, limit i
 
 	queryString += " LIMIT ?, ?"
 
-	paginatedRows, err := db.Connection.Query(queryString, offset, limit)
+	paginatedRows, err := db.Connection.QueryContext(ctx, queryString, offset, limit)
 	if err != nil {
 		return nil, 0, queryString, err
 	}
@@ -380,7 +381,7 @@ func (db *MySQL) GetRecords(database, table, where, sort string, offset, limit i
 	if where != "" { // Add WHERE clause to count query as well if it exists
 		countQuery += fmt.Sprintf(" %s", where)
 	}
-	countRow := db.Connection.QueryRow(countQuery)
+	countRow := db.Connection.QueryRowContext(ctx, countQuery)
 	if err := countRow.Scan(&totalRecords); err != nil {
 		// Return the main query string even if count fails, for debugging.
 		return paginatedResults, 0, queryString, err
@@ -393,8 +394,8 @@ func (db *MySQL) GetRecords(database, table, where, sort string, offset, limit i
 	return paginatedResults, totalRecords, queryString, nil
 }
 
-func (db *MySQL) ExecuteQuery(query string) ([][]string, int, error) {
-	rows, err := db.Connection.Query(query)
+func (db *MySQL) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -434,8 +435,8 @@ func (db *MySQL) ExecuteQuery(query string) ([][]string, int, error) {
 	return results, len(records), nil
 }
 
-func (db *MySQL) ExecuteDMLStatement(query string) (result string, err error) {
-	res, err := db.Connection.Exec(query)
+func (db *MySQL) ExecuteDMLStatement(ctx context.Context, query string) (result string, err error) {
+	res, err := db.Connection.ExecContext(ctx, query)
 	if err != nil {
 		return "", err
 	}

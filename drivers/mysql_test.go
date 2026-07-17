@@ -1,6 +1,7 @@
 package drivers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -340,7 +341,7 @@ func TestMySQL_GetRecords_Error(t *testing.T) {
 				mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s LIMIT \\?, \\?", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).WithArgs(0, DefaultRowLimit).WillReturnError(errors.New("query error"))
 			},
 			testFunc: func(db *MySQL) error {
-				_, _, _, err := db.GetRecords("test_db", "test_table", "", "", 0, DefaultRowLimit)
+				_, _, _, err := db.GetRecords(context.Background(), "test_db", "test_table", "", "", 0, DefaultRowLimit)
 				return err
 			},
 		},
@@ -350,7 +351,7 @@ func TestMySQL_GetRecords_Error(t *testing.T) {
 				mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s WHERE id = 1 LIMIT \\?, \\?", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).WithArgs(0, DefaultRowLimit).WillReturnError(errors.New("query error"))
 			},
 			testFunc: func(db *MySQL) error {
-				_, _, _, err := db.GetRecords("test_db", "test_table", "WHERE id = 1", "", 0, DefaultRowLimit)
+				_, _, _, err := db.GetRecords(context.Background(), "test_db", "test_table", "WHERE id = 1", "", 0, DefaultRowLimit)
 				return err
 			},
 		},
@@ -381,7 +382,7 @@ func TestMySQL_ExecuteQuery_Error(t *testing.T) {
 
 	mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).WillReturnError(errors.New("query error"))
 
-	_, _, err = mysql.ExecuteQuery(fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
+	_, _, err = mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
 
 	if err == nil {
 		t.Fatalf("Expected error, but got nil")
@@ -403,7 +404,7 @@ func TestMySQL_ExecuteDMLStatement_Error(t *testing.T) {
 
 	mock.ExpectExec("UPDATE test_table SET value = 3 WHERE name = 'test1'").WillReturnError(errors.New("query error"))
 
-	_, err = mysql.ExecuteDMLStatement(fmt.Sprintf("UPDATE %s SET value = 3 WHERE name = 'test1'", testDBTableNameMySQL))
+	_, err = mysql.ExecuteDMLStatement(context.Background(), fmt.Sprintf("UPDATE %s SET value = 3 WHERE name = 'test1'", testDBTableNameMySQL))
 
 	if err == nil {
 		t.Fatalf("Expected error, but got nil")
@@ -411,6 +412,30 @@ func TestMySQL_ExecuteDMLStatement_Error(t *testing.T) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestMySQL_ExecuteQuery_PreCancelledContext(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating mock: %s", err)
+	}
+	defer db.Close()
+
+	mysql := &MySQL{Connection: db}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, _, err := mysql.ExecuteQuery(ctx, "SELECT 1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if _, err := mysql.ExecuteDMLStatement(ctx, "UPDATE t SET x = 1"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
 
@@ -908,7 +933,7 @@ func TestMySQL_GetRecords(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("SELECT COUNT\\(\\*\\) FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
 
-	records, total, _, err := mysql.GetRecords(testDBNameMySQL, testDBTableNameMySQL, "", "", 0, DefaultRowLimit)
+	records, total, _, err := mysql.GetRecords(context.Background(), testDBNameMySQL, testDBTableNameMySQL, "", "", 0, DefaultRowLimit)
 	if err != nil {
 		t.Fatalf("GetRecords failed: %v", err)
 	}
@@ -950,7 +975,7 @@ func TestMySQL_ExecuteQuery(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).
 		WillReturnRows(rows)
 
-	results, _, err := mysql.ExecuteQuery(fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
+	results, _, err := mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
 	if err != nil {
 		t.Fatalf("ExecuteQuery failed: %v", err)
 	}
@@ -983,7 +1008,7 @@ func TestMySQL_ExecuteDMLStatement(t *testing.T) {
 	mock.ExpectExec(fmt.Sprintf("UPDATE %s SET value = 3 WHERE name = 'test1'", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).
 		WillReturnResult(sqlmock.NewResult(0, 2))
 
-	result, err := mysql.ExecuteDMLStatement(fmt.Sprintf("UPDATE %s SET value = 3 WHERE name = 'test1'", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
+	result, err := mysql.ExecuteDMLStatement(context.Background(), fmt.Sprintf("UPDATE %s SET value = 3 WHERE name = 'test1'", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
 	if err != nil {
 		t.Fatalf("ExecuteDMLStatement failed: %v", err)
 	}

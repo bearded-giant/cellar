@@ -152,11 +152,13 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 		if driver == nil || len(stmts) == 0 {
 			return types.QueryExecutedMsg{}
 		}
+		ctx, done := StartQueryContext()
+		defer done()
 		var last types.QueryExecutedMsg
 		ok := 0
 		for i, q := range stmts {
 			if isSelectQuery(q) {
-				rows, total, err := driver.ExecuteQuery(q)
+				rows, total, err := driver.ExecuteQuery(ctx, q)
 				recordHistory(connIdent, q)
 				last = types.QueryExecutedMsg{Query: q, IsSelect: true, Rows: rows, Total: total, Err: err}
 				if err != nil {
@@ -169,7 +171,7 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 						return types.QueryExecutedMsg{Query: q, Err: fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)}
 					}
 				}
-				info, err := driver.ExecuteDMLStatement(q)
+				info, err := driver.ExecuteDMLStatement(ctx, q)
 				recordHistory(connIdent, q)
 				last = types.QueryExecutedMsg{Query: q, Info: info, Err: err}
 				if err != nil {
@@ -234,7 +236,9 @@ func (c *Commands) LoadRecords(driver drivers.Driver, db, table, where, sort str
 		if driver == nil {
 			return types.RecordsLoadedMsg{DB: db, Table: table, Offset: offset}
 		}
-		rows, total, _, err := driver.GetRecords(db, table, where, sort, offset, limit)
+		ctx, done := StartQueryContext()
+		defer done()
+		rows, total, _, err := driver.GetRecords(ctx, db, table, where, sort, offset, limit)
 		return types.RecordsLoadedMsg{DB: db, Table: table, Rows: rows, Total: total, Offset: offset, Err: err}
 	}
 }
@@ -306,8 +310,10 @@ func (c *Commands) RunQuery(driver drivers.Driver, query string, readOnly bool, 
 		if driver == nil {
 			return types.QueryExecutedMsg{Query: query}
 		}
+		ctx, done := StartQueryContext()
+		defer done()
 		if isSelectQuery(query) {
-			rows, total, err := driver.ExecuteQuery(query)
+			rows, total, err := driver.ExecuteQuery(ctx, query)
 			recordHistory(connIdent, query)
 			return types.QueryExecutedMsg{Query: query, IsSelect: true, Rows: rows, Total: total, Err: err}
 		}
@@ -316,7 +322,7 @@ func (c *Commands) RunQuery(driver drivers.Driver, query string, readOnly bool, 
 				return types.QueryExecutedMsg{Query: query, Err: err}
 			}
 		}
-		info, err := driver.ExecuteDMLStatement(query)
+		info, err := driver.ExecuteDMLStatement(ctx, query)
 		recordHistory(connIdent, query)
 		return types.QueryExecutedMsg{Query: query, Info: info, Err: err}
 	}
