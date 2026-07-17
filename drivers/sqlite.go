@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xo/dburl"
+
 	"github.com/bearded-giant/cellar/models"
 )
 
@@ -21,7 +23,16 @@ func (db *SQLite) TestConnection(urlstr string) (err error) {
 func (db *SQLite) Connect(urlstr string) (err error) {
 	db.SetProvider(DriverSqlite)
 
-	db.Connection, err = sql.Open("sqlite", urlstr)
+	// dburl strips the sqlite:// scheme to a filesystem DSN. Anything it does
+	// not resolve to the sqlite driver (bare paths can resolve to a postgres
+	// unix-socket DSN when the parent dir exists) is used as-is. The DSN is
+	// opened with "sqlite" — the name modernc registers, not dburl's "sqlite3".
+	dsn := urlstr
+	if parsed, perr := dburl.Parse(urlstr); perr == nil && parsed.Driver == DriverSqlite {
+		dsn = parsed.DSN
+	}
+
+	db.Connection, err = sql.Open("sqlite", dsn)
 	if err != nil {
 		return err
 	}
@@ -419,58 +430,6 @@ func (db *SQLite) ExecuteQuery(query string) ([][]string, int, error) {
 	return results, len(records), nil
 }
 
-func (db *SQLite) UpdateRecord(_, table, column, value, primaryKeyColumnName, primaryKeyValue string) error {
-	if table == "" {
-		return errors.New("table name is required")
-	}
-
-	if column == "" {
-		return errors.New("column name is required")
-	}
-
-	if value == "" {
-		return errors.New("value is required")
-	}
-
-	if primaryKeyColumnName == "" {
-		return errors.New("primary key column name is required")
-	}
-
-	if primaryKeyValue == "" {
-		return errors.New("primary key value is required")
-	}
-
-	query := "UPDATE "
-	query += db.formatTableName(table)
-	query += fmt.Sprintf(" SET %s = ? WHERE %s = ?", column, primaryKeyColumnName)
-
-	_, err := db.Connection.Exec(query, value, primaryKeyValue)
-
-	return err
-}
-
-func (db *SQLite) DeleteRecord(_, table, primaryKeyColumnName, primaryKeyValue string) error {
-	if table == "" {
-		return errors.New("table name is required")
-	}
-
-	if primaryKeyColumnName == "" {
-		return errors.New("primary key column name is required")
-	}
-
-	if primaryKeyValue == "" {
-		return errors.New("primary key value is required")
-	}
-
-	query := "DELETE FROM "
-	query += db.formatTableName(table)
-	query += fmt.Sprintf(" WHERE %s = ?", primaryKeyColumnName)
-
-	_, err := db.Connection.Exec(query, primaryKeyValue)
-
-	return err
-}
-
 func (db *SQLite) ExecuteDMLStatement(query string) (result string, err error) {
 	res, err := db.Connection.Exec(query)
 	if err != nil {
@@ -483,27 +442,6 @@ func (db *SQLite) ExecuteDMLStatement(query string) (result string, err error) {
 	}
 
 	return fmt.Sprintf("%d rows affected", rowsAffected), nil
-}
-
-func (db *SQLite) ExecutePendingChanges(changes []models.DBDMLChange) error {
-	var queries []models.Query
-
-	for _, change := range changes {
-
-		formattedTableName := db.formatTableName(change.Table)
-
-		switch change.Type {
-
-		case models.DMLInsertType:
-			queries = append(queries, buildInsertQuery(formattedTableName, change.Values, db))
-		case models.DMLUpdateType:
-			queries = append(queries, buildUpdateQuery(formattedTableName, change.Values, change.PrimaryKeyInfo, db))
-		case models.DMLDeleteType:
-			queries = append(queries, buildDeleteQuery(formattedTableName, change.PrimaryKeyInfo, db))
-		}
-	}
-
-	return queriesInTransaction(db.Connection, queries)
 }
 
 func (db *SQLite) GetPrimaryKeyColumnNames(database, table string) (primaryKeyColumnName []string, err error) {
@@ -618,26 +556,6 @@ func (db *SQLite) FormatReference(reference string) string {
 
 func (db *SQLite) FormatPlaceholder(_ int) string {
 	return "?"
-}
-
-func (db *SQLite) DMLChangeToQueryString(change models.DBDMLChange) (string, error) {
-	var queryStr string
-
-	formattedTableName := db.formatTableName(change.Table)
-
-	columnNames, values := getColNamesAndArgsAsString(change.Values)
-
-	switch change.Type {
-	case models.DMLInsertType:
-		queryStr = buildInsertQueryString(formattedTableName, columnNames, values, db)
-	case models.DMLUpdateType:
-		queryStr = buildUpdateQueryString(formattedTableName, columnNames, values, change.PrimaryKeyInfo, db)
-	case models.DMLDeleteType:
-		queryStr = buildDeleteQueryString(formattedTableName, change.PrimaryKeyInfo, db)
-
-	}
-
-	return queryStr, nil
 }
 
 func (db *SQLite) GetFunctions(_ string) (map[string][]string, error) {

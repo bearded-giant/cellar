@@ -434,25 +434,6 @@ func (db *MySQL) ExecuteQuery(query string) ([][]string, int, error) {
 	return results, len(records), nil
 }
 
-func (db *MySQL) UpdateRecord(database, table, column, value, primaryKeyColumnName, primaryKeyValue string) error {
-	query := "UPDATE "
-	query += db.formatTableName(database, table)
-	query += fmt.Sprintf(" SET %s = ? WHERE %s = ?", column, primaryKeyColumnName)
-
-	_, err := db.Connection.Exec(query, value, primaryKeyValue)
-
-	return err
-}
-
-func (db *MySQL) DeleteRecord(database, table, primaryKeyColumnName, primaryKeyValue string) error {
-	query := "DELETE FROM "
-	query += db.formatTableName(database, table)
-	query += fmt.Sprintf(" WHERE %s = ?", primaryKeyColumnName)
-	_, err := db.Connection.Exec(query, primaryKeyValue)
-
-	return err
-}
-
 func (db *MySQL) ExecuteDMLStatement(query string) (result string, err error) {
 	res, err := db.Connection.Exec(query)
 	if err != nil {
@@ -465,27 +446,6 @@ func (db *MySQL) ExecuteDMLStatement(query string) (result string, err error) {
 	}
 
 	return fmt.Sprintf("%d rows affected", rowsAffected), nil
-}
-
-func (db *MySQL) ExecutePendingChanges(changes []models.DBDMLChange) error {
-	var queries []models.Query
-
-	for _, change := range changes {
-
-		formattedTableName := db.formatTableName(change.Database, change.Table)
-
-		switch change.Type {
-
-		case models.DMLInsertType:
-			queries = append(queries, buildInsertQuery(formattedTableName, change.Values, db))
-		case models.DMLUpdateType:
-			queries = append(queries, buildUpdateQuery(formattedTableName, change.Values, change.PrimaryKeyInfo, db))
-		case models.DMLDeleteType:
-			queries = append(queries, buildDeleteQuery(formattedTableName, change.PrimaryKeyInfo, db))
-		}
-	}
-
-	return queriesInTransaction(db.Connection, queries)
 }
 
 func (db *MySQL) GetPrimaryKeyColumnNames(database, table string) (primaryKeyColumnName []string, err error) {
@@ -608,26 +568,6 @@ func (db *MySQL) FormatReference(reference string) string {
 
 func (db *MySQL) FormatPlaceholder(_ int) string {
 	return "?"
-}
-
-func (db *MySQL) DMLChangeToQueryString(change models.DBDMLChange) (string, error) {
-	var queryStr string
-
-	formattedTableName := db.formatTableName(change.Database, change.Table)
-
-	columnNames, values := getColNamesAndArgsAsString(change.Values)
-
-	switch change.Type {
-	case models.DMLInsertType:
-		queryStr = buildInsertQueryString(formattedTableName, columnNames, values, db)
-	case models.DMLUpdateType:
-		queryStr = buildUpdateQueryString(formattedTableName, columnNames, values, change.PrimaryKeyInfo, db)
-	case models.DMLDeleteType:
-		queryStr = buildDeleteQueryString(formattedTableName, change.PrimaryKeyInfo, db)
-
-	}
-
-	return queryStr, nil
 }
 
 func (db *MySQL) GetFunctions(_ string) (map[string][]string, error) {

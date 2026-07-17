@@ -535,83 +535,6 @@ func (db *Postgres) GetRecords(database, table, where, sort string, offset, limi
 	return records, totalRecords, queryString, nil
 }
 
-func (db *Postgres) UpdateRecord(database, table, column, value, primaryKeyColumnName, primaryKeyValue string) error {
-	if database == "" {
-		return errors.New("database name is required")
-	}
-	if table == "" {
-		return errors.New("table name is required")
-	}
-	if column == "" {
-		return errors.New("column name is required")
-	}
-	if value == "" {
-		return errors.New("value is required")
-	}
-	if primaryKeyColumnName == "" {
-		return errors.New("primary key column name is required")
-	}
-	if primaryKeyValue == "" {
-		return errors.New("primary key value is required")
-	}
-
-	formattedTableName, formatErr := db.formatTableName(table)
-
-	if formatErr != nil {
-		return formatErr
-	}
-
-	conn, needsClose, err := db.connectionFor(database)
-	if err != nil {
-		return err
-	}
-	if needsClose {
-		defer conn.Close()
-	}
-
-	query := "UPDATE "
-	query += formattedTableName
-	query += fmt.Sprintf(" SET \"%s\" = $1 WHERE \"%s\" = $2", column, primaryKeyColumnName)
-
-	_, err = conn.Exec(query, value, primaryKeyValue)
-	return err
-}
-
-func (db *Postgres) DeleteRecord(database, table, primaryKeyColumnName, primaryKeyValue string) error {
-	if database == "" {
-		return errors.New("database name is required")
-	}
-	if table == "" {
-		return errors.New("table name is required")
-	}
-	if primaryKeyColumnName == "" {
-		return errors.New("primary key column name is required")
-	}
-	if primaryKeyValue == "" {
-		return errors.New("primary key value is required")
-	}
-
-	formattedTableName, formatErr := db.formatTableName(table)
-	if formatErr != nil {
-		return formatErr
-	}
-
-	conn, needsClose, err := db.connectionFor(database)
-	if err != nil {
-		return err
-	}
-	if needsClose {
-		defer conn.Close()
-	}
-
-	query := "DELETE FROM "
-	query += formattedTableName
-	query += fmt.Sprintf(" WHERE \"%s\" = $1", primaryKeyColumnName)
-
-	_, err = conn.Exec(query, primaryKeyValue)
-	return err
-}
-
 func (db *Postgres) ExecuteDMLStatement(query string) (result string, err error) {
 	res, err := db.Connection.Exec(query)
 	if err != nil {
@@ -663,30 +586,6 @@ func (db *Postgres) ExecuteQuery(query string) ([][]string, int, error) {
 	results := append([][]string{columns}, records...)
 
 	return results, len(records), nil
-}
-
-func (db *Postgres) ExecutePendingChanges(changes []models.DBDMLChange) error {
-	var queries []models.Query
-
-	for _, change := range changes {
-
-		formattedTableName, formatErr := db.formatTableName(change.Table)
-		if formatErr != nil {
-			return formatErr
-		}
-
-		switch change.Type {
-
-		case models.DMLInsertType:
-			queries = append(queries, buildInsertQuery(formattedTableName, change.Values, db))
-		case models.DMLUpdateType:
-			queries = append(queries, buildUpdateQuery(formattedTableName, change.Values, change.PrimaryKeyInfo, db))
-		case models.DMLDeleteType:
-			queries = append(queries, buildDeleteQuery(formattedTableName, change.PrimaryKeyInfo, db))
-		}
-	}
-
-	return queriesInTransaction(db.Connection, queries)
 }
 
 func (db *Postgres) GetPrimaryKeyColumnNames(database, table string) ([]string, error) {
@@ -905,29 +804,6 @@ func (db *Postgres) FormatReference(reference string) string {
 
 func (db *Postgres) FormatPlaceholder(index int) string {
 	return fmt.Sprintf("$%d", index)
-}
-
-func (db *Postgres) DMLChangeToQueryString(change models.DBDMLChange) (string, error) {
-	var queryStr string
-
-	formattedTableName, err := db.formatTableName(change.Table)
-	if err != nil {
-		return "", err
-	}
-
-	columnNames, values := getColNamesAndArgsAsString(change.Values)
-
-	switch change.Type {
-	case models.DMLInsertType:
-		queryStr = buildInsertQueryString(formattedTableName, columnNames, values, db)
-	case models.DMLUpdateType:
-		queryStr = buildUpdateQueryString(formattedTableName, columnNames, values, change.PrimaryKeyInfo, db)
-	case models.DMLDeleteType:
-		queryStr = buildDeleteQueryString(formattedTableName, change.PrimaryKeyInfo, db)
-
-	}
-
-	return queryStr, nil
 }
 
 func (db *Postgres) GetFunctions(_ string) (map[string][]string, error) {

@@ -9,8 +9,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/lib/pq"
-
-	"github.com/bearded-giant/cellar/models"
 )
 
 const (
@@ -106,68 +104,6 @@ func TestPostgres_FormatArg(t *testing.T) {
 			formattedArg := db.FormatArgForQueryString(tc.arg)
 			if formattedArg != tc.expected {
 				t.Fatalf("expected %q, but got %q", tc.expected, formattedArg)
-			}
-		})
-	}
-}
-
-func TestPostgres_DMLChangeToQueryString(t *testing.T) {
-	db := &Postgres{}
-
-	testCases := []struct {
-		name     string
-		change   models.DBDMLChange
-		expected string
-	}{
-		{
-			name: "Insert with int value",
-			change: models.DBDMLChange{
-				Table: schemaAndTablePostgres,
-				Type:  models.DMLInsertType,
-				Values: []models.CellValue{
-					{Column: "name", Value: "test_name", Type: models.String},
-					{Column: "value", Value: 123, Type: models.String},
-				},
-			},
-			// expected: `INSERT INTO "test_db"."test_table" (name, value) VALUES ('test_name', 123)`,
-			expected: fmt.Sprintf(`INSERT INTO "%s"."%s" (name, value) VALUES ('test_name', 123)`, schemaPostgres, tableNamePostgres),
-		},
-		{
-			name: "Update with string value",
-			change: models.DBDMLChange{
-				Table: schemaAndTablePostgres,
-				Type:  models.DMLUpdateType,
-				Values: []models.CellValue{
-					{Column: "name", Value: "test_name", Type: models.String},
-					{Column: "value", Value: "123", Type: models.String},
-				},
-				PrimaryKeyInfo: []models.PrimaryKeyInfo{
-					{Name: "id", Value: "1"},
-				},
-			},
-			expected: fmt.Sprintf(`UPDATE "%s"."%s" SET "name" = 'test_name', "value" = '123' WHERE "id" = '1'`, schemaPostgres, tableNamePostgres),
-		},
-		{
-			name: "Delete with UUID value",
-			change: models.DBDMLChange{
-				Table: schemaAndTablePostgres,
-				Type:  models.DMLDeleteType,
-				PrimaryKeyInfo: []models.PrimaryKeyInfo{
-					{Name: "id", Value: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"},
-				},
-			},
-			expected: fmt.Sprintf(`DELETE FROM "%s"."%s" WHERE "id" = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'`, schemaPostgres, tableNamePostgres),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			queryString, err := db.DMLChangeToQueryString(tc.change)
-			if err != nil {
-				t.Fatalf("DMLChangeToQueryString failed: %v", err)
-			}
-			if queryString != tc.expected {
-				t.Fatalf("Expected:\n%q\nGot:\n%q", tc.expected, queryString)
 			}
 		})
 	}
@@ -504,43 +440,6 @@ func TestPostgres_Transactions(t *testing.T) {
 	}
 	if err := tx.Commit(); err != nil {
 		t.Fatal(err)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Unfulfilled expectations: %s", err)
-	}
-}
-
-func TestPostgres_ExecutePendingChanges(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		t.Fatalf("Error creating mock: %v", err)
-	}
-	defer db.Close()
-
-	pg := &Postgres{Connection: db, CurrentDatabase: DBNamePostgres}
-
-	changes := []models.DBDMLChange{
-		{
-			Table: schemaAndTablePostgres,
-			Type:  models.DMLUpdateType,
-			Values: []models.CellValue{
-				{Column: "name", Value: "New Name", Type: models.String},
-			},
-			PrimaryKeyInfo: []models.PrimaryKeyInfo{
-				{Name: "id", Value: 1},
-			},
-		},
-	}
-
-	mock.ExpectBegin()
-	mock.ExpectExec(fmt.Sprintf(`UPDATE "%s"."%s" SET "name" = \$1 WHERE "id" = \$2`, schemaPostgres, tableNamePostgres)).WithArgs("New Name", 1).
-		WillReturnResult(sqlmock.NewResult(0, 1))
-	mock.ExpectCommit()
-
-	err = pg.ExecutePendingChanges(changes)
-	if err != nil {
-		t.Fatalf("ExecutePendingChanges failed: %v", err)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {

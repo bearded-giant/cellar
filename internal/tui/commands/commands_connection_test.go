@@ -56,8 +56,6 @@ func (s *stubDriver) GetRecords(db, table, where, sort string, _, _ int) ([][]st
 	s.lastGetArgs = []string{db, table, where, sort}
 	return s.records, s.recordsTotal, "", s.recordsErr
 }
-func (s *stubDriver) UpdateRecord(string, string, string, string, string, string) error { return nil }
-func (s *stubDriver) DeleteRecord(string, string, string, string) error                 { return nil }
 func (s *stubDriver) ExecuteDMLStatement(q string) (string, error) {
 	s.ranDML = q
 	return s.dmlInfo, s.dmlErr
@@ -67,7 +65,6 @@ func (s *stubDriver) ExecuteQuery(q string) ([][]string, int, error) {
 	s.ranQuery = q
 	return s.queryRows, s.queryTotal, s.queryErr
 }
-func (s *stubDriver) ExecutePendingChanges([]models.DBDMLChange) error          { return nil }
 func (s *stubDriver) GetPrimaryKeyColumnNames(string, string) ([]string, error) { return nil, nil }
 func (s *stubDriver) SupportsProgramming() bool                                 { return false }
 func (s *stubDriver) UseSchemas() bool                                          { return s.useSchemas }
@@ -81,7 +78,6 @@ func (s *stubDriver) FormatArg(arg any, _ models.CellValueType) any             
 func (s *stubDriver) FormatArgForQueryString(any) string                        { return "" }
 func (s *stubDriver) FormatReference(reference string) string                   { return reference }
 func (s *stubDriver) FormatPlaceholder(int) string                              { return "" }
-func (s *stubDriver) DMLChangeToQueryString(models.DBDMLChange) (string, error) { return "", nil }
 
 func TestConnect_NonSSHPassesURLToDriver(t *testing.T) {
 	stub := &stubDriver{}
