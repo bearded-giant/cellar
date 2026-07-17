@@ -1,10 +1,11 @@
 package ui
 
 import (
+	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -22,8 +23,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyPress(msg)
+
+	case tea.PasteMsg:
+		return m.handlePaste(msg)
 
 	case tea.MouseMsg:
 		return m.handleMouse(msg)
@@ -134,6 +138,48 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleConnFilterScreen(msg)
 	case types.ScreenHelp:
 		return m.handleHelpScreen(msg)
+	}
+	return m, nil
+}
+
+// handlePaste routes bracketed-paste content to whatever is accepting text on
+// the current screen: the SQL editor, or the focused textinput.
+func (m Model) handlePaste(msg tea.PasteMsg) (tea.Model, tea.Cmd) {
+	switch m.Screen {
+	case types.ScreenEditor:
+		if m.Focus != types.FocusEditor {
+			return m, nil
+		}
+		m.EditorArea.Paste(msg.Content)
+		m.syncEditorHeight()
+		m.refreshCompletions()
+		return m, m.ensureRefColumns()
+	case types.ScreenAddConnection, types.ScreenEditConnection:
+		return m.updateConnInputs(msg)
+	case types.ScreenSSHTunnel:
+		return m.updateSSHInputs(msg)
+	case types.ScreenExport:
+		var cmd tea.Cmd
+		m.ExportInput, cmd = m.ExportInput.Update(msg)
+		return m, cmd
+	case types.ScreenFilter:
+		var cmd tea.Cmd
+		m.FilterInput, cmd = m.FilterInput.Update(msg)
+		return m, cmd
+	case types.ScreenTreeFilter:
+		var cmd tea.Cmd
+		m.TreeFilterInput, cmd = m.TreeFilterInput.Update(msg)
+		return m, cmd
+	case types.ScreenConnFilter:
+		var cmd tea.Cmd
+		m.ConnFilterInput, cmd = m.ConnFilterInput.Update(msg)
+		m.ConnFilter = strings.TrimSpace(m.ConnFilterInput.Value())
+		m.SelectedConnIdx = clampIndex(m.SelectedConnIdx, len(m.visibleConnIndices()))
+		return m, cmd
+	case types.ScreenSaveQuery:
+		var cmd tea.Cmd
+		m.SaveNameInput, cmd = m.SaveNameInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

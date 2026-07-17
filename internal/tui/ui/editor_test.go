@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -72,7 +72,7 @@ func TestEditor_OpenAndClose(t *testing.T) {
 		t.Error("openEditor should focus the editor")
 	}
 
-	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyEsc})
+	res2, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if res2.(Model).Screen != types.ScreenBrowse {
 		t.Error("esc should return from the editor to the tree/grid")
 	}
@@ -151,7 +151,7 @@ func TestEditor_RunClearsPopupSoTabReachesResults(t *testing.T) {
 		t.Fatal("expected completion popup for 'fro'")
 	}
 
-	res2, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlR})
+	res2, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	m = res2.(Model)
 	if m.CompVisible {
 		t.Error("running a query must dismiss the completion popup (else tab is eaten)")
@@ -164,7 +164,7 @@ func TestEditor_RunClearsPopupSoTabReachesResults(t *testing.T) {
 	})
 	m = res3.(Model)
 
-	res4, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyTab})
+	res4, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 	if got := res4.(Model).Focus; got != types.FocusGrid {
 		t.Errorf("after run, tab should reach the results pane; Focus=%v", got)
 	}
@@ -200,11 +200,11 @@ func TestCompletion_VisiblePopupSurvivesOneRune(t *testing.T) {
 	if !m.CompVisible {
 		t.Fatal("expected popup at 2 runes")
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if !m.CompVisible {
 		t.Error("narrowing back to 1 rune should keep an open popup")
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if m.CompVisible {
 		t.Error("empty prefix must hide the popup")
 	}
@@ -216,7 +216,7 @@ func TestCompletion_ManualTriggerAtOneRune(t *testing.T) {
 	if m.CompVisible {
 		t.Fatal("precondition: no popup at 1 rune")
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlAt}) // ctrl+space
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl}) // ctrl+space
 	if !m.CompVisible || len(m.Completions) == 0 {
 		t.Error("ctrl+space should show completions for a 1-rune prefix")
 	}
@@ -230,7 +230,7 @@ func TestCompletion_EscSuppressesUntilWordChanges(t *testing.T) {
 		t.Fatal("expected popup for SE")
 	}
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.CompVisible {
 		t.Fatal("esc should dismiss the popup")
 	}
@@ -245,7 +245,7 @@ func TestCompletion_EscSuppressesUntilWordChanges(t *testing.T) {
 	}
 
 	// a new word auto-shows again
-	m = press(t, m, tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	m = press(t, m, keyMsg('F'))
 	m = press(t, m, keyMsg('R'))
 	if !m.CompVisible {
@@ -258,12 +258,12 @@ func TestCompletion_SuppressionClearsWhenPrefixShrinks(t *testing.T) {
 	m = press(t, m, keyMsg('S'))
 	m = press(t, m, keyMsg('E'))
 	m = press(t, m, keyMsg('L'))
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.CompVisible || !m.CompDismissed {
 		t.Fatal("esc should dismiss and remember the word")
 	}
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace}) // "SE" no longer extends "SEL"
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyBackspace}) // "SE" no longer extends "SEL"
 	if m.CompDismissed {
 		t.Error("shrinking below the dismissed prefix should clear suppression")
 	}
@@ -276,8 +276,8 @@ func TestCompletion_CtrlSpaceOverridesSuppression(t *testing.T) {
 	m := editorModel(t)
 	m = press(t, m, keyMsg('S'))
 	m = press(t, m, keyMsg('E'))
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlAt})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl})
 	if !m.CompVisible {
 		t.Error("ctrl+space must override esc-dismiss suppression")
 	}
@@ -292,7 +292,7 @@ func TestCompletion_PassiveKeysStayWithEditor(t *testing.T) {
 		t.Fatal("expected a passive popup")
 	}
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
 	if m.EditorArea.row != 0 {
 		t.Error("passive ↑ should move the editor cursor, not the popup")
 	}
@@ -302,7 +302,7 @@ func TestCompletion_PassiveKeysStayWithEditor(t *testing.T) {
 	if !m.CompVisible {
 		t.Fatal("expected popup back on the SE word")
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
 	if m.Focus != types.FocusGrid {
 		t.Error("passive tab should keep its pane-cycle job")
 	}
@@ -319,18 +319,18 @@ func TestCompletion_EngagedNavAcceptAndEsc(t *testing.T) {
 		t.Fatalf("expected 2+ completions for SE, got %d", len(m.Completions))
 	}
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
+	m = press(t, m, tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	if !m.CompEngaged || m.CompCursor != 1 {
 		t.Fatalf("ctrl+n should engage and advance, engaged=%v cursor=%d", m.CompEngaged, m.CompCursor)
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyUp})
 	if m.CompCursor != 0 {
 		t.Errorf("engaged ↑ should move the popup cursor back to 0, got %d", m.CompCursor)
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
+	m = press(t, m, tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	want := m.Completions[m.CompCursor].Text
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyTab})
 	if m.EditorArea.Value() != want {
 		t.Errorf("engaged tab should accept %q, buffer = %q", want, m.EditorArea.Value())
 	}
@@ -343,15 +343,15 @@ func TestCompletion_EngagedEscDismissesOnly(t *testing.T) {
 	m := editorModel(t)
 	m = press(t, m, keyMsg('S'))
 	m = press(t, m, keyMsg('E'))
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.CompVisible || m.CompEngaged {
 		t.Error("esc while engaged should dismiss + disengage")
 	}
 	if m.Screen != types.ScreenEditor {
 		t.Error("esc while engaged must not leave the workspace")
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.Screen != types.ScreenBrowse {
 		t.Error("second esc should leave to the tree")
 	}
@@ -361,7 +361,7 @@ func TestEditorResults_EscReturnsToEditorNotTree(t *testing.T) {
 	m := editorModel(t)
 	m.Focus = types.FocusGrid
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyPressMsg{Code: tea.KeyEsc})
 	if m.Screen != types.ScreenEditor || m.Focus != types.FocusEditor {
 		t.Fatalf("results esc should refocus the editor, got screen=%v focus=%v", m.Screen, m.Focus)
 	}
@@ -399,11 +399,11 @@ func TestEditor_CommentToggleOnCtrlUnderscore(t *testing.T) {
 	m.EditorArea.SetValue("select 1")
 	m.EditorArea.CursorEnd()
 
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	m = press(t, m, tea.KeyPressMsg{Code: '_', Mod: tea.ModCtrl})
 	if m.EditorArea.Value() != "-- select 1" {
 		t.Fatalf("ctrl+_ should comment the statement, got %q", m.EditorArea.Value())
 	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlUnderscore})
+	m = press(t, m, tea.KeyPressMsg{Code: '_', Mod: tea.ModCtrl})
 	if m.EditorArea.Value() != "select 1" {
 		t.Errorf("second ctrl+_ should uncomment, got %q", m.EditorArea.Value())
 	}
@@ -445,3 +445,50 @@ type fakeErr struct{}
 func (fakeErr) Error() string { return "boom" }
 
 var errFake error = fakeErr{}
+
+func TestUpdate_PasteRoutesToEditor(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("SELECT  FROM t")
+	m.EditorArea.row, m.EditorArea.col = 0, 7
+
+	res2, _ := m.Update(tea.PasteMsg{Content: "a,\r\nb"})
+	m = res2.(Model)
+	if got := m.EditorArea.Value(); got != "SELECT a,\nb FROM t" {
+		t.Errorf("pasted value = %q", got)
+	}
+}
+
+func TestUpdate_PasteIgnoredWhenResultsFocused(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("SELECT 1")
+	m.Focus = types.FocusGrid
+
+	res2, _ := m.Update(tea.PasteMsg{Content: "junk"})
+	if got := res2.(Model).EditorArea.Value(); got != "SELECT 1" {
+		t.Errorf("paste with results focused must not touch the buffer, got %q", got)
+	}
+}
+
+func TestUpdate_PasteRoutesToSaveNameInput(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("SELECT 1")
+	res2, _ := m.openSaveQuery()
+	m = res2.(Model)
+	if m.Screen != types.ScreenSaveQuery {
+		t.Fatalf("Screen = %v, want ScreenSaveQuery", m.Screen)
+	}
+
+	res3, _ := m.Update(tea.PasteMsg{Content: "weekly rollup"})
+	if got := res3.(Model).SaveNameInput.Value(); got != "weekly rollup" {
+		t.Errorf("SaveNameInput = %q, want pasted name", got)
+	}
+}

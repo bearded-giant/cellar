@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -58,7 +58,7 @@ func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
 	t.Run("from add form returns to add form, not the list", func(t *testing.T) {
 		m := newTestModel()
 		m.Screen = types.ScreenAddConnection
-		res, _ := m.handleConnFormScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+		res, _ := m.handleConnFormScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 		m = res.(Model)
 		if m.Screen != types.ScreenTestConnection {
 			t.Fatalf("after ctrl+t Screen = %v, want TestConnection", m.Screen)
@@ -66,7 +66,7 @@ func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
 		if m.TestReturnScreen != types.ScreenAddConnection {
 			t.Fatalf("TestReturnScreen = %v, want AddConnection", m.TestReturnScreen)
 		}
-		res, _ = m.handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		res, _ = m.handleTestConnectionScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 		if got := res.(Model).Screen; got != types.ScreenAddConnection {
 			t.Errorf("after esc Screen = %v, want AddConnection (form, not list)", got)
 		}
@@ -77,8 +77,8 @@ func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
 		conn := models.Connection{Name: "a", URL: "postgres://x"}
 		m.EditingConnection = &conn
 		m.Screen = types.ScreenEditConnection
-		res, _ := m.handleConnFormScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
-		res, _ = res.(Model).handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		res, _ := m.handleConnFormScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
+		res, _ = res.(Model).handleTestConnectionScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 		if got := res.(Model).Screen; got != types.ScreenEditConnection {
 			t.Errorf("after esc Screen = %v, want EditConnection", got)
 		}
@@ -88,12 +88,12 @@ func TestTestConnectionScreen_ReturnsToOrigin(t *testing.T) {
 		m := newTestModel()
 		m.Connections = []models.Connection{{Name: "a", URL: "postgres://x"}}
 		m.Screen = types.ScreenConnections
-		res, _ := m.handleConnectionsScreen(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+		res, _ := m.handleConnectionsScreen(keyMsg('t'))
 		m = res.(Model)
 		if m.Screen != types.ScreenTestConnection {
 			t.Fatalf("after t Screen = %v, want TestConnection", m.Screen)
 		}
-		res, _ = m.handleTestConnectionScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		res, _ = m.handleTestConnectionScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 		if got := res.(Model).Screen; got != types.ScreenConnections {
 			t.Errorf("after esc Screen = %v, want Connections", got)
 		}
@@ -122,7 +122,7 @@ func TestHandleAddConnectionScreen_FocusCycling(t *testing.T) {
 	// Connection form has 4 focusable fields: Name, URL, Provider, ReadOnly toggle.
 	t.Run("tab advances focus", func(t *testing.T) {
 		m := newTestModel()
-		result, _ := m.handleAddConnectionScreen(tea.KeyMsg{Type: tea.KeyTab})
+		result, _ := m.handleAddConnectionScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 		model := result.(Model)
 		if model.ConnFocusIdx != 1 {
 			t.Errorf("ConnFocusIdx = %d, want 1", model.ConnFocusIdx)
@@ -131,7 +131,7 @@ func TestHandleAddConnectionScreen_FocusCycling(t *testing.T) {
 	t.Run("tab wraps past last field", func(t *testing.T) {
 		m := newTestModel()
 		m.ConnFocusIdx = m.connFieldCount() - 1 // ReadOnly toggle (idx 3)
-		result, _ := m.handleAddConnectionScreen(tea.KeyMsg{Type: tea.KeyTab})
+		result, _ := m.handleAddConnectionScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 		model := result.(Model)
 		if model.ConnFocusIdx != 0 {
 			t.Errorf("ConnFocusIdx = %d, want 0 (wrap)", model.ConnFocusIdx)
@@ -139,7 +139,7 @@ func TestHandleAddConnectionScreen_FocusCycling(t *testing.T) {
 	})
 	t.Run("shift+tab from first wraps to last", func(t *testing.T) {
 		m := newTestModel()
-		result, _ := m.handleAddConnectionScreen(tea.KeyMsg{Type: tea.KeyShiftTab})
+		result, _ := m.handleAddConnectionScreen(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 		model := result.(Model)
 		if want := m.connFieldCount() - 1; model.ConnFocusIdx != want {
 			t.Errorf("ConnFocusIdx = %d, want %d (wrap to ReadOnly toggle)", model.ConnFocusIdx, want)
@@ -148,7 +148,7 @@ func TestHandleAddConnectionScreen_FocusCycling(t *testing.T) {
 	t.Run("focus maps to the right input being edited", func(t *testing.T) {
 		m := newTestModel()
 		// advance to URL field (focus idx 1)
-		result, _ := m.handleAddConnectionScreen(tea.KeyMsg{Type: tea.KeyTab})
+		result, _ := m.handleAddConnectionScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 		m = result.(Model)
 		if m.ConnFocusIdx != 1 {
 			t.Fatalf("expected focus idx 1, got %d", m.ConnFocusIdx)
@@ -169,7 +169,7 @@ func TestHandleAddConnectionScreen_FocusCycling(t *testing.T) {
 	t.Run("space toggles ReadOnly when focused on toggle", func(t *testing.T) {
 		m := newTestModel()
 		m.ConnFocusIdx = m.connReadOnlyFocusIdx()
-		result, _ := m.handleAddConnectionScreen(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+		result, _ := m.handleAddConnectionScreen(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 		model := result.(Model)
 		if !model.ConnReadOnly {
 			t.Error("ReadOnly = false, want true after space on toggle")
@@ -261,7 +261,7 @@ func TestSSHStaging_ConvertSSHInputsAndFold(t *testing.T) {
 	m.EditingConnection = &models.Connection{Name: "prod"}
 
 	// Enter materializes PendingSSH and returns to the edit screen.
-	result, _ := m.handleSSHTunnelScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	result, _ := m.handleSSHTunnelScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	model := result.(Model)
 
 	if model.Screen != types.ScreenEditConnection {
@@ -316,7 +316,7 @@ func TestSSHStaging_EmptyHostClearsPending(t *testing.T) {
 	m.SSHEnabled = true
 	m.PendingSSH = &models.Connection{SSHHost: "old"}
 	// no host set in inputs (reset leaves host blank)
-	result, _ := m.handleSSHTunnelScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	result, _ := m.handleSSHTunnelScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	model := result.(Model)
 	if model.PendingSSH != nil {
 		t.Errorf("PendingSSH = %v, want nil when host empty", model.PendingSSH)
@@ -339,7 +339,7 @@ func TestSSHStaging_DefaultPortWhenBlank(t *testing.T) {
 	}
 }
 
-// keyMsg constructs a tea.KeyMsg for a single rune.
-func keyMsg(r rune) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+// keyMsg constructs a key-press message for a single rune.
+func keyMsg(r rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: r, Text: string(r)}
 }

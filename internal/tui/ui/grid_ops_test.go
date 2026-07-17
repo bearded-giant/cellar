@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -34,7 +34,7 @@ func TestFilter_PrependsWhere(t *testing.T) {
 	m := gridModel()
 	m.FilterInput = textinput.New()
 	m.FilterInput.SetValue("id > 5")
-	res, _ := m.handleFilterScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, _ := m.handleFilterScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res.(Model)
 	if m.Browse.Where != "WHERE id > 5" {
 		t.Errorf("Where = %q, want 'WHERE id > 5'", m.Browse.Where)

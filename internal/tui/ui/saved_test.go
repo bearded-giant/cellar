@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/saved"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -35,7 +35,7 @@ func TestSavedQueriesScreen_LoadsIntoEditor(t *testing.T) {
 	m.SavedItems = []models.SavedQuery{{Name: "q", Query: "SELECT 42"}}
 	m.Screen = types.ScreenSavedQueries
 
-	res, _ := m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, _ := m.handleSavedQueriesScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res.(Model)
 	if m.Screen != types.ScreenEditor {
 		t.Fatal("enter should open the editor")
@@ -57,7 +57,7 @@ func TestSaveQuery_ReSaveOverwritesInPlace(t *testing.T) {
 	m.Width, m.Height = 100, 30
 	m.SavedItems = []models.SavedQuery{{Name: "q", Query: "SELECT 42"}}
 	m.Screen = types.ScreenSavedQueries
-	res, _ := m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, _ := m.handleSavedQueriesScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res.(Model)
 
 	m.EditorArea.SetValue("SELECT 43")
@@ -104,28 +104,28 @@ func TestQueryPicker_TabTogglesBetweenSavedAndHistory(t *testing.T) {
 	m.Width, m.Height = 100, 30
 
 	// ctrl+o from browse opens the saved side, even with nothing saved yet
-	res, cmd := m.handleBrowseScreen(tea.KeyMsg{Type: tea.KeyCtrlO})
+	res, cmd := m.handleBrowseScreen(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl})
 	m = runCmd(t, res.(Model), cmd)
 	if m.Screen != types.ScreenSavedQueries {
 		t.Fatalf("ctrl+o should open the saved picker, got %v", m.Screen)
 	}
 
 	// tab flips to the history side (empty list still opens)
-	res, cmd = m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyTab})
+	res, cmd = m.handleSavedQueriesScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 	m = runCmd(t, res.(Model), cmd)
 	if m.Screen != types.ScreenHistory {
 		t.Fatalf("tab should flip to history, got %v", m.Screen)
 	}
 
 	// and back again
-	res, cmd = m.handleHistoryScreen(tea.KeyMsg{Type: tea.KeyTab})
+	res, cmd = m.handleHistoryScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 	m = runCmd(t, res.(Model), cmd)
 	if m.Screen != types.ScreenSavedQueries {
 		t.Fatalf("tab should flip back to saved, got %v", m.Screen)
 	}
 
 	// esc closes back to where the picker opened
-	res, _ = m.handleSavedQueriesScreen(tea.KeyMsg{Type: tea.KeyEsc})
+	res, _ = m.handleSavedQueriesScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if got := res.(Model).Screen; got != types.ScreenBrowse {
 		t.Errorf("esc should close to browse, got %v", got)
 	}
@@ -139,7 +139,7 @@ func TestQueryPicker_CtrlOFromEditorPreservesBuffer(t *testing.T) {
 	m = res.(Model)
 	m.EditorArea.SetValue("select wip")
 
-	res, cmd := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlO})
+	res, cmd := m.handleEditorScreen(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.EditorContent != "select wip" {
 		t.Errorf("ctrl+o must snapshot the live buffer, got %q", m.EditorContent)
@@ -164,7 +164,7 @@ func TestQueryPicker_EmptyHistoryStaysOpen(t *testing.T) {
 		t.Errorf("empty history cursor = %d, want 0", m.HistoryCursor)
 	}
 	// enter/d on the empty list must be no-ops, not panics
-	res, _ = m.handleHistoryScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, _ = m.handleHistoryScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got := res.(Model).Screen; got != types.ScreenHistory {
 		t.Errorf("enter on empty history should be a no-op, got %v", got)
 	}
@@ -195,7 +195,7 @@ func TestSaveQueryScreen_FiresSaveCmd(t *testing.T) {
 	}
 	m.SaveNameInput = textinput.New()
 	m.SaveNameInput.SetValue("my query")
-	res, cmd := m.handleSaveQueryScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, cmd := m.handleSaveQueryScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if res.(Model).Screen != types.ScreenEditor {
 		t.Error("after save, should return to the editor")
 	}

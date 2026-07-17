@@ -4,13 +4,27 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
 )
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	v := tea.NewView(m.viewContent())
+	v.AltScreen = true
+	// no mouse reporting in the editor so the terminal does native
+	// drag-to-select/copy; everywhere else the browse grid wants wheel/click.
+	if m.Screen == types.ScreenEditor {
+		v.MouseMode = tea.MouseModeNone
+	} else {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
+	return v
+}
+
+func (m Model) viewContent() string {
 	if m.Width > 0 && (m.Width < 50 || m.Height < 15) {
 		return lipgloss.Place(m.Width, m.Height, lipgloss.Center, lipgloss.Center,
 			"Terminal too small.\nResize to at least 50x15.")

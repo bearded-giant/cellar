@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/internal/tui/commands"
@@ -228,7 +228,7 @@ func TestTreeKey_NavAndExpand(t *testing.T) {
 	}
 
 	// enter on a collapsed, unloaded db expands it and fires a table load
-	res2, cmd := m.handleBrowseTreeKey(tea.KeyMsg{Type: tea.KeyEnter})
+	res2, cmd := m.handleBrowseTreeKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res2.(Model)
 	if !m.Browse.Expanded["metrics"] {
 		t.Error("enter should expand the db node")
@@ -246,7 +246,7 @@ func TestTreeKey_SelectTableLoadsGrid(t *testing.T) {
 	m.rebuildTree() // [app, widgets]
 	m.Browse.Cursor = 1
 
-	res, cmd := m.handleBrowseTreeKey(tea.KeyMsg{Type: tea.KeyEnter})
+	res, cmd := m.handleBrowseTreeKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res.(Model)
 	if m.Focus != types.FocusGrid {
 		t.Error("selecting a table should move focus to the grid")
@@ -292,7 +292,7 @@ func TestBrowseScreen_TabAndDisconnect(t *testing.T) {
 	m.ActiveDriver = &drivers.SQLite{} // a live connection, so disconnect confirms
 	m.Focus = types.FocusTree
 
-	res, _ := m.handleBrowseScreen(tea.KeyMsg{Type: tea.KeyTab})
+	res, _ := m.handleBrowseScreen(tea.KeyPressMsg{Code: tea.KeyTab})
 	m = res.(Model)
 	if m.Focus != types.FocusGrid {
 		t.Error("tab should toggle focus tree -> grid")

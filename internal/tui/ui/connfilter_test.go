@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
@@ -145,7 +145,7 @@ func TestConnFilterFlow(t *testing.T) {
 	}
 
 	// enter applies and returns to the list
-	res, _ = m.handleConnFilterScreen(tea.KeyMsg{Type: tea.KeyEnter})
+	res, _ = m.handleConnFilterScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = res.(Model)
 	if m.Screen != types.ScreenConnections {
 		t.Fatalf("after enter Screen = %v, want Connections", m.Screen)
@@ -157,7 +157,7 @@ func TestConnFilterFlow(t *testing.T) {
 	// esc inside the input cancels: full list restored
 	res, _ = m.handleConnectionsScreen(keyMsg('/'))
 	m = res.(Model)
-	res, _ = m.handleConnFilterScreen(tea.KeyMsg{Type: tea.KeyEsc})
+	res, _ = m.handleConnFilterScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 	m = res.(Model)
 	if m.Screen != types.ScreenConnections {
 		t.Fatalf("after esc Screen = %v, want Connections", m.Screen)
@@ -247,7 +247,7 @@ func TestHandleConnectionsScreen_ActionsUseFilteredSet(t *testing.T) {
 		m := newTestModel()
 		m.Connections = filterTestConns()
 		m.ConnFilter = "prod"
-		res, _ := m.handleConnectionsScreen(tea.KeyMsg{Type: tea.KeyEsc})
+		res, _ := m.handleConnectionsScreen(tea.KeyPressMsg{Code: tea.KeyEsc})
 		if got := res.(Model).ConnFilter; got != "" {
 			t.Errorf("ConnFilter = %q, want cleared", got)
 		}

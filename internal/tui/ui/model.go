@@ -3,9 +3,9 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/helpers"
@@ -173,10 +173,10 @@ func (m *Model) sizeFormInputs() {
 		fieldW = 20
 	}
 	for i := range m.ConnInputs {
-		m.ConnInputs[i].Width = fieldW
+		m.ConnInputs[i].SetWidth(fieldW)
 	}
 	for i := range m.SSHInputs {
-		m.SSHInputs[i].Width = fieldW
+		m.SSHInputs[i].SetWidth(fieldW)
 	}
 }
 
@@ -186,19 +186,19 @@ func createConnectionInputs() []textinput.Model {
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Connection Name"
 	inputs[0].Focus()
-	inputs[0].Width = 50
+	inputs[0].SetWidth(50)
 
 	inputs[1] = textinput.New()
 	inputs[1].Placeholder = "URL (e.g. mysql://user:pass@host:3306/db)"
-	inputs[1].Width = 50
+	inputs[1].SetWidth(50)
 
 	inputs[2] = textinput.New()
 	inputs[2].Placeholder = "Provider (mysql/postgres/sqlite3)"
-	inputs[2].Width = 50
+	inputs[2].SetWidth(50)
 
 	inputs[3] = textinput.New()
 	inputs[3].Placeholder = "Default schema (postgres, optional) e.g. public"
-	inputs[3].Width = 50
+	inputs[3].SetWidth(50)
 
 	return inputs
 }
@@ -210,35 +210,35 @@ func createSSHInputs() []textinput.Model {
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Bastion Host"
-	inputs[0].Width = 50
+	inputs[0].SetWidth(50)
 	inputs[0].Focus()
 
 	inputs[1] = textinput.New()
 	inputs[1].Placeholder = "Bastion Port"
-	inputs[1].Width = 50
+	inputs[1].SetWidth(50)
 	inputs[1].SetValue("22")
 
 	inputs[2] = textinput.New()
 	inputs[2].Placeholder = "SSH User"
-	inputs[2].Width = 50
+	inputs[2].SetWidth(50)
 
 	inputs[3] = textinput.New()
 	inputs[3].Placeholder = "Private Key Path (optional)"
-	inputs[3].Width = 50
+	inputs[3].SetWidth(50)
 
 	inputs[4] = textinput.New()
 	inputs[4].Placeholder = "Passphrase (optional)"
-	inputs[4].Width = 50
+	inputs[4].SetWidth(50)
 	inputs[4].EchoMode = textinput.EchoPassword
 
 	inputs[5] = textinput.New()
 	inputs[5].Placeholder = "SSH Password (optional)"
-	inputs[5].Width = 50
+	inputs[5].SetWidth(50)
 	inputs[5].EchoMode = textinput.EchoPassword
 
 	inputs[6] = textinput.New()
 	inputs[6].Placeholder = `Proxy command, e.g. sh -c "aws ssm start-session ..." (optional)`
-	inputs[6].Width = 50
+	inputs[6].SetWidth(50)
 
 	return inputs
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/lib"

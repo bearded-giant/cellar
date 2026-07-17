@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/helpers"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -36,7 +36,7 @@ func (m Model) openExport() (tea.Model, tea.Cmd) {
 	}
 	ti := textinput.New()
 	ti.SetValue(defaultExportPath(m.Browse.Label))
-	ti.Width = 60
+	ti.SetWidth(60)
 	ti.Focus()
 	ti.CursorEnd()
 	m.ExportInput = ti

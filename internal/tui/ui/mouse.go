@@ -1,22 +1,27 @@
 package ui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	if m.Screen != types.ScreenBrowse || msg.Action != tea.MouseActionPress {
+	if m.Screen != types.ScreenBrowse {
 		return m, nil
 	}
-	switch msg.Button {
-	case tea.MouseButtonWheelUp:
-		return m.mouseScroll(-1)
-	case tea.MouseButtonWheelDown:
-		return m.mouseScroll(+1)
-	case tea.MouseButtonLeft:
-		return m.mouseClick(msg.X, msg.Y)
+	switch msg := msg.(type) {
+	case tea.MouseWheelMsg:
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			return m.mouseScroll(-1)
+		case tea.MouseWheelDown:
+			return m.mouseScroll(+1)
+		}
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft {
+			return m.mouseClick(msg.X, msg.Y)
+		}
 	}
 	return m, nil
 }

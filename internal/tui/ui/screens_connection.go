@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
@@ -168,7 +168,7 @@ func (m Model) handleConnFormScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.ConnFocusIdx = fieldCount - 1
 		}
 		m.focusConnField()
-	case " ":
+	case "space":
 		if m.ConnFocusIdx == toggleIdx {
 			m.ConnReadOnly = !m.ConnReadOnly
 			return m, nil
@@ -245,7 +245,7 @@ func (m *Model) focusConnField() {
 	}
 }
 
-func (m Model) updateConnInputs(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) updateConnInputs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	idx := connInputIndex(m.ConnFocusIdx, len(m.ConnInputs))
 	if idx >= 0 && idx < len(m.ConnInputs) {
 		var inputCmd tea.Cmd
@@ -307,7 +307,7 @@ func (m Model) handleSSHTunnelScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.SSHFocusIdx = sshFieldCount - 1
 		}
 		m.focusSSHField()
-	case " ":
+	case "space":
 		if m.SSHFocusIdx == sshToggleIdx {
 			m.SSHEnabled = !m.SSHEnabled
 			return m, nil
@@ -370,7 +370,7 @@ func (m *Model) focusSSHField() {
 	}
 }
 
-func (m Model) updateSSHInputs(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) updateSSHInputs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	idx := sshInputIndex(m.SSHFocusIdx)
 	if idx >= 0 && idx < len(m.SSHInputs) {
 		var inputCmd tea.Cmd

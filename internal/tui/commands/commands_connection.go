@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/drivers"
 	"github.com/bearded-giant/cellar/helpers"

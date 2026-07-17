@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/helpers"
 	"github.com/bearded-giant/cellar/internal/history"
@@ -103,7 +103,7 @@ func main() {
 	sendFunc := func(tea.Msg) {}
 	m.SendFunc = &sendFunc
 
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(m)
 	*m.SendFunc = p.Send
 	finalModel, err := p.Run()
 	if err != nil {

@@ -4,11 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
-func key(t tea.KeyType) tea.KeyMsg  { return tea.KeyMsg{Type: t} }
-func typeRunes(s string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)} }
+func key(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
+func ctrl(code rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: code, Mod: tea.ModCtrl}
+}
+func typeRunes(s string) tea.KeyPressMsg { return tea.KeyPressMsg{Code: tea.KeyExtended, Text: s} }
 func drive(e sqlEditor, ms ...tea.KeyMsg) sqlEditor {
 	for _, m := range ms {
 		e, _ = e.Update(m)
@@ -82,7 +85,7 @@ func TestSQLEditor_InsertMidLine(t *testing.T) {
 
 func TestSQLEditor_PasteMultiline(t *testing.T) {
 	e := newEditor("", 40, 10)
-	e = drive(e, typeRunes("WITH x AS (\r\n  select 1\r\n)\nSELECT * FROM x;"))
+	e.Paste("WITH x AS (\r\n  select 1\r\n)\nSELECT * FROM x;")
 	want := "WITH x AS (\n  select 1\n)\nSELECT * FROM x;"
 	if e.Value() != want {
 		t.Fatalf("paste value = %q, want %q", e.Value(), want)
@@ -98,7 +101,7 @@ func TestSQLEditor_PasteMultiline(t *testing.T) {
 func TestSQLEditor_PasteMidLineSplice(t *testing.T) {
 	e := newEditor("SELECT  FROM t", 40, 10)
 	e.row, e.col = 0, 7 // between "SELECT " and "FROM"
-	e = drive(e, typeRunes("a,\nb"))
+	e.Paste("a,\nb")
 	if e.Value() != "SELECT a,\nb FROM t" {
 		t.Fatalf("mid-line paste splice: %q", e.Value())
 	}
@@ -133,12 +136,12 @@ func TestSQLEditor_Undo(t *testing.T) {
 		t.Fatalf("setup value = %q", e.Value())
 	}
 	for _, want := range []string{"ab\n", "ab", ""} {
-		e = drive(e, key(tea.KeyCtrlZ))
+		e = drive(e, ctrl('z'))
 		if e.Value() != want {
 			t.Fatalf("after undo, value = %q, want %q", e.Value(), want)
 		}
 	}
-	e = drive(e, key(tea.KeyCtrlZ)) // empty stack -> no-op
+	e = drive(e, ctrl('z')) // empty stack -> no-op
 	if e.Value() != "" {
 		t.Errorf("undo on empty stack changed value to %q", e.Value())
 	}
@@ -150,7 +153,7 @@ func TestSQLEditor_UndoCoalescesTyping(t *testing.T) {
 	if e.Value() != "abc" {
 		t.Fatalf("value = %q", e.Value())
 	}
-	e = drive(e, key(tea.KeyCtrlZ)) // a typing run collapses to one undo step
+	e = drive(e, ctrl('z')) // a typing run collapses to one undo step
 	if e.Value() != "" {
 		t.Errorf("one undo should revert the whole typing run, got %q", e.Value())
 	}

@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -23,7 +23,7 @@ func (m Model) openSaveQuery() (tea.Model, tea.Cmd) {
 	}
 	ti := textinput.New()
 	ti.Placeholder = "query name"
-	ti.Width = 40
+	ti.SetWidth(40)
 	if i := m.QueryTabActive; i >= 0 && i < len(m.QueryTabs) {
 		if name := m.QueryTabs[i].Name; name != "" && name != "untitled" {
 			ti.SetValue(name)

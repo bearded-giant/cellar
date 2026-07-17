@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/state"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -24,7 +24,7 @@ func TestQueryTabs_NewSwitchClosePreservesBuffers(t *testing.T) {
 	m.EditorArea.SetValue("select 1")
 
 	// ctrl+t: new blank tab
-	res, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if len(m.QueryTabs) != 2 || m.QueryTabActive != 1 {
 		t.Fatalf("want 2 tabs active=1, got %d active=%d", len(m.QueryTabs), m.QueryTabActive)
@@ -35,28 +35,28 @@ func TestQueryTabs_NewSwitchClosePreservesBuffers(t *testing.T) {
 	m.EditorArea.SetValue("select 2")
 
 	// ctrl+pgup: back to tab 0 with its content intact
-	res, _ = m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlPgUp})
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyPgUp, Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.QueryTabActive != 0 || m.EditorArea.Value() != "select 1" {
 		t.Fatalf("tab 0 should hold 'select 1', got active=%d %q", m.QueryTabActive, m.EditorArea.Value())
 	}
 
 	// ctrl+pgdown: forward again, buffer 2 intact
-	res, _ = m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlPgDown})
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyPgDown, Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.EditorArea.Value() != "select 2" {
 		t.Fatalf("tab 1 should hold 'select 2', got %q", m.EditorArea.Value())
 	}
 
 	// ctrl+w: close active, land on the survivor
-	res, _ = m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlW})
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if len(m.QueryTabs) != 1 || m.EditorArea.Value() != "select 1" {
 		t.Fatalf("close should leave tab 0, got %d tabs %q", len(m.QueryTabs), m.EditorArea.Value())
 	}
 
 	// ctrl+w on the last tab is a no-op
-	res, _ = m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlW})
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if len(m.QueryTabs) != 1 {
 		t.Error("closing the last tab must be a no-op")
@@ -68,13 +68,13 @@ func TestQueryTabs_SavedBindingIsPerTab(t *testing.T) {
 	m.EditorArea.SetValue("select 1")
 	m.SavedName, m.SavedBaseline = "one", "select 1"
 
-	res, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.SavedName != "" {
 		t.Fatalf("new tab must be unbound scratch, got %q", m.SavedName)
 	}
 
-	res, _ = m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlPgUp})
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyPgUp, Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.SavedName != "one" || m.SavedBaseline != "select 1" {
 		t.Fatalf("binding should travel with the tab, got %q/%q", m.SavedName, m.SavedBaseline)
@@ -128,7 +128,7 @@ func TestPersistQueryState_RoundTripAcrossReconnect(t *testing.T) {
 	m := editorModel(t)
 	m.CurrentConn = conn
 	m.EditorArea.SetValue("select 1")
-	res, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	m = res.(Model)
 	m.EditorArea.SetValue("select 2 -- wip")
 
@@ -201,7 +201,7 @@ func TestQueryTabs_DefaultNameUntitled(t *testing.T) {
 	if m.QueryTabs[0].Name != "untitled" {
 		t.Errorf("seed tab Name = %q, want untitled", m.QueryTabs[0].Name)
 	}
-	res, _ := m.handleEditorScreen(tea.KeyMsg{Type: tea.KeyCtrlT})
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
 	m = res.(Model)
 	if m.QueryTabs[1].Name != "untitled" {
 		t.Errorf("new tab Name = %q, want untitled", m.QueryTabs[1].Name)

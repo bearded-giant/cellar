@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 )
@@ -78,9 +78,9 @@ func (e sqlEditor) cursorOffset() int {
 	return off + e.col
 }
 
-func isEditMutation(t tea.KeyType) bool {
-	switch t {
-	case tea.KeyRunes, tea.KeySpace, tea.KeyEnter, tea.KeyBackspace, tea.KeyDelete, tea.KeyTab:
+func isEditMutation(s string) bool {
+	switch s {
+	case "enter", "backspace", "delete", "tab":
 		return true
 	}
 	return false
@@ -116,12 +116,13 @@ func (e *sqlEditor) undoPop() {
 }
 
 func (e sqlEditor) Update(msg tea.KeyMsg) (sqlEditor, tea.Cmd) {
-	if msg.Type == tea.KeyCtrlZ {
+	s := msg.String()
+	if s == "ctrl+z" {
 		e.undoPop()
 		return e, nil
 	}
-	if isEditMutation(msg.Type) {
-		typing := msg.Type == tea.KeyRunes || msg.Type == tea.KeySpace
+	typing := msg.Key().Text != ""
+	if typing || isEditMutation(s) {
 		if !(typing && e.lastIns) {
 			e.pushUndo() // coalesce a run of typing into a single undo step
 		}
@@ -129,41 +130,52 @@ func (e sqlEditor) Update(msg tea.KeyMsg) (sqlEditor, tea.Cmd) {
 	} else {
 		e.lastIns = false
 	}
-	switch msg.Type {
-	case tea.KeyRunes, tea.KeySpace:
-		e.insert(string(msg.Runes))
-	case tea.KeyEnter:
+	switch s {
+	case "enter":
 		e.insertNewline()
-	case tea.KeyBackspace:
+	case "backspace":
 		e.backspace()
-	case tea.KeyDelete:
+	case "delete":
 		e.deleteForward()
-	case tea.KeyTab:
+	case "tab":
 		e.insert("    ") // ponytail: literal tab breaks the width=1-per-rune renderer
-	case tea.KeyLeft:
+	case "left":
 		e.moveLeft()
-	case tea.KeyRight:
+	case "right":
 		e.moveRight()
-	case tea.KeyUp:
+	case "up":
 		e.moveUp()
-	case tea.KeyDown:
+	case "down":
 		e.moveDown()
-	case tea.KeyHome, tea.KeyCtrlA:
+	case "home", "ctrl+a":
 		e.col = 0
-	case tea.KeyEnd, tea.KeyCtrlE:
+	case "end", "ctrl+e":
 		e.col = e.lineLen(e.row)
+	default:
+		if typing {
+			e.insert(msg.Key().Text)
+		}
 	}
 	e.clampScroll()
 	return e, nil
 }
 
-func (e *sqlEditor) insert(s string) {
-	// a bracketed paste arrives as one KeyRunes msg with newlines embedded; split
-	// it into logical lines instead of stuffing them into a single line.
-	if strings.ContainsAny(s, "\r\n") {
-		e.insertMultiline(s)
+// Paste splices bracketed-paste content (tea.PasteMsg) in as one undo step.
+func (e *sqlEditor) Paste(s string) {
+	if s == "" {
 		return
 	}
+	e.pushUndo()
+	e.lastIns = false
+	if strings.ContainsAny(s, "\r\n") {
+		e.insertMultiline(s)
+	} else {
+		e.insert(s)
+	}
+	e.clampScroll()
+}
+
+func (e *sqlEditor) insert(s string) {
 	ins := []rune(s)
 	line := []rune(e.lines[e.row])
 	out := make([]rune, 0, len(line)+len(ins))

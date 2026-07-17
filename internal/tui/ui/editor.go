@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -71,9 +71,7 @@ func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.EditorColsLoaded = map[string]bool{}
 	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
-	// drop mouse reporting so the terminal does native drag-to-select/copy in the
-	// editor; nothing here consumes mouse events (handleMouse only acts on Browse).
-	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns(), tea.DisableMouse)
+	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns())
 }
 
 // ensureRefColumns fires column-load commands for tables referenced in the
@@ -164,7 +162,7 @@ func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
 	m.dismissCompletions()
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
-	return m, tea.EnableMouseCellMotion // re-arm wheel-scroll/click in the browse grid
+	return m, nil
 }
 
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -244,7 +242,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// editor (text) focused.
 	switch msg.String() {
-	case "ctrl+@", "ctrl+space": // ctrl+space arrives as NUL = ctrl+@ in bubbletea v1
+	case "ctrl+space":
 		m.showCompletionsManual()
 		return m, nil
 	}

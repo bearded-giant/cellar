@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -102,7 +102,7 @@ func (m Model) openFilter() (tea.Model, tea.Cmd) {
 	ti := textinput.New()
 	ti.SetValue(m.Browse.Where)
 	ti.Placeholder = "WHERE id > 100"
-	ti.Width = 50
+	ti.SetWidth(50)
 	ti.Focus()
 	ti.CursorEnd()
 	m.FilterInput = ti

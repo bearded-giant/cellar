@@ -3,8 +3,8 @@ package ui
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
@@ -74,7 +74,7 @@ func (m Model) openConnFilter() (tea.Model, tea.Cmd) {
 	ti := textinput.New()
 	ti.SetValue(m.ConnFilter)
 	ti.Placeholder = "filter name/host"
-	ti.Width = 40
+	ti.SetWidth(40)
 	ti.Focus()
 	ti.CursorEnd()
 	m.ConnFilterInput = ti
