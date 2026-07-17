@@ -75,6 +75,15 @@ type Model struct {
 	Completions    []sqlmeta.CompletionItem
 	CompCursor     int
 	CompVisible    bool
+	// CompEngaged flips when ctrl+n/ctrl+p is pressed: only then do ↑/↓, tab and
+	// esc belong to the popup; a passive (just-rendered) popup leaves them to the
+	// editor. Reset whenever the popup is recomputed or dismissed.
+	CompEngaged bool
+	// CompDismissed remembers an esc-dismissed popup (word start + prefix) so
+	// auto-show stays off until the cursor word changes.
+	CompDismissed       bool
+	CompDismissedAt     int
+	CompDismissedPrefix string
 	// EditorColsLoaded tracks tables whose columns have been fetched into the
 	// completer (keyed by lowercased bare name) so each loads at most once.
 	EditorColsLoaded map[string]bool

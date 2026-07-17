@@ -61,8 +61,7 @@ func (m *Model) loadQueryTab(i int) {
 	m.SavedBaseline = t.SavedBaseline
 	m.EditorArea = m.newEditorArea(t.Content)
 	m.EditorArea.Focus()
-	m.CompVisible = false
-	m.Completions = nil
+	m.dismissCompletions()
 	m.Focus = types.FocusEditor
 }
 

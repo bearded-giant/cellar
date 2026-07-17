@@ -67,8 +67,7 @@ func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.ensureQueryTabs()
 	m.EditorArea = m.newEditorArea(m.EditorContent)
 	m.Completer = m.buildCompleter()
-	m.CompVisible = false
-	m.Completions = nil
+	m.dismissCompletions()
 	m.EditorColsLoaded = map[string]bool{}
 	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
@@ -162,6 +161,7 @@ func (m Model) buildCompleter() *sqlmeta.Autocompleter {
 // preserving the query text (re-entered via `e`).
 func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
 	m.EditorContent = m.EditorArea.Value()
+	m.dismissCompletions()
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
 	return m, tea.EnableMouseCellMotion // re-arm wheel-scroll/click in the browse grid
@@ -241,24 +241,53 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleBrowseGridKey(msg)
 	}
 
-	// editor (text) focused: completion popup nav takes tab/esc first.
+	// editor (text) focused.
+	switch msg.String() {
+	case "ctrl+@", "ctrl+space": // ctrl+space arrives as NUL = ctrl+@ in bubbletea v1
+		m.showCompletionsManual()
+		return m, nil
+	}
+
+	// popup keys: ctrl+n/ctrl+p always engage; ↑/↓, tab and esc only belong to
+	// the popup once engaged (a passive popup leaves them to the editor).
 	if m.CompVisible {
 		switch msg.String() {
-		case "up", "ctrl+p":
+		case "ctrl+p":
+			m.CompEngaged = true
 			if m.CompCursor > 0 {
 				m.CompCursor--
 			}
 			return m, nil
-		case "down", "ctrl+n":
+		case "ctrl+n":
+			m.CompEngaged = true
 			if m.CompCursor < len(m.Completions)-1 {
 				m.CompCursor++
 			}
 			return m, nil
+		case "up":
+			if m.CompEngaged {
+				if m.CompCursor > 0 {
+					m.CompCursor--
+				}
+				return m, nil
+			}
+		case "down":
+			if m.CompEngaged {
+				if m.CompCursor < len(m.Completions)-1 {
+					m.CompCursor++
+				}
+				return m, nil
+			}
 		case "tab":
-			m.acceptCompletion()
+			if m.CompEngaged {
+				m.acceptCompletion()
+				return m, nil
+			}
+			m.dismissCompletions() // passive: tab keeps its pane-cycle job
+			m.Focus = types.FocusGrid
 			return m, nil
 		case "esc":
-			m.CompVisible = false
+			m.suppressCompletions()
 			return m, nil
 		}
 	}
@@ -309,6 +338,48 @@ func currentPrefix(text string, off int) string {
 func (m *Model) dismissCompletions() {
 	m.CompVisible = false
 	m.Completions = nil
+	m.CompEngaged = false
+	m.CompDismissed = false
+}
+
+// suppressCompletions hides the popup and remembers the word under the cursor
+// so auto-show stays off until that word changes (esc-dismiss memory).
+func (m *Model) suppressCompletions() {
+	prefix := currentPrefix(m.EditorArea.Value(), m.EditorArea.cursorOffset())
+	m.CompVisible = false
+	m.Completions = nil
+	m.CompEngaged = false
+	m.CompDismissed = true
+	m.CompDismissedAt = m.EditorArea.cursorOffset() - len([]rune(prefix))
+	m.CompDismissedPrefix = prefix
+}
+
+// showCompletionsManual (ctrl+space) bypasses the min-prefix gate and any
+// esc-dismiss suppression, e.g. to list columns right after "table.".
+func (m *Model) showCompletionsManual() {
+	if m.Completer == nil {
+		return
+	}
+	m.CompDismissed = false
+	m.Completions = m.Completer.Complete(m.EditorArea.Value(), m.EditorArea.cursorOffset())
+	m.CompCursor = 0
+	m.CompEngaged = false
+	m.CompVisible = len(m.Completions) > 0
+}
+
+// completionMinPrefix is the auto-show threshold: a visible popup survives
+// narrowing back to a 1-rune prefix, but never opens below 2.
+func completionMinPrefix(visible bool) int {
+	if visible {
+		return 1
+	}
+	return 2
+}
+
+// completionSuppressed reports whether an esc-dismissed popup still covers the
+// word at wordStart: same start and the prefix still extends the dismissed one.
+func completionSuppressed(wordStart int, prefix string, dismissedAt int, dismissedPrefix string) bool {
+	return wordStart == dismissedAt && strings.HasPrefix(prefix, dismissedPrefix)
 }
 
 func (m *Model) refreshCompletions() {
@@ -318,13 +389,20 @@ func (m *Model) refreshCompletions() {
 	}
 	text := m.EditorArea.Value()
 	off := m.EditorArea.cursorOffset()
-	if currentPrefix(text, off) == "" {
+	prefix := currentPrefix(text, off)
+	if m.CompDismissed &&
+		!completionSuppressed(off-len([]rune(prefix)), prefix, m.CompDismissedAt, m.CompDismissedPrefix) {
+		m.CompDismissed = false
+	}
+	if m.CompDismissed || len([]rune(prefix)) < completionMinPrefix(m.CompVisible) {
 		m.CompVisible = false
 		m.Completions = nil
+		m.CompEngaged = false
 		return
 	}
 	m.Completions = m.Completer.Complete(text, off)
 	m.CompCursor = 0
+	m.CompEngaged = false
 	m.CompVisible = len(m.Completions) > 0
 }
 
@@ -351,8 +429,7 @@ func (m *Model) acceptCompletion() {
 	m.EditorArea.pushUndo()
 	m.EditorArea.SetValue(newText)
 	m.EditorArea.CursorEnd()
-	m.CompVisible = false
-	m.Completions = nil
+	m.dismissCompletions()
 }
 
 // needsQuoting reports whether an identifier must be quoted to survive a
@@ -539,7 +616,7 @@ func (m Model) editorFooter() string {
 		kb = append(kb,
 			kbd{"ctrl+r", "run stmt"}, kbd{"alt+r", "run all"}, kbd{"alt+c", "comment"}, kbd{"alt+y", "yank"},
 			kbd{"alt+t/]/[/w", "tabs"},
-			kbd{"tab", "complete / results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"}, kbd{"ctrl+o", "saved"},
+			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"}, kbd{"ctrl+o", "saved"},
 			kbd{"ctrl+y", "history"}, kbd{"esc", "back"},
 		)
 	}

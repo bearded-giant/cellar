@@ -72,6 +72,8 @@ func (m Model) viewHelp() string {
 			{"alt+] / alt+[", "next / prev query buffer"},
 			{"ctrl+z / ctrl+y", "undo / query history"},
 			{"ctrl+s / ctrl+o", "save query / open saved"},
+			{"ctrl+space", "completion popup (auto-shows at 2+ chars)"},
+			{"ctrl+n / ctrl+p", "pick completion — then ↑/↓ move, tab accepts, esc dismisses"},
 			{"esc", "back to tree"},
 			{"results: x/J/y/v/w", "export / json / copy / cell / wide"},
 			{"", "buffers autosave on run; restored on reconnect"},

@@ -170,6 +170,224 @@ func TestEditor_RunClearsPopupSoTabReachesResults(t *testing.T) {
 	}
 }
 
+// press runs a key through the editor-screen handler and returns the new model.
+func press(t *testing.T, m Model, msg tea.KeyMsg) Model {
+	t.Helper()
+	res, _ := m.handleEditorScreen(msg)
+	return res.(Model)
+}
+
+func TestCompletion_AutoShowNeedsTwoRunes(t *testing.T) {
+	m := editorModel(t)
+
+	m = press(t, m, keyMsg('S'))
+	if m.CompVisible {
+		t.Error("1-rune prefix must not auto-show the popup")
+	}
+	m = press(t, m, keyMsg('E'))
+	if !m.CompVisible {
+		t.Error("2-rune prefix should auto-show the popup")
+	}
+	if m.CompEngaged {
+		t.Error("a fresh popup must start passive")
+	}
+}
+
+func TestCompletion_VisiblePopupSurvivesOneRune(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	if !m.CompVisible {
+		t.Fatal("expected popup at 2 runes")
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	if !m.CompVisible {
+		t.Error("narrowing back to 1 rune should keep an open popup")
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace})
+	if m.CompVisible {
+		t.Error("empty prefix must hide the popup")
+	}
+}
+
+func TestCompletion_ManualTriggerAtOneRune(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	if m.CompVisible {
+		t.Fatal("precondition: no popup at 1 rune")
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlAt}) // ctrl+space
+	if !m.CompVisible || len(m.Completions) == 0 {
+		t.Error("ctrl+space should show completions for a 1-rune prefix")
+	}
+}
+
+func TestCompletion_EscSuppressesUntilWordChanges(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	if !m.CompVisible {
+		t.Fatal("expected popup for SE")
+	}
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.CompVisible {
+		t.Fatal("esc should dismiss the popup")
+	}
+	if m.Screen != types.ScreenEditor {
+		t.Fatal("first esc must only dismiss, not leave the workspace")
+	}
+
+	// extending the dismissed word stays suppressed
+	m = press(t, m, keyMsg('L'))
+	if m.CompVisible {
+		t.Error("typing into the dismissed word must not resurface the popup")
+	}
+
+	// a new word auto-shows again
+	m = press(t, m, tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	m = press(t, m, keyMsg('F'))
+	m = press(t, m, keyMsg('R'))
+	if !m.CompVisible {
+		t.Error("a different word should clear the suppression")
+	}
+}
+
+func TestCompletion_SuppressionClearsWhenPrefixShrinks(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	m = press(t, m, keyMsg('L'))
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.CompVisible || !m.CompDismissed {
+		t.Fatal("esc should dismiss and remember the word")
+	}
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyBackspace}) // "SE" no longer extends "SEL"
+	if m.CompDismissed {
+		t.Error("shrinking below the dismissed prefix should clear suppression")
+	}
+	if !m.CompVisible {
+		t.Error("with suppression cleared, the 2-rune prefix should show again")
+	}
+}
+
+func TestCompletion_CtrlSpaceOverridesSuppression(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlAt})
+	if !m.CompVisible {
+		t.Error("ctrl+space must override esc-dismiss suppression")
+	}
+}
+
+func TestCompletion_PassiveKeysStayWithEditor(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("SELECT 1\nSE")
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if !m.CompVisible || m.CompEngaged {
+		t.Fatal("expected a passive popup")
+	}
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if m.EditorArea.row != 0 {
+		t.Error("passive ↑ should move the editor cursor, not the popup")
+	}
+
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if !m.CompVisible {
+		t.Fatal("expected popup back on the SE word")
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.Focus != types.FocusGrid {
+		t.Error("passive tab should keep its pane-cycle job")
+	}
+	if m.CompVisible {
+		t.Error("moving to the results pane should drop the popup")
+	}
+}
+
+func TestCompletion_EngagedNavAcceptAndEsc(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	if !m.CompVisible || len(m.Completions) < 2 {
+		t.Fatalf("expected 2+ completions for SE, got %d", len(m.Completions))
+	}
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
+	if !m.CompEngaged || m.CompCursor != 1 {
+		t.Fatalf("ctrl+n should engage and advance, engaged=%v cursor=%d", m.CompEngaged, m.CompCursor)
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyUp})
+	if m.CompCursor != 0 {
+		t.Errorf("engaged ↑ should move the popup cursor back to 0, got %d", m.CompCursor)
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
+	want := m.Completions[m.CompCursor].Text
+
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyTab})
+	if m.EditorArea.Value() != want {
+		t.Errorf("engaged tab should accept %q, buffer = %q", want, m.EditorArea.Value())
+	}
+	if m.CompVisible || m.CompEngaged {
+		t.Error("accept should clear popup + engagement")
+	}
+}
+
+func TestCompletion_EngagedEscDismissesOnly(t *testing.T) {
+	m := editorModel(t)
+	m = press(t, m, keyMsg('S'))
+	m = press(t, m, keyMsg('E'))
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyCtrlN})
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.CompVisible || m.CompEngaged {
+		t.Error("esc while engaged should dismiss + disengage")
+	}
+	if m.Screen != types.ScreenEditor {
+		t.Error("esc while engaged must not leave the workspace")
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.Screen != types.ScreenBrowse {
+		t.Error("second esc should leave to the tree")
+	}
+}
+
+func TestCompletionMinPrefix(t *testing.T) {
+	if got := completionMinPrefix(false); got != 2 {
+		t.Errorf("hidden popup threshold = %d, want 2", got)
+	}
+	if got := completionMinPrefix(true); got != 1 {
+		t.Errorf("visible popup threshold = %d, want 1", got)
+	}
+}
+
+func TestCompletionSuppressed(t *testing.T) {
+	cases := []struct {
+		name            string
+		start           int
+		prefix          string
+		dismissedAt     int
+		dismissedPrefix string
+		want            bool
+	}{
+		{"same word extended", 4, "sel", 4, "se", true},
+		{"same word exact", 4, "se", 4, "se", true},
+		{"word start moved", 9, "se", 4, "se", false},
+		{"prefix shrank", 4, "s", 4, "se", false},
+		{"different word same start", 4, "fro", 4, "se", false},
+	}
+	for _, c := range cases {
+		if got := completionSuppressed(c.start, c.prefix, c.dismissedAt, c.dismissedPrefix); got != c.want {
+			t.Errorf("%s: suppressed = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 type fakeErr struct{}
 
 func (fakeErr) Error() string { return "boom" }
