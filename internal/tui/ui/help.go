@@ -55,7 +55,7 @@ func (m Model) viewHelp() string {
 			{"n / p", "page next / prev"},
 			{"s / / / i", "sort / filter / meta views"},
 			{"enter / ⌫", "FK jump / back"},
-			{"v", "cell view"},
+			{"v / V", "peek popup / full cell view"},
 			{"w", "wide cells (full values inline)"},
 			{"y", "copy (cell / row)"},
 			{"d / o", "DELETE / INSERT SQL → editor (review + run)"},
@@ -79,7 +79,7 @@ func (m Model) viewHelp() string {
 			{"ctrl+space", "completion popup (auto-shows at 2+ chars)"},
 			{"ctrl+n / ctrl+p", "pick completion — then ↑/↓ move, tab accepts, esc dismisses"},
 			{"esc", "editor: back to tree · results: back to editor"},
-			{"results: x/J/y/v/w", "export / json / copy / cell / wide"},
+			{"results: x/J/y/v/w", "export / json / copy / peek (V full) / wide"},
 			{"", "buffers autosave on run; restored on reconnect"},
 		}},
 		{"Tabs", [][2]string{

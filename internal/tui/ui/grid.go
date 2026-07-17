@@ -217,6 +217,8 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "backspace":
 		return m.popCrumb()
 	case "v":
+		return m.openPeek()
+	case "V":
 		return m.openCellView()
 	case "w":
 		m.Browse.WideCells = !m.Browse.WideCells

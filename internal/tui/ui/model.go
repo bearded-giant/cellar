@@ -109,6 +109,15 @@ type Model struct {
 	CellViewScroll int
 	CellViewCol    string
 
+	// Peek is the floating cell popup composited over the browse/editor grid
+	// (v); PeekRaw pins the source cell's value so y copies it even though the
+	// grid cursor is frozen underneath.
+	PeekOpen   bool
+	PeekLines  []string
+	PeekScroll int
+	PeekCol    string
+	PeekRaw    string
+
 	Width  int
 	Height int
 

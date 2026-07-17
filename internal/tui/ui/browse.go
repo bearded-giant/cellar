@@ -119,6 +119,9 @@ func (m *Model) refreshJSONView() {
 }
 
 func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.PeekOpen { // the floating peek owns input until closed
+		return m.handlePeekKey(msg)
+	}
 	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
@@ -190,6 +193,7 @@ func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
 	}
 	m.ActiveDriver = nil
 	m.CurrentConn = nil
+	m.closePeek() // else a reconnect would float a stale cell
 	m.Browse = browseState{}
 	m.Tabs = nil
 	m.TabActive = 0
@@ -385,7 +389,7 @@ func (m Model) browseFooter() string {
 		// editor (run there); no in-grid editing. export/json are query-only.
 		kb = []kbd{
 			{"↑/↓/←/→", "move"}, {"enter", "fk"}, {"s", "sort"}, {"/", "filter"}, {"i", "inspect"},
-			{"v", "cell"}, {"w", "wide"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab/←", "tree"}, {"q", "tree"},
+			{"v/V", "peek/cell"}, {"w", "wide"}, {"y", "copy"}, {"d/o", "del/insert SQL"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab/←", "tree"}, {"q", "tree"},
 		}
 		if len(m.Browse.Crumbs) > 0 {
 			kb = append(kb, kbd{"⌫", "fk-back"})

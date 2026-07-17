@@ -166,6 +166,9 @@ func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.PeekOpen { // the floating peek owns input until closed
+		return m.handlePeekKey(msg)
+	}
 	m.GridReturnScreen = types.ScreenEditor // grid modals from the results pane reopen here
 
 	// workspace-wide actions (both panes)
@@ -613,7 +616,7 @@ func (m Model) editorFooter() string {
 	kb := []kbd{{"ctrl+g", "help"}}
 	if m.Focus == types.FocusGrid {
 		kb = append(kb,
-			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v", "cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
+			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v/V", "peek/cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
 			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"]/[", "query tab"}, kbd{"tab/esc", "editor"}, kbd{"q", "back"},
 		)
 	} else {
