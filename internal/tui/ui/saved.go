@@ -21,11 +21,28 @@ func (m Model) openSaveQuery() (tea.Model, tea.Cmd) {
 	if m.SavedName != "" {
 		return m, m.Cmds.UpdateSavedQuery(m.connIdent(), m.SavedName, q)
 	}
+	return m.promptSaveQuery()
+}
+
+// openSaveQueryAs (ctrl+shift+s) always prompts, so a bound buffer can be
+// saved under a new name; the save flow then rebinds the tab to that name.
+func (m Model) openSaveQueryAs() (tea.Model, tea.Cmd) {
+	q := m.EditorArea.Value()
+	if strings.TrimSpace(q) == "" {
+		m.StatusMsg = "Nothing to save"
+		return m, nil
+	}
+	m.EditorContent = q
+	return m.promptSaveQuery()
+}
+
+// promptSaveQuery opens the name prompt pre-filled with the current tab name.
+func (m Model) promptSaveQuery() (tea.Model, tea.Cmd) {
 	ti := textinput.New()
 	ti.Placeholder = "query name"
 	ti.SetWidth(40)
 	if i := m.QueryTabActive; i >= 0 && i < len(m.QueryTabs) {
-		if name := m.QueryTabs[i].Name; name != "" && name != "untitled" {
+		if name := m.queryTabLabel(i); name != "" && name != "untitled" {
 			ti.SetValue(name)
 			ti.CursorEnd()
 		}

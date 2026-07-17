@@ -85,6 +85,17 @@ func (m Model) switchQueryTab(delta int) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// jumpQueryTab activates tab i directly (ctrl+1..9); out-of-range is a no-op.
+func (m Model) jumpQueryTab(i int) (tea.Model, tea.Cmd) {
+	m.ensureQueryTabs()
+	if i < 0 || i >= len(m.QueryTabs) || i == m.QueryTabActive {
+		return m, nil
+	}
+	m.syncActiveQueryTab()
+	m.loadQueryTab(i)
+	return m, nil
+}
+
 func (m Model) closeQueryTab() (tea.Model, tea.Cmd) {
 	m.ensureQueryTabs()
 	if len(m.QueryTabs) <= 1 {
@@ -126,7 +137,7 @@ func (m Model) queryStateSnapshot() state.State {
 }
 
 // autosaveQueryState is the primary persistence trigger, fired on every run
-// (ctrl+r / alt+r) so anything executed is already on disk.
+// so anything executed is already on disk.
 func (m *Model) autosaveQueryState() tea.Cmd {
 	m.ensureQueryTabs()
 	m.syncActiveQueryTab()

@@ -183,10 +183,11 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.switchQueryTab(-1)
 	case "ctrl+w":
 		return m.closeQueryTab()
-	// ctrl+enter is a shadow for run; most terminals can't distinguish it from
-	// plain enter (no kitty keyboard protocol in this bubbletea), so ctrl+r stays
-	// the reliable bind.
-	case "ctrl+r", "ctrl+enter":
+	case "ctrl+shift+s": // save-as/rename: always prompts, even on a bound buffer
+		return m.openSaveQueryAs()
+	// ctrl+enter needs the kitty keyboard protocol (wezterm et al.); legacy
+	// terminals deliver it as plain enter, so ctrl+r stays the fallback bind.
+	case "ctrl+enter", "ctrl+r":
 		m.EditorContent = m.EditorArea.Value()
 		// run only the statement under the cursor (';'-delimited); single-statement
 		// buffers return the whole text unchanged.
@@ -202,7 +203,7 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent()),
 			m.autosaveQueryState(),
 		)
-	case "alt+r": // run every ';'-delimited statement in order (notebook)
+	case "ctrl+shift+enter": // run every ';'-delimited statement in order (notebook)
 		m.EditorContent = m.EditorArea.Value()
 		stmts := sqlmeta.SplitStatements(m.EditorContent)
 		if len(stmts) == 0 {
@@ -216,6 +217,9 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Cmds.RunQueries(m.ActiveDriver, stmts, readOnly, m.connIdent()),
 			m.autosaveQueryState(),
 		)
+	case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5",
+		"ctrl+6", "ctrl+7", "ctrl+8", "ctrl+9":
+		return m.jumpQueryTab(int(msg.Key().Code - '1'))
 	}
 
 	// results pane focused: single-key grid affordances + back/cycle.
@@ -511,7 +515,7 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 func (m Model) queryStatusLine() string {
 	msg := m.StatusMsg
 	if strings.TrimSpace(msg) == "" {
-		msg = "Ready — ctrl+r to run"
+		msg = "Ready — ctrl+enter to run"
 	}
 	if m.Browse.GridErr != "" {
 		return errorStyle.Render(msg)
@@ -614,9 +618,11 @@ func (m Model) editorFooter() string {
 		)
 	} else {
 		kb = append(kb,
-			kbd{"ctrl+r", "run stmt"}, kbd{"alt+r", "run all"}, kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
-			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+pgup/pgdn", "switch tab"},
-			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"}, kbd{"ctrl+s", "save"},
+			kbd{"ctrl+enter", "run stmt (ctrl+r)"}, kbd{"ctrl+shift+enter", "run all"},
+			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
+			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+pgup/pgdn", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
+			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"},
+			kbd{"ctrl+s", "save"}, kbd{"ctrl+shift+s", "save as"},
 			kbd{"ctrl+o", "queries"}, kbd{"esc", "back"},
 		)
 	}

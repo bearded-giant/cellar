@@ -56,7 +56,7 @@ Toggle SSH in the add/edit form (`ctrl+s`) and fill in the bastion host, port, u
 
 ## Using it
 
-`enter` on a connection opens the browser: schema tree on the left, results grid on the right. Pick a table to load its first page, then page, scroll, sort, and filter from the grid. Edit cells in place and stage inserts/deletes; staged changes are color-coded and commit together in one transaction with `ctrl+s`. Press `e` for the SQL editor — syntax-highlighted, with autocomplete and undo — and `ctrl+r` to run a query into the same grid. Open several tables at once as tabs.
+`enter` on a connection opens the browser: schema tree on the left, results grid on the right. Pick a table to load its first page, then page, scroll, sort, and filter from the grid. Edit cells in place and stage inserts/deletes; staged changes are color-coded and commit together in one transaction with `ctrl+s`. Press `e` for the SQL editor — syntax-highlighted, with autocomplete and undo — and `ctrl+enter` (or `ctrl+r`) to run a query into the same grid; `ctrl+shift+enter` runs every statement in the buffer. Open several tables at once as tabs.
 
 Press `?` anywhere for the full keymap. The essentials:
 
@@ -100,10 +100,13 @@ Press `?` anywhere for the full keymap. The essentials:
 
 | Key | Action |
 |---|---|
-| `ctrl+r` | run query |
+| `ctrl+enter` / `ctrl+r` | run statement at cursor |
+| `ctrl+shift+enter` | run all statements |
+| `ctrl+1`..`ctrl+9` | jump to query buffer N |
 | `tab` | accept completion |
 | `ctrl+z` | undo |
-| `ctrl+s` / `ctrl+q` | save query / back |
+| `ctrl+s` / `ctrl+shift+s` | save query / save as |
+| `ctrl+q` | back |
 
 ### Tabs
 

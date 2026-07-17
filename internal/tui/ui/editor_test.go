@@ -492,3 +492,76 @@ func TestUpdate_PasteRoutesToSaveNameInput(t *testing.T) {
 		t.Errorf("SaveNameInput = %q, want pasted name", got)
 	}
 }
+
+func TestEditor_CtrlEnterRunsStatement(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+
+	res2, cmd := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModCtrl})
+	m = res2.(Model)
+	if !m.Browse.GridLoading || cmd == nil {
+		t.Errorf("ctrl+enter should start a run: loading=%v cmd=%v", m.Browse.GridLoading, cmd)
+	}
+	if m.StatusMsg != "Running query..." {
+		t.Errorf("StatusMsg = %q", m.StatusMsg)
+	}
+}
+
+func TestEditor_CtrlShiftEnterRunsAll(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1;\nselect 2;")
+
+	res2, cmd := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModCtrl | tea.ModShift})
+	m = res2.(Model)
+	if !m.Browse.GridLoading || cmd == nil {
+		t.Errorf("ctrl+shift+enter should start a run-all: loading=%v cmd=%v", m.Browse.GridLoading, cmd)
+	}
+	if m.StatusMsg != "Running all statements..." {
+		t.Errorf("StatusMsg = %q", m.StatusMsg)
+	}
+}
+
+func TestEditor_AltRNoLongerRuns(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+
+	res2, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 'r', Mod: tea.ModAlt})
+	m = res2.(Model)
+	if m.Browse.GridLoading {
+		t.Error("alt+r was unbound; it must not start a run")
+	}
+}
+
+func TestEditor_CtrlShiftSPromptsEvenWhenBound(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+	m.SavedName, m.SavedBaseline = "weekly", "select 1"
+
+	// ctrl+s on a bound buffer re-saves in place, no prompt
+	res2, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	if got := res2.(Model).Screen; got != types.ScreenEditor {
+		t.Fatalf("ctrl+s bound: Screen = %v, want ScreenEditor (in-place save)", got)
+	}
+
+	// ctrl+shift+s always prompts, pre-filled with the tab name
+	res3, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl | tea.ModShift})
+	m = res3.(Model)
+	if m.Screen != types.ScreenSaveQuery {
+		t.Fatalf("ctrl+shift+s: Screen = %v, want ScreenSaveQuery", m.Screen)
+	}
+	if got := m.SaveNameInput.Value(); got != "weekly" {
+		t.Errorf("prompt prefill = %q, want current tab name", got)
+	}
+}

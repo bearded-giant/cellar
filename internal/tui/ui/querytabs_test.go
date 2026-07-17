@@ -318,3 +318,33 @@ func TestPersistQueryState_NeverHadBuffersLeavesFileAlone(t *testing.T) {
 		t.Fatalf("prior state must survive an idle session, got %+v (err %v)", st, err)
 	}
 }
+
+func TestQueryTabs_CtrlDigitJumps(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
+	m = res.(Model)
+	m.EditorArea.SetValue("select 2")
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
+	m = res.(Model)
+	m.EditorArea.SetValue("select 3")
+
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: '1', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.QueryTabActive != 0 || m.EditorArea.Value() != "select 1" {
+		t.Fatalf("ctrl+1 -> active=%d %q, want tab 0 'select 1'", m.QueryTabActive, m.EditorArea.Value())
+	}
+
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: '3', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.QueryTabActive != 2 || m.EditorArea.Value() != "select 3" {
+		t.Fatalf("ctrl+3 -> active=%d %q, want tab 2 'select 3'", m.QueryTabActive, m.EditorArea.Value())
+	}
+
+	// absent tab: no-op, stay put
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: '9', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.QueryTabActive != 2 {
+		t.Errorf("ctrl+9 with 3 tabs should be a no-op, active=%d", m.QueryTabActive)
+	}
+}
