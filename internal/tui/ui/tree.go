@@ -286,6 +286,14 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Browse.Expanded[node.Key] = false
 			m.rebuildTree()
 		}
+	case "i":
+		if n == 0 {
+			return m, nil
+		}
+		node := m.Browse.Nodes[m.Browse.Cursor]
+		if node.Kind == kindTable || node.Kind == kindView {
+			return m.openInspector(node.DB, node.Table, node.Label, node.Kind == kindView)
+		}
 	}
 	if m.Browse.Cursor >= len(m.Browse.Nodes) {
 		m.Browse.Cursor = max(len(m.Browse.Nodes)-1, 0)

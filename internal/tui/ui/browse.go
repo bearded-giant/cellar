@@ -54,9 +54,8 @@ type browseState struct {
 	// PkColumns is the loaded table's primary key (empty -> whole-row fallback).
 	PkColumns []string
 
-	Sort     string // ORDER BY arg, e.g. "id DESC" (empty = none)
-	Where    string // WHERE clause incl. keyword (empty = none)
-	MetaKind int    // metaRecords (editable) or a read-only metadata view
+	Sort  string // ORDER BY arg, e.g. "id DESC" (empty = none)
+	Where string // WHERE clause incl. keyword (empty = none)
 
 	FKMap  map[string]fkRef // local column -> FK target, for FK jump
 	Crumbs []crumb          // FK-jump breadcrumb stack
@@ -92,7 +91,6 @@ func (m *Model) resetPending() {
 	m.Browse.ColCursor = 0
 	m.Browse.Sort = ""
 	m.Browse.Where = ""
-	m.Browse.MetaKind = metaRecords
 	m.Browse.FKMap = nil
 	m.Browse.Crumbs = nil
 	m.Browse.QueryRows = nil
@@ -126,16 +124,14 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.PeekOpen { // the floating peek owns input until closed
 		return m.handlePeekKey(msg)
 	}
+	if m.InspOpen { // so does the floating inspector
+		return m.handleInspectorKey(msg)
+	}
 	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
-		// back one level: exit an inspect/meta view to the table first; a
-		// grid-focused table backs out to the tree; only the tree confirms disconnect
-		if m.Focus == types.FocusGrid && m.Browse.MetaKind != metaRecords {
-			m.Browse.MetaKind = metaRecords
-			m.Browse.GridLoading = true
-			return m.reloadRecords()
-		}
+		// back one level: a grid-focused table backs out to the tree; only the
+		// tree confirms disconnect
 		if m.Focus == types.FocusGrid {
 			m.Focus = types.FocusTree
 			return m, nil
@@ -198,6 +194,7 @@ func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
 	m.ActiveDriver = nil
 	m.CurrentConn = nil
 	m.closePeek() // else a reconnect would float a stale cell
+	m.closeInspector()
 	m.Browse = browseState{}
 	m.Tabs = nil
 	m.TabActive = 0
@@ -397,7 +394,7 @@ func (m Model) browseFooter() string {
 	case m.Focus == types.FocusTree:
 		kb = []kbd{
 			{"↑/↓", "nav"}, {"→/enter", "open"}, {"←", "collapse"},
-			{"/", "search"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab", "grid"}, {"q", "disconnect"},
+			{"/", "search"}, {"i", "inspect"}, {"e", "sql"}, {"ctrl+o", "queries"}, {"tab", "grid"}, {"q", "disconnect"},
 		}
 	case len(m.Browse.Columns) == 0:
 		// grid focused but nothing loaded — only the cross-pane actions apply

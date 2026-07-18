@@ -118,6 +118,18 @@ type Model struct {
 	PeekCol    string
 	PeekRaw    string
 
+	// Insp is the floating object inspector (i): tabbed schema metadata + DDL
+	// for a table or view, composited like the peek. InspTarget is the
+	// driver-qualified ref the lazy tab loads key against.
+	InspOpen   bool
+	InspIsView bool
+	InspDB     string
+	InspTarget string
+	InspLabel  string
+	InspTabs   []inspectorTab
+	InspTab    int
+	InspScroll int
+
 	Width  int
 	Height int
 

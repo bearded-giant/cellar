@@ -211,7 +211,7 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		return m.openFilter()
 	case "i":
-		return m.cycleMeta()
+		return m.openInspectorFromGrid()
 	case "enter":
 		return m.jumpFK()
 	case "backspace":
@@ -230,9 +230,6 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // pageRecords moves a real table's page window (dir +1/-1). Query results and
 // tables with staged edits do not paginate.
 func (m Model) pageRecords(dir int) (tea.Model, tea.Cmd) {
-	if m.Browse.MetaKind != metaRecords {
-		return m, nil
-	}
 	// query results: page the in-memory rows (no driver round-trip)
 	if m.Browse.Table == "" {
 		if len(m.Browse.QueryRows) == 0 {
@@ -293,9 +290,6 @@ func (m Model) renderGridLines(width, height int, showTitle bool) []string {
 
 	if showTitle {
 		title := m.Browse.Label
-		if m.Browse.MetaKind != metaRecords {
-			title += "  · " + metaNames[m.Browse.MetaKind]
-		}
 		if m.Browse.Sort != "" {
 			title += "  ↕ " + m.Browse.Sort
 		}

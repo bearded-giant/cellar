@@ -31,10 +31,10 @@ func (m Model) viewContent() string {
 	}
 
 	if m.Screen == types.ScreenBrowse {
-		return m.composePeek(m.viewBrowse())
+		return m.composeInspector(m.composePeek(m.viewBrowse()))
 	}
 	if m.Screen == types.ScreenEditor {
-		return m.composePeek(m.viewEditor())
+		return m.composeInspector(m.composePeek(m.viewEditor()))
 	}
 	if m.Screen == types.ScreenCellView {
 		return m.viewCellView()

@@ -169,6 +169,9 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.PeekOpen { // the floating peek owns input until closed
 		return m.handlePeekKey(msg)
 	}
+	if m.InspOpen { // so does the floating inspector
+		return m.handleInspectorKey(msg)
+	}
 	m.GridReturnScreen = types.ScreenEditor // grid modals from the results pane reopen here
 
 	// workspace-wide actions (both panes)

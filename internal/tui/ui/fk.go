@@ -79,7 +79,7 @@ func (m Model) handleForeignKeysLoadedMsg(msg types.ForeignKeysLoadedMsg) (tea.M
 
 // jumpFK navigates from a foreign-key cell to the referenced row(s).
 func (m Model) jumpFK() (tea.Model, tea.Cmd) {
-	if m.Browse.MetaKind != metaRecords || m.Browse.Table == "" || m.ActiveDriver == nil {
+	if m.Browse.Table == "" || m.ActiveDriver == nil {
 		return m, nil
 	}
 	if m.Browse.RowCursor >= len(m.Browse.Rows) || m.Browse.ColCursor >= len(m.Browse.Columns) {
@@ -129,7 +129,6 @@ func (m Model) navigateTable(db, table, label, where, sort string) (tea.Model, t
 	m.Browse.Offset = 0
 	m.Browse.RowCursor = 0
 	m.Browse.ColCursor = 0
-	m.Browse.MetaKind = metaRecords
 	m.Browse.ViewJSON = false
 	m.Browse.PkColumns = nil
 	m.Browse.FKMap = nil

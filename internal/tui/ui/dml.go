@@ -41,7 +41,7 @@ func (m Model) handlePrimaryKeyLoadedMsg(msg types.PrimaryKeyLoadedMsg) (tea.Mod
 // not executed — the user reviews and runs it). WHERE targets the primary key,
 // falling back to every column when the table has none.
 func (m Model) generateDelete() (tea.Model, tea.Cmd) {
-	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || m.ActiveDriver == nil {
+	if m.Browse.Table == "" || m.ActiveDriver == nil {
 		return m, nil
 	}
 	if m.Browse.IsView {
@@ -60,7 +60,7 @@ func (m Model) generateDelete() (tea.Model, tea.Cmd) {
 // generateInsert writes an INSERT template (column list + <col> placeholders)
 // for the current table into the SQL editor.
 func (m Model) generateInsert() (tea.Model, tea.Cmd) {
-	if m.Browse.Table == "" || m.Browse.MetaKind != metaRecords || len(m.Browse.Columns) == 0 {
+	if m.Browse.Table == "" || len(m.Browse.Columns) == 0 {
 		return m, nil
 	}
 	if m.Browse.IsView {

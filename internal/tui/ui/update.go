@@ -74,6 +74,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleHistoryLoadedMsg(msg)
 	case types.MetaLoadedMsg:
 		return m.handleMetaLoadedMsg(msg)
+	case types.TableDDLLoadedMsg:
+		return m.handleTableDDLLoadedMsg(msg)
+	case types.ViewDefinitionLoadedMsg:
+		return m.handleViewDefinitionLoadedMsg(msg)
 	case types.ForeignKeysLoadedMsg:
 		return m.handleForeignKeysLoadedMsg(msg)
 	case types.SavedQuerySavedMsg:

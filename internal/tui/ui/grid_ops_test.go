@@ -44,15 +44,35 @@ func TestFilter_PrependsWhere(t *testing.T) {
 	}
 }
 
-func TestMetaLoaded_FillsGrid(t *testing.T) {
+func TestMetaLoaded_FillsInspectorTab(t *testing.T) {
 	m := gridModel()
-	m.Browse.MetaKind = metaColumns
-	res, _ := m.handleMetaLoadedMsg(types.MetaLoadedMsg{
-		Kind: int(0),
+	res, _ := m.openInspector("db", "users", "users", false)
+	m = res.(Model)
+	res, _ = m.handleMetaLoadedMsg(types.MetaLoadedMsg{
+		Kind: int(0), // columns
 		Rows: [][]string{{"name", "type"}, {"id", "INTEGER"}},
 	})
 	m = res.(Model)
-	if len(m.Browse.Columns) != 2 || m.Browse.Columns[0] != "name" {
-		t.Errorf("meta columns = %v", m.Browse.Columns)
+	tab := m.InspTabs[inspTableColumns]
+	if !tab.loaded || tab.err != "" {
+		t.Fatalf("columns tab not loaded cleanly: %+v", tab)
+	}
+	if len(tab.lines) < 3 { // header + rule + 1 row
+		t.Errorf("tab lines = %v", tab.lines)
+	}
+	if tab.raw != "name\ttype\nid\tINTEGER" {
+		t.Errorf("tab raw = %q", tab.raw)
+	}
+}
+
+func TestMetaLoaded_IgnoredWhenInspectorClosed(t *testing.T) {
+	m := gridModel()
+	res, _ := m.handleMetaLoadedMsg(types.MetaLoadedMsg{
+		Kind: int(0),
+		Rows: [][]string{{"name"}, {"id"}},
+	})
+	m = res.(Model)
+	if m.InspOpen || len(m.Browse.Columns) != 2 {
+		t.Errorf("closed-inspector meta msg must not disturb state; cols=%v", m.Browse.Columns)
 	}
 }
