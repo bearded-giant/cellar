@@ -51,6 +51,9 @@ type Model struct {
 	ConfirmReturnScreen types.Screen
 	// HelpReturnScreen is the screen to restore when closing the help overlay.
 	HelpReturnScreen types.Screen
+	// HelpScroll is the help cheatsheet's top line offset (it overflows short
+	// terminals, so it windows + scrolls).
+	HelpScroll int
 	// GridReturnScreen is the host a grid modal (cell view, export, ...) returns
 	// to — ScreenBrowse or the ScreenEditor query workspace.
 	GridReturnScreen types.Screen

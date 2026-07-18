@@ -7,6 +7,18 @@ import (
 )
 
 func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.Screen == types.ScreenHelp {
+		if wheel, ok := msg.(tea.MouseWheelMsg); ok {
+			maxScroll := max(0, len(m.helpLines())-m.helpViewportHeight())
+			switch wheel.Button {
+			case tea.MouseWheelUp:
+				m.HelpScroll = max(m.HelpScroll-1, 0)
+			case tea.MouseWheelDown:
+				m.HelpScroll = min(m.HelpScroll+1, maxScroll)
+			}
+		}
+		return m, nil
+	}
 	if m.Screen != types.ScreenBrowse {
 		return m, nil
 	}

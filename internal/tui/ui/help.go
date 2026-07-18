@@ -14,16 +14,41 @@ func (m Model) openHelp() (tea.Model, tea.Cmd) {
 	}
 	m.HelpReturnScreen = m.Screen
 	m.Screen = types.ScreenHelp
+	m.HelpScroll = 0
 	return m, nil
 }
 
-// handleHelpScreen closes the cheatsheet on any key.
-func (m Model) handleHelpScreen(_ tea.KeyMsg) (tea.Model, tea.Cmd) {
-	m.Screen = m.HelpReturnScreen
+// handleHelpScreen scrolls the cheatsheet; any non-scroll key closes it.
+func (m Model) handleHelpScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	maxScroll := max(0, len(m.helpLines())-m.helpViewportHeight())
+	switch msg.String() {
+	case "down", "j":
+		m.HelpScroll = min(m.HelpScroll+1, maxScroll)
+	case "up", "k":
+		m.HelpScroll = max(m.HelpScroll-1, 0)
+	case "pgdown", "ctrl+d", " ":
+		m.HelpScroll = min(m.HelpScroll+m.helpViewportHeight(), maxScroll)
+	case "pgup", "ctrl+u":
+		m.HelpScroll = max(m.HelpScroll-m.helpViewportHeight(), 0)
+	case "g", "home":
+		m.HelpScroll = 0
+	case "G", "end":
+		m.HelpScroll = maxScroll
+	default:
+		m.Screen = m.HelpReturnScreen
+	}
 	return m, nil
 }
 
-func (m Model) viewHelp() string {
+// helpViewportHeight is how many content lines fit between the modal's title and
+// scroll footer given the terminal height (border 2 + padding 2 + title + footer).
+func (m Model) helpViewportHeight() int {
+	return max(3, m.Height-8)
+}
+
+// helpLines is the flat, styled keybinding body (no title/footer) so the handler
+// and view agree on line count for scroll math.
+func (m Model) helpLines() []string {
 	groups := []struct {
 		title string
 		rows  [][2]string
@@ -95,21 +120,42 @@ func (m Model) viewHelp() string {
 		}},
 	}
 
+	var lines []string
+	for _, g := range groups {
+		lines = append(lines, "", keyStyle.Render(g.title))
+		for _, r := range g.rows {
+			lines = append(lines, "  "+normalStyle.Render(padRunes(r[0], 18))+dimStyle.Render(r[1]))
+		}
+	}
+	return lines
+}
+
+func (m Model) viewHelp() string {
+	lines := m.helpLines()
+	vh := m.helpViewportHeight()
+	maxScroll := max(0, len(lines)-vh)
+	scroll := min(max(m.HelpScroll, 0), maxScroll)
+
+	end := min(scroll+vh, len(lines))
+	window := lines[scroll:end]
+
+	footer := "↑/↓ scroll · any other key closes"
+	if maxScroll > 0 {
+		up, down := " ", " "
+		if scroll > 0 {
+			up = "↑"
+		}
+		if scroll < maxScroll {
+			down = "↓"
+		}
+		footer = up + down + "  " + footer
+	}
+
 	var b strings.Builder
 	b.WriteString(accentStyle.Render("Keybindings"))
 	b.WriteString("\n")
-	for _, g := range groups {
-		b.WriteString("\n")
-		b.WriteString(keyStyle.Render(g.title))
-		b.WriteString("\n")
-		for _, r := range g.rows {
-			b.WriteString("  ")
-			b.WriteString(normalStyle.Render(padRunes(r[0], 18)))
-			b.WriteString(dimStyle.Render(r[1]))
-			b.WriteString("\n")
-		}
-	}
-	b.WriteString("\n")
-	b.WriteString(dimStyle.Render("press any key to close"))
+	b.WriteString(strings.Join(window, "\n"))
+	b.WriteString("\n\n")
+	b.WriteString(dimStyle.Render(footer))
 	return b.String()
 }
