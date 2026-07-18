@@ -3,7 +3,9 @@ package commands
 import (
 	"testing"
 
+	"github.com/bearded-giant/cellar/internal/tui/config"
 	"github.com/bearded-giant/cellar/internal/tui/types"
+	"github.com/bearded-giant/cellar/models"
 )
 
 func TestCancelRunningQuery_NoActiveQuery(t *testing.T) {
@@ -67,5 +69,39 @@ func TestRunQuery_ReleasesQueryContext(t *testing.T) {
 
 	if CancelRunningQuery() {
 		t.Error("query context must be released after RunQuery completes")
+	}
+}
+
+func TestQueryRowLimit_Resolution(t *testing.T) {
+	cases := []struct {
+		name string
+		c    *Commands
+		want int
+	}{
+		{"nil cfg", &Commands{}, 5000},
+		{"zero means default", New(&config.Config{AppConfig: &models.AppConfig{}}), 5000},
+		{"explicit", New(&config.Config{AppConfig: &models.AppConfig{QueryRowLimit: 100}}), 100},
+		{"negative means unlimited", New(&config.Config{AppConfig: &models.AppConfig{QueryRowLimit: -1}}), 0},
+	}
+	for _, tc := range cases {
+		if got := tc.c.queryRowLimit(); got != tc.want {
+			t.Errorf("%s: queryRowLimit() = %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestCapQueryRows(t *testing.T) {
+	rows := [][]string{{"id"}, {"1"}, {"2"}, {"3"}}
+	got, total, truncated := capQueryRows(rows, 3, 2)
+	if !truncated || total != 2 || len(got) != 3 {
+		t.Errorf("cap: rows=%d total=%d truncated=%v", len(got), total, truncated)
+	}
+	got, total, truncated = capQueryRows(rows, 3, 0)
+	if truncated || total != 3 || len(got) != 4 {
+		t.Error("limit 0 must not cap")
+	}
+	got, total, truncated = capQueryRows(rows, 3, 3)
+	if truncated || total != 3 {
+		t.Error("at-limit result must not flag truncation")
 	}
 }

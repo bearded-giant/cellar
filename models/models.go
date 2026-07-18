@@ -10,6 +10,8 @@ type AppConfig struct {
 	TreeWidth                    int
 	JSONViewerWordWrap           bool
 	EnterOpensJSONViewer         bool
+	// QueryRowLimit caps editor SELECT fetches; 0 = default (5000), -1 = unlimited.
+	QueryRowLimit int
 }
 
 type Connection struct {

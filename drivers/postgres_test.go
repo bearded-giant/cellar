@@ -637,7 +637,7 @@ func TestPostgres_ExecuteQuery_PreCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, _, err := pg.ExecuteQuery(ctx, "SELECT 1"); !errors.Is(err, context.Canceled) {
+	if _, _, err := pg.ExecuteQuery(ctx, "SELECT 1", 0); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 	if _, err := pg.ExecuteDMLStatement(ctx, "UPDATE t SET x = 1"); !errors.Is(err, context.Canceled) {

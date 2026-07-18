@@ -33,8 +33,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleMouse(msg)
 
 	case spinner.TickMsg:
-		if !m.Connecting {
-			return m, nil // stop ticking once the connection resolves
+		if !m.Connecting && !m.QueryRunning {
+			return m, nil // stop ticking once the connection/query resolves
 		}
 		var cmd tea.Cmd
 		m.Spinner, cmd = m.Spinner.Update(msg)

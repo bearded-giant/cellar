@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/lib"
@@ -249,6 +252,13 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	m.GridReturnScreen = types.ScreenEditor // grid modals from the results pane reopen here
 
+	if msg.String() == "esc" && m.QueryRunning {
+		if commands.CancelRunningQuery() {
+			m.StatusMsg = "Cancelling query…"
+		}
+		return m, nil
+	}
+
 	// workspace-wide actions (both panes)
 	switch msg.String() {
 	case "ctrl+s":
@@ -278,11 +288,13 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.dismissCompletions() // else a lingering popup eats the tab-to-results
 		m.Browse.GridLoading = true
-		m.StatusMsg = "Running query..."
+		m.QueryRunning = true
+		m.StatusMsg = "Running query… esc cancels"
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
 		return m, tea.Batch(
 			m.Cmds.RunQuery(m.ActiveDriver, query, readOnly, m.connIdent()),
 			m.autosaveQueryState(),
+			m.Spinner.Tick,
 		)
 	case "ctrl+shift+enter": // run every ';'-delimited statement in order (notebook)
 		m.EditorContent = m.EditorArea.Value()
@@ -292,11 +304,13 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.dismissCompletions() // else a lingering popup eats the tab-to-results
 		m.Browse.GridLoading = true
-		m.StatusMsg = "Running all statements..."
+		m.QueryRunning = true
+		m.StatusMsg = "Running all statements… esc cancels"
 		readOnly := m.CurrentConn != nil && m.CurrentConn.ReadOnly
 		return m, tea.Batch(
 			m.Cmds.RunQueries(m.ActiveDriver, stmts, readOnly, m.connIdent()),
 			m.autosaveQueryState(),
+			m.Spinner.Tick,
 		)
 	case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5",
 		"ctrl+6", "ctrl+7", "ctrl+8", "ctrl+9":
@@ -555,6 +569,7 @@ func needsQuoting(name string) bool {
 
 func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, tea.Cmd) {
 	m.Browse.GridLoading = false
+	m.QueryRunning = false
 	// results render in the query workspace, below the editor (which stays focused
 	// so the query can be tweaked and re-run).
 	m.Screen = types.ScreenEditor
@@ -566,6 +581,14 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 	m.Browse.RowCursor = 0
 	m.resetPending()
 
+	if isCancelledErr(msg.Err) {
+		m.Browse.GridErr = ""
+		m.Browse.Columns = nil
+		m.Browse.Rows = nil
+		m.Browse.Label = "query"
+		m.StatusMsg = "Query cancelled"
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.Browse.GridErr = "Query error: " + msg.Err.Error()
 		m.Browse.Columns = nil
@@ -589,7 +612,11 @@ func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, te
 		m.Browse.Total = len(m.Browse.QueryRows)
 		m.Browse.Rows = pageOf(m.Browse.QueryRows, 0, m.Browse.Limit) // paged in-memory
 		m.refreshJSONView()
-		m.StatusMsg = fmt.Sprintf("Query OK — %d rows", m.Browse.Total)
+		if msg.Truncated {
+			m.StatusMsg = fmt.Sprintf("Query OK — first %d rows (capped; QueryRowLimit in config raises it)", m.Browse.Total)
+		} else {
+			m.StatusMsg = fmt.Sprintf("Query OK — %d rows", m.Browse.Total)
+		}
 		return m, nil
 	}
 
@@ -612,10 +639,26 @@ func (m Model) queryStatusLine() string {
 	if strings.TrimSpace(msg) == "" {
 		msg = "Ready — ctrl+enter to run"
 	}
+	if m.QueryRunning {
+		return successStyle.Render(m.Spinner.View() + " " + msg)
+	}
 	if m.Browse.GridErr != "" {
 		return errorStyle.Render(msg)
 	}
 	return successStyle.Render(msg)
+}
+
+// isCancelledErr matches a user-cancelled query across drivers: context
+// cancellation, or sqlite/modernc's "interrupted" when killed mid-execution.
+func isCancelledErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	s := err.Error()
+	return strings.Contains(s, "context canceled") || strings.Contains(s, "interrupted")
 }
 
 // editorDirty reports whether the bound saved query has unsaved edits.

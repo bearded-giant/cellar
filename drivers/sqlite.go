@@ -386,7 +386,7 @@ func (db *SQLite) GetRecords(ctx context.Context, _, table, where, sort string, 
 	return paginatedResults, totalRecords, queryString, nil
 }
 
-func (db *SQLite) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+func (db *SQLite) ExecuteQuery(ctx context.Context, query string, limit int) ([][]string, int, error) {
 	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
@@ -420,6 +420,9 @@ func (db *SQLite) ExecuteQuery(ctx context.Context, query string) ([][]string, i
 		}
 
 		records = append(records, row)
+		if limit > 0 && len(records) > limit {
+			break
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err

@@ -548,7 +548,7 @@ func (db *Postgres) ExecuteDMLStatement(ctx context.Context, query string) (resu
 	return fmt.Sprintf("%d rows affected", rowsAffected), nil
 }
 
-func (db *Postgres) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+func (db *Postgres) ExecuteQuery(ctx context.Context, query string, limit int) ([][]string, int, error) {
 	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
@@ -578,6 +578,9 @@ func (db *Postgres) ExecuteQuery(ctx context.Context, query string) ([][]string,
 		}
 
 		records = append(records, row)
+		if limit > 0 && len(records) > limit {
+			break
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err

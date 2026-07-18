@@ -101,10 +101,11 @@ type ColumnsLoadedMsg struct {
 // QueryExecutedMsg carries the result of a SQL editor execution. SELECT-ish
 // queries fill Rows (Rows[0] = header) + Total; DML fills Info.
 type QueryExecutedMsg struct {
-	Query    string
-	IsSelect bool
-	Rows     [][]string
-	Total    int
-	Info     string
-	Err      error
+	Query     string
+	IsSelect  bool
+	Rows      [][]string
+	Total     int
+	Truncated bool // hit the query_row_limit cap; Rows hold the first Total
+	Info      string
+	Err       error
 }

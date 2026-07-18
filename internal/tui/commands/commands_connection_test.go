@@ -65,7 +65,7 @@ func (s *stubDriver) ExecuteDMLStatement(_ context.Context, q string) (string, e
 	return s.dmlInfo, s.dmlErr
 }
 
-func (s *stubDriver) ExecuteQuery(_ context.Context, q string) ([][]string, int, error) {
+func (s *stubDriver) ExecuteQuery(_ context.Context, q string, _ int) ([][]string, int, error) {
 	s.ranQuery = q
 	return s.queryRows, s.queryTotal, s.queryErr
 }

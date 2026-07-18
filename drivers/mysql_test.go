@@ -382,7 +382,7 @@ func TestMySQL_ExecuteQuery_Error(t *testing.T) {
 
 	mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).WillReturnError(errors.New("query error"))
 
-	_, _, err = mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
+	_, _, err = mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)), 0)
 
 	if err == nil {
 		t.Fatalf("Expected error, but got nil")
@@ -427,7 +427,7 @@ func TestMySQL_ExecuteQuery_PreCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, _, err := mysql.ExecuteQuery(ctx, "SELECT 1"); !errors.Is(err, context.Canceled) {
+	if _, _, err := mysql.ExecuteQuery(ctx, "SELECT 1", 0); !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
 	}
 	if _, err := mysql.ExecuteDMLStatement(ctx, "UPDATE t SET x = 1"); !errors.Is(err, context.Canceled) {
@@ -975,7 +975,7 @@ func TestMySQL_ExecuteQuery(t *testing.T) {
 	mock.ExpectQuery(fmt.Sprintf("SELECT \\* FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL))).
 		WillReturnRows(rows)
 
-	results, _, err := mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)))
+	results, _, err := mysql.ExecuteQuery(context.Background(), fmt.Sprintf("SELECT * FROM %s", mysql.formatTableName(testDBNameMySQL, testDBTableNameMySQL)), 0)
 	if err != nil {
 		t.Fatalf("ExecuteQuery failed: %v", err)
 	}

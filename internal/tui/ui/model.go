@@ -134,6 +134,9 @@ type Model struct {
 	// shown. Persisted per connection with the query buffers.
 	SidebarHidden bool
 
+	// QueryRunning gates the esc-cancels-the-query path and the status spinner.
+	QueryRunning bool
+
 	// TreeFilterReturn is where the tree-filter modal goes back to — browse, or
 	// the editor when opened from its schema sidebar.
 	TreeFilterReturn types.Screen

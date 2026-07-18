@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"context"
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -505,7 +508,7 @@ func TestEditor_CtrlEnterRunsStatement(t *testing.T) {
 	if !m.Browse.GridLoading || cmd == nil {
 		t.Errorf("ctrl+enter should start a run: loading=%v cmd=%v", m.Browse.GridLoading, cmd)
 	}
-	if m.StatusMsg != "Running query..." {
+	if m.StatusMsg != "Running query… esc cancels" {
 		t.Errorf("StatusMsg = %q", m.StatusMsg)
 	}
 }
@@ -522,7 +525,7 @@ func TestEditor_CtrlShiftEnterRunsAll(t *testing.T) {
 	if !m.Browse.GridLoading || cmd == nil {
 		t.Errorf("ctrl+shift+enter should start a run-all: loading=%v cmd=%v", m.Browse.GridLoading, cmd)
 	}
-	if m.StatusMsg != "Running all statements..." {
+	if m.StatusMsg != "Running all statements… esc cancels" {
 		t.Errorf("StatusMsg = %q", m.StatusMsg)
 	}
 }
@@ -563,5 +566,73 @@ func TestEditor_CtrlShiftSPromptsEvenWhenBound(t *testing.T) {
 	}
 	if got := m.SaveNameInput.Value(); got != "weekly" {
 		t.Errorf("prompt prefill = %q, want current tab name", got)
+	}
+}
+
+func TestQueryCancel_Lifecycle(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+
+	res2, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModCtrl})
+	m = res2.(Model)
+	if !m.QueryRunning {
+		t.Fatal("run must set QueryRunning")
+	}
+
+	// esc while running is swallowed by the cancel path, not leave/suppress
+	res2, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = res2.(Model)
+	if m.Screen != types.ScreenEditor {
+		t.Error("esc while running must not leave the workspace")
+	}
+
+	res2, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{IsSelect: true, Rows: [][]string{{"a"}}})
+	m = res2.(Model)
+	if m.QueryRunning {
+		t.Error("result must clear QueryRunning")
+	}
+}
+
+func TestQueryCancelled_ErrClassification(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	res2, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: context.Canceled})
+	m = res2.(Model)
+	if m.Browse.GridErr != "" || m.StatusMsg != "Query cancelled" {
+		t.Errorf("cancel classified as error: gridErr=%q status=%q", m.Browse.GridErr, m.StatusMsg)
+	}
+
+	res2, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: errors.New("interrupted (9)")})
+	m = res2.(Model)
+	if m.StatusMsg != "Query cancelled" {
+		t.Errorf("sqlite interrupt not classified: %q", m.StatusMsg)
+	}
+
+	res2, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: errors.New("syntax error")})
+	m = res2.(Model)
+	if m.Browse.GridErr == "" {
+		t.Error("real errors must still surface")
+	}
+}
+
+func TestQueryTruncated_StatusNote(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+
+	res2, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{
+		IsSelect: true, Truncated: true,
+		Rows: [][]string{{"id"}, {"1"}, {"2"}},
+	})
+	m = res2.(Model)
+	if !strings.Contains(m.StatusMsg, "capped") || !strings.Contains(m.StatusMsg, "first 2") {
+		t.Errorf("truncation status = %q", m.StatusMsg)
 	}
 }

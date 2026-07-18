@@ -158,9 +158,11 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 		ok := 0
 		for i, q := range stmts {
 			if isSelectQuery(q) {
-				rows, total, err := driver.ExecuteQuery(ctx, q)
+				limit := c.queryRowLimit()
+				rows, total, err := driver.ExecuteQuery(ctx, q, limit)
+				rows, total, truncated := capQueryRows(rows, total, limit)
 				recordHistory(connIdent, q)
-				last = types.QueryExecutedMsg{Query: q, IsSelect: true, Rows: rows, Total: total, Err: err}
+				last = types.QueryExecutedMsg{Query: q, IsSelect: true, Rows: rows, Total: total, Truncated: truncated, Err: err}
 				if err != nil {
 					last.Err = fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)
 					return last
@@ -313,9 +315,11 @@ func (c *Commands) RunQuery(driver drivers.Driver, query string, readOnly bool, 
 		ctx, done := StartQueryContext()
 		defer done()
 		if isSelectQuery(query) {
-			rows, total, err := driver.ExecuteQuery(ctx, query)
+			limit := c.queryRowLimit()
+			rows, total, err := driver.ExecuteQuery(ctx, query, limit)
+			rows, total, truncated := capQueryRows(rows, total, limit)
 			recordHistory(connIdent, query)
-			return types.QueryExecutedMsg{Query: query, IsSelect: true, Rows: rows, Total: total, Err: err}
+			return types.QueryExecutedMsg{Query: query, IsSelect: true, Rows: rows, Total: total, Truncated: truncated, Err: err}
 		}
 		if readOnly {
 			if err := drivers.ValidateQueryForReadOnly(query); err != nil {

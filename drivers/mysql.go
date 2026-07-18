@@ -394,7 +394,7 @@ func (db *MySQL) GetRecords(ctx context.Context, database, table, where, sort st
 	return paginatedResults, totalRecords, queryString, nil
 }
 
-func (db *MySQL) ExecuteQuery(ctx context.Context, query string) ([][]string, int, error) {
+func (db *MySQL) ExecuteQuery(ctx context.Context, query string, limit int) ([][]string, int, error) {
 	rows, err := db.Connection.QueryContext(ctx, query)
 	if err != nil {
 		return nil, 0, err
@@ -424,6 +424,9 @@ func (db *MySQL) ExecuteQuery(ctx context.Context, query string) ([][]string, in
 		}
 
 		records = append(records, row)
+		if limit > 0 && len(records) > limit {
+			break
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err

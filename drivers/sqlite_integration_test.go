@@ -326,7 +326,7 @@ func TestSQLite_RealFile_GetPrimaryKeyColumnNames(t *testing.T) {
 func TestSQLite_RealFile_ExecuteQuery(t *testing.T) {
 	db := seededRealSQLite(t)
 
-	results, count, err := db.ExecuteQuery(context.Background(), `SELECT id, name FROM users WHERE id <= 2 ORDER BY id`)
+	results, count, err := db.ExecuteQuery(context.Background(), `SELECT id, name FROM users WHERE id <= 2 ORDER BY id`, 0)
 	if err != nil {
 		t.Fatalf("ExecuteQuery: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestSQLite_RealFile_ExecuteQuery_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
 	go func() {
-		_, _, err := db.ExecuteQuery(ctx, `WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 10000000000) SELECT count(*) FROM cnt`)
+		_, _, err := db.ExecuteQuery(ctx, `WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 10000000000) SELECT count(*) FROM cnt`, 0)
 		errCh <- err
 	}()
 
@@ -437,7 +437,7 @@ func TestSQLite_RealFile_ExecuteQuery_PreCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, _, err := db.ExecuteQuery(ctx, `SELECT id FROM users`); err == nil {
+	if _, _, err := db.ExecuteQuery(ctx, `SELECT id FROM users`, 0); err == nil {
 		t.Fatal("expected error for pre-cancelled context")
 	}
 }
@@ -459,5 +459,23 @@ func TestSQLite_RealFile_GetRecords_WhereAndNullMarker(t *testing.T) {
 	}
 	if !reflect.DeepEqual(records, expected) {
 		t.Errorf("records = %v, want %v", records, expected)
+	}
+}
+
+func TestSQLite_RealFile_ExecuteQueryLimitProbe(t *testing.T) {
+	db := seededRealSQLite(t) // users has 10 rows
+	rows, total, err := db.ExecuteQuery(context.Background(), `SELECT id FROM users`, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if total != 6 || len(rows) != 7 { // limit+1 probe rows + header
+		t.Errorf("limit probe: total=%d rows=%d, want 6/7", total, len(rows))
+	}
+	rows, _, err = db.ExecuteQuery(context.Background(), `SELECT id FROM users LIMIT 3`, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 4 {
+		t.Errorf("under-limit query must be unaffected, rows=%d", len(rows))
 	}
 }

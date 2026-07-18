@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
@@ -130,6 +131,10 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.GridReturnScreen = types.ScreenBrowse // grid modals reopen here
 	switch msg.String() {
 	case "esc", "q":
+		if m.Browse.GridLoading && commands.CancelRunningQuery() {
+			m.StatusMsg = "Cancelling load…"
+			return m, nil
+		}
 		// back one level: a grid-focused table backs out to the tree; only the
 		// tree confirms disconnect
 		if m.Focus == types.FocusGrid {
@@ -286,6 +291,11 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 		return m, nil
 	}
 	m.Browse.GridLoading = false
+	if isCancelledErr(msg.Err) {
+		m.Browse.GridErr = ""
+		m.StatusMsg = "Load cancelled"
+		return m, nil
+	}
 	if msg.Err != nil {
 		m.Browse.GridErr = "Error: " + msg.Err.Error()
 		m.Browse.Columns = nil

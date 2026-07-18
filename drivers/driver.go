@@ -19,7 +19,9 @@ type Driver interface {
 	// cancelled; metadata getters stay ctx-less (fast)
 	GetRecords(ctx context.Context, database, table, where, sort string, offset, limit int) ([][]string, int, string, error)
 	ExecuteDMLStatement(ctx context.Context, query string) (string, error)
-	ExecuteQuery(ctx context.Context, query string) ([][]string, int, error)
+	// ExecuteQuery fetches at most limit+1 data rows when limit > 0 (the extra
+	// row lets callers detect truncation); limit <= 0 fetches everything.
+	ExecuteQuery(ctx context.Context, query string, limit int) ([][]string, int, error)
 	GetProvider() string
 	GetPrimaryKeyColumnNames(database, table string) ([]string, error)
 
