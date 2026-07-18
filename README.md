@@ -8,11 +8,13 @@ A keyboard-driven terminal client for SQL databases — schema browser, results 
 
 ## Why
 
-I wanted a single TUI where I could open a connection, walk the schema, page through a table, edit a few rows, and run a quick query — without juggling a GUI client and an SSH config. cellar is that: everything lives in one screen, the whole thing is keyboard-first, and the SSH tunnel is built in so reaching a database behind a bastion is just part of the connection.
+I wanted a single TUI where I could open a connection, walk the schema, page through a table, inspect an index, and run a quick query — without juggling a GUI client and an SSH config. cellar is that: everything lives in one window, the whole thing is keyboard-first, and the SSH tunnel is built in so reaching a database behind a bastion is just part of the connection.
 
 ## Requirements
 
-Go 1.24 or newer to build from source. No other runtime dependencies — it's a single static binary.
+Go 1.25 or newer to build from source. No other runtime dependencies — it's a single static binary.
+
+For the full keybinding experience (`ctrl+enter` to run, `ctrl+]`/`ctrl+[` and `ctrl+1..9` for tabs) you want a terminal that speaks the kitty keyboard protocol: WezTerm, kitty, Ghostty, Alacritty, iTerm2, foot, and friends. On anything older the app still works — those chords have legacy fallbacks (`ctrl+r` runs, `ctrl+pgup/pgdn` switches tabs). Compact keyboards are first-class: nothing requires function keys, Home/End, or PgUp/PgDn — `g`/`G`, `n`/`p`, and `ctrl+a`/`ctrl+e` cover all of it.
 
 ## Install
 
@@ -36,7 +38,11 @@ postgres://user:pass@host:5432/dbname
 sqlite:///absolute/path/to/file.db
 ```
 
-Connections are saved to `~/.config/cellar/config.toml`. Mark a connection read-only in the form and cellar refuses every write for it — edits, inserts, deletes, and any non-SELECT query.
+For SQLite, a bare filesystem path works too — the URL form just saves you setting the provider by hand.
+
+Connections are saved to `~/.config/cellar/config.toml`. Mark a connection read-only in the form and cellar refuses every write for it — any non-SELECT query gets blocked before it reaches the wire.
+
+Once the list grows past a screenful it scrolls, and `/` filters it live by name or host — the same muscle memory as filtering the schema tree. `K`/`J` reorder entries, `t` test-connects, `D` duplicates.
 
 On Postgres you can set a default schema (the form's `Schema` field, or `--schema` on the CLI). When set, cellar auto-expands that schema and drops the cursor on it when you connect, so you land in its tables instead of `hdb_catalog`/`information_schema`. It doesn't hide the other schemas — they're still there, just collapsed.
 
@@ -56,17 +62,23 @@ Toggle SSH in the add/edit form (`ctrl+s`) and fill in the bastion host, port, u
 
 ## Using it
 
-`enter` on a connection opens the browser: schema tree on the left, results grid on the right. Pick a table to load its first page, then page, scroll, sort, and filter from the grid. Edit cells in place and stage inserts/deletes; staged changes are color-coded and commit together in one transaction with `ctrl+s`. Press `e` for the SQL editor — syntax-highlighted, with autocomplete and undo — and `ctrl+enter` (or `ctrl+r`) to run a query into the same grid; `ctrl+shift+enter` runs every statement in the buffer. Open several tables at once as tabs.
+`enter` on a connection opens the browser: schema tree on the left, results grid on the right. Tables show as `•`, views as `◇`, each in their own group. Pick one to load its first page, then page, scroll, sort, and filter from the grid. Press `i` on anything — a tree node or the open table — and a floating inspector pops up with its columns, indexes, foreign keys, and full DDL (or the view's definition), each a tab, `y` to copy the lot. That inspector is the fastest way to answer "what's actually on this table" without leaving your spot.
 
-Press `?` anywhere for the full keymap. The essentials:
+Press `e` for the SQL editor. It keeps the schema tree beside you as a sidebar (`ctrl+b` hides it; `tab` cycles sidebar → editor → results, and `enter` on a table in the sidebar types its name into your query, quoted if the dialect needs it). `ctrl+enter` runs the statement under the cursor, `ctrl+shift+enter` runs the whole buffer statement by statement. Queries run async — `esc` cancels a slow one instead of you killing the app.
+
+Long cell value clipped in the grid? `v` floats a wrapped, scrollable peek over the grid; `V` opens the full-screen viewer; `w` toggles full-width cells inline. Query results (not table pages) can also flip to a JSON view with `J` or export to CSV/JSON with `x`.
+
+Press `?` or `ctrl+g` anywhere for the full keymap. The essentials:
 
 ### Connection list
 
 | Key | Action |
 |---|---|
 | `enter` | open (in-app browse) |
+| `/` | filter list (esc clears) |
 | `a` / `e` | add / edit |
 | `D` / `d` | duplicate / delete |
+| `K` / `J` | move up / down |
 | `t` / `r` | test / reload |
 | `?` / `q` | help / quit |
 
@@ -75,9 +87,10 @@ Press `?` anywhere for the full keymap. The essentials:
 | Key | Action |
 |---|---|
 | `j`/`k`, arrows | navigate |
-| `enter`, `→`/`l` | open table / expand |
+| `enter`, `→`/`l` | open table/view / expand |
 | `←`/`h` | collapse |
 | `/` | fuzzy search |
+| `i` | inspect (columns / indexes / FKs / DDL) |
 | `g` / `G` | top / bottom |
 | `tab` | focus grid |
 
@@ -85,36 +98,43 @@ Press `?` anywhere for the full keymap. The essentials:
 
 | Key | Action |
 |---|---|
-| `h`/`l` | select column |
-| `j`/`k` | move row |
+| `h`/`l`, `j`/`k` | move column / row |
 | `n` / `p` | next / previous page |
-| `c` / `C` | edit cell / set NULL·EMPTY·DEFAULT |
-| `o` / `d` | add row / toggle delete |
-| `ctrl+s` / `u` | commit / discard staged changes |
-| `s` / `/` / `i` | sort / filter / metadata views |
+| `s` / `/` | sort / filter (WHERE) |
+| `i` | inspect the table |
 | `enter` / `⌫` | foreign-key jump / back |
-| `v` / `J` | cell viewer / JSON view |
-| `x` / `ctrl+y` | export / copy cell |
+| `v` / `V` | peek popup / full cell view |
+| `w` / `J` | wide cells / JSON view |
+| `d` / `o` | DELETE / INSERT SQL into the editor (review, then run) |
+| `x` / `y` | export / copy |
+| `esc` | cancel a running load, else back out |
 
 ### SQL editor (`e`)
 
 | Key | Action |
 |---|---|
-| `ctrl+enter` / `ctrl+r` | run statement at cursor |
+| `ctrl+enter` | run statement at cursor (`ctrl+r` legacy fallback) |
 | `ctrl+shift+enter` | run all statements |
-| `ctrl+1`..`ctrl+9` | jump to query buffer N |
-| `tab` | accept completion |
-| `ctrl+z` | undo |
-| `ctrl+s` / `ctrl+shift+s` | save query / save as |
-| `ctrl+q` | back |
+| `esc` | cancel the running query / dismiss popup / leave |
+| `ctrl+b` | toggle schema sidebar |
+| `ctrl+t` / `ctrl+w` | new / close query buffer |
+| `ctrl+]`/`ctrl+[`, `ctrl+1..9` | switch / jump query buffer |
+| `ctrl+space` | completion popup (auto-shows at 2+ chars) |
+| `ctrl+n` / `ctrl+p` | engage completion — then `↑`/`↓` move, `tab` accepts |
+| `ctrl+/` | toggle comment |
+| `ctrl+z` / `ctrl+y` | undo / yank line |
+| `ctrl+s` / `ctrl+shift+s` | save (names an `untitled` buffer) / save as |
+| `ctrl+o` | saved queries + history picker |
 
-### Tabs
+Query buffers are tabs: each shows as `1:name` in a bar above the editor, named `untitled` until you save it — `ctrl+s` prompts for a name and that name becomes the tab title and the saved-query entry in one step. Buffers, names, and your sidebar preference persist per connection, so disconnecting and coming back restores your workspace exactly.
 
-| Key | Action |
-|---|---|
-| `T` | open selected table in a new tab |
-| `]` / `[` | next / previous tab |
-| `ctrl+w` | close tab |
+The completion popup stays out of your way by design: it only auto-appears once you've typed two characters of a word, `esc` dismisses it and it stays dismissed until you move to a different word, and arrow keys keep moving your cursor until you engage the popup with `ctrl+n`/`ctrl+p`. `ctrl+space` summons it on demand — handy right after typing `table.`.
+
+## Config
+
+Everything lives under `[application]` in `~/.config/cellar/config.toml`. The one you're most likely to touch is `QueryRowLimit`: editor SELECTs fetch at most this many rows (default 5000) so a careless `SELECT *` on a big table can't eat your terminal's memory — the status line tells you when a result got capped. Set it to `-1` for unlimited. Table browsing is unaffected; that's paged server-side.
+
+A per-repo `.cellar.toml` in your working directory replaces the global connection list wholesale — useful for project-scoped credentials.
 
 ## Credits
 
