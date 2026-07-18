@@ -34,6 +34,7 @@ func main() {
 	connURL := fs.String("url", "", "Connection URL (with --add-connection)")
 	connProvider := fs.String("provider", "", "Provider override; inferred from the URL when empty")
 	connSchema := fs.String("schema", "", "Default schema to auto-expand on connect (postgres, with --add-connection)")
+	connVault := fs.String("vault-command", "", "Command whose stdout resolves the connection URL at connect time (with --add-connection)")
 	connRO := fs.Bool("read-only", false, "Mark the connection read-only (with --add-connection)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: cellar [flags]\n\n")
@@ -46,6 +47,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "      --url string           Connection URL (with --add-connection)\n")
 		fmt.Fprintf(os.Stderr, "      --provider string      Provider override (inferred from URL if empty)\n")
 		fmt.Fprintf(os.Stderr, "      --schema string        Default schema to auto-expand (postgres)\n")
+		fmt.Fprintf(os.Stderr, "      --vault-command string Command whose stdout resolves the URL at connect time\n")
 		fmt.Fprintf(os.Stderr, "      --read-only            Mark the connection read-only\n")
 	}
 
@@ -71,8 +73,8 @@ func main() {
 	}
 
 	if *addConn {
-		if *connName == "" || *connURL == "" {
-			log.Fatal("--add-connection requires --name and --url")
+		if *connName == "" || (*connURL == "" && *connVault == "") {
+			log.Fatal("--add-connection requires --name and one of --url / --vault-command")
 		}
 		provider := *connProvider
 		if provider == "" {
@@ -80,7 +82,10 @@ func main() {
 				provider = parsed.Driver
 			}
 		}
-		conn := models.Connection{Name: *connName, URL: *connURL, Provider: provider, DefaultSchema: *connSchema, ReadOnly: *connRO}
+		if provider == "" && *connVault != "" {
+			provider = "mysql" // vault-resolved connections are MySQL for now
+		}
+		conn := models.Connection{Name: *connName, URL: *connURL, Provider: provider, DefaultSchema: *connSchema, VaultCommand: *connVault, ReadOnly: *connRO}
 		if err := config.UpsertConnection(path, conn); err != nil {
 			log.Fatalf("add connection: %v", err)
 		}

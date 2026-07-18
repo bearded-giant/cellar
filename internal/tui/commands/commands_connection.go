@@ -2,8 +2,11 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +16,39 @@ import (
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
 )
+
+const vaultResolveTimeout = 30 * time.Second
+
+// resolveVaultURL runs conn.VaultCommand and returns its trimmed stdout as the
+// URL to dial. Empty command returns conn.URL unchanged. The command's stderr
+// rides along on failure so the user sees why the vault fetch broke.
+func resolveVaultURL(ctx context.Context, conn models.Connection) (string, error) {
+	cmdStr := strings.TrimSpace(conn.VaultCommand)
+	if cmdStr == "" {
+		return conn.URL, nil
+	}
+
+	parts := strings.Fields(cmdStr)
+
+	ctx, cancel := context.WithTimeout(ctx, vaultResolveTimeout)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, parts[0], parts[1:]...).Output() // #nosec G204
+	if err != nil {
+		detail := err.Error()
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && len(ee.Stderr) > 0 {
+			detail = strings.TrimSpace(string(ee.Stderr))
+		}
+		return "", fmt.Errorf("vault: %s", detail)
+	}
+
+	url := strings.TrimSpace(string(out))
+	if url == "" {
+		return "", fmt.Errorf("vault: command produced no output")
+	}
+	return url, nil
+}
 
 func sshConfigFromConnection(conn models.Connection) (*helpers.SSHConfig, error) {
 	port := 0
@@ -180,7 +216,11 @@ func (c *Commands) TestSSH(conn models.Connection) tea.Cmd {
 // which has no network host) and returns the URL the driver should dial plus
 // the tunnel handle the caller must Close.
 func (c *Commands) openDial(ctx context.Context, conn models.Connection) (string, *helpers.Tunnel, error) {
-	url := conn.URL
+	url, err := resolveVaultURL(ctx, conn)
+	if err != nil {
+		return "", nil, err
+	}
+
 	if !conn.UseSSH || conn.Provider == drivers.DriverSqlite {
 		return url, nil, nil
 	}

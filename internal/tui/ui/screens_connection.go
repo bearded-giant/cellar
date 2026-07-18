@@ -60,6 +60,9 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Connecting = true
 			m.ConnectingTo = conn.Name
 			m.StatusMsg = "Connecting..."
+			if strings.TrimSpace(conn.VaultCommand) != "" {
+				m.StatusMsg = "Resolving vault creds..."
+			}
 			m.ConnectionError = ""
 			return m, tea.Batch(m.Cmds.Connect(conn), m.Spinner.Tick)
 		}
@@ -180,7 +183,7 @@ func (m Model) handleConnFormScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if !m.connFormValid() {
-			m.ConnectionError = "Name and URL are required"
+			m.ConnectionError = "Name required; URL or Vault Command required"
 			return m, nil
 		}
 		m.Loading = true
@@ -215,11 +218,14 @@ func (m Model) handleConnFormScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// connFormValid requires a name and a URL. Provider is inferred from the URL
-// scheme via helpers.ParseConnectionString at save/connect time when blank.
+// connFormValid requires a name plus either a URL or a Vault Command (the latter
+// resolves the URL at connect time). Provider is inferred from the URL scheme
+// via helpers.ParseConnectionString at save/connect time when blank.
 func (m Model) connFormValid() bool {
-	return strings.TrimSpace(m.ConnInputs[0].Value()) != "" &&
-		strings.TrimSpace(m.ConnInputs[1].Value()) != ""
+	name := strings.TrimSpace(m.ConnInputs[0].Value())
+	url := strings.TrimSpace(m.ConnInputs[1].Value())
+	vault := strings.TrimSpace(m.ConnInputs[4].Value())
+	return name != "" && (url != "" || vault != "")
 }
 
 // connInputIndex maps a ConnFocusIdx to the ConnInputs array index. Indices

@@ -56,6 +56,17 @@ cellar --add-connection --name "orders-prod" --url "mysql://user:pass@host:3306/
 
 It upserts by name (re-running replaces the entry instead of duplicating it), so it's safe to call from a script that refreshes short-lived credentials. The provider is inferred from the URL scheme; pass `--provider` to override. Add `--schema public` to set a Postgres default schema, drop `--read-only` for a writable connection, and `--config` to target a non-default config file. The whole thing writes to `~/.config/cellar/config.toml` and exits without opening the TUI.
 
+### Vault-resolved credentials
+
+If your database creds are short-lived — generated on demand by a Vault script, say — you don't have to keep re-importing a fresh URL. Give the connection a `Vault Command` (the last field in the add/edit form, or `--vault-command` on the CLI) and cellar runs that command every time you connect, reads its stdout, and dials whatever URL it prints. The command owns credential generation; cellar just asks for a URL when it needs one.
+
+```bash
+cellar --add-connection --name "orders-prod" \
+  --vault-command "bash /path/to/creds.sh url orders" --read-only
+```
+
+The command runs to completion before the dial, so it can log into Vault, mint a lease, and print `mysql://user:pass@host:3306/orders`. Only the command string is written to `config.toml` — the resolved credentials live in memory for that session and never touch disk, which is the whole point over baking a temporary URL into the config. If the command fails or prints nothing, the connect is aborted and its stderr comes back as the error, so you can see what Vault complained about. cellar splits the command on whitespace and runs it directly (no shell), so use an absolute path with no spaces, and make sure whatever env the command needs — Vault address, login token, etc. — is present in the shell you launch cellar from.
+
 ### SSH tunneling
 
 Toggle SSH in the add/edit form (`ctrl+s`) and fill in the bastion host, port, user, and either a private key or a password. cellar forwards the database connection through that bastion for the life of the session. For hosts you only reach through a wrapper — AWS SSM, for example — put the full command in the proxy-command field and cellar runs it instead of dialing directly. Passphrases and passwords are kept in memory only and never written to the config file.

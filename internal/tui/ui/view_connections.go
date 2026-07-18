@@ -369,7 +369,7 @@ func (m Model) viewEditConnection() string {
 func (m Model) renderConnForm() string {
 	var b strings.Builder
 
-	labels := []string{"Name", "URL", "Provider", "Schema"}
+	labels := []string{"Name", "URL", "Provider", "Schema", "Vault Command"}
 	for i := range labels {
 		b.WriteString(focusedLabelStyle(m.ConnFocusIdx == i).Render(labels[i] + ":"))
 		b.WriteString("\n")

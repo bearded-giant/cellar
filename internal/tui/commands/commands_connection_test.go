@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/bearded-giant/cellar/drivers"
@@ -230,3 +231,83 @@ type stubErr struct{}
 func (stubErr) Error() string { return "stub connect failure" }
 
 var errStub error = stubErr{}
+
+func TestResolveVaultURL_EmptyReturnsURL(t *testing.T) {
+	conn := models.Connection{URL: "mysql://u:p@h:3306/db"}
+	got, err := resolveVaultURL(context.Background(), conn)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != conn.URL {
+		t.Errorf("got %q, want %q (unchanged passthrough)", got, conn.URL)
+	}
+}
+
+func TestResolveVaultURL_RunsCommand(t *testing.T) {
+	want := "mysql://vault:creds@h:3306/db"
+	conn := models.Connection{VaultCommand: "echo " + want}
+	got, err := resolveVaultURL(context.Background(), conn)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestResolveVaultURL_NonzeroExitErrors(t *testing.T) {
+	conn := models.Connection{VaultCommand: "false"}
+	_, err := resolveVaultURL(context.Background(), conn)
+	if err == nil {
+		t.Fatal("expected error for non-zero exit")
+	}
+	if !strings.HasPrefix(err.Error(), "vault:") {
+		t.Errorf("error %q should be prefixed with vault:", err.Error())
+	}
+}
+
+func TestResolveVaultURL_EmptyOutputErrors(t *testing.T) {
+	conn := models.Connection{VaultCommand: "true"}
+	_, err := resolveVaultURL(context.Background(), conn)
+	if err == nil || !strings.Contains(err.Error(), "no output") {
+		t.Errorf("expected no-output error, got %v", err)
+	}
+}
+
+func TestConnect_VaultCommandResolvesURL(t *testing.T) {
+	want := "mysql://vault:creds@h:3306/db"
+	stub := &stubDriver{}
+	c := &Commands{DriverFor: func(string) drivers.Driver { return stub }}
+
+	conn := models.Connection{
+		Name:         "vaulted",
+		Provider:     drivers.DriverMySQL,
+		VaultCommand: "echo " + want,
+	}
+	msg := c.Connect(conn)()
+	connected, ok := msg.(types.ConnectedMsg)
+	if !ok {
+		t.Fatalf("expected ConnectedMsg, got %T", msg)
+	}
+	if connected.Err != nil {
+		t.Fatalf("unexpected error: %v", connected.Err)
+	}
+	if stub.connectedURL != want {
+		t.Errorf("driver dialed %q, want vault-resolved %q", stub.connectedURL, want)
+	}
+}
+
+func TestConnect_VaultCommandFailureSkipsDial(t *testing.T) {
+	stub := &stubDriver{}
+	c := &Commands{DriverFor: func(string) drivers.Driver { return stub }}
+
+	conn := models.Connection{Provider: drivers.DriverMySQL, VaultCommand: "false"}
+	msg := c.Connect(conn)()
+	connected := msg.(types.ConnectedMsg)
+	if connected.Err == nil || !strings.HasPrefix(connected.Err.Error(), "vault:") {
+		t.Fatalf("expected vault error, got %v", connected.Err)
+	}
+	if stub.connectedURL != "" {
+		t.Errorf("driver must not dial when vault resolution fails; dialed %q", stub.connectedURL)
+	}
+}

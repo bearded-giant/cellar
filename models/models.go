@@ -50,6 +50,10 @@ type Connection struct {
 	// land in its tables. Empty = no default. Does not hide other schemas.
 	DefaultSchema string `toml:"default_schema,omitempty"`
 
+	// VaultCommand resolves credentials at connect time: its stdout replaces URL
+	// for the dial. Only the command persists — resolved creds stay in memory.
+	VaultCommand string `toml:"vault_command,omitempty"`
+
 	Commands []*Command
 }
 

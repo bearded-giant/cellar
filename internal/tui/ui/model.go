@@ -221,7 +221,7 @@ func (m *Model) sizeFormInputs() {
 }
 
 func createConnectionInputs() []textinput.Model {
-	inputs := make([]textinput.Model, 4)
+	inputs := make([]textinput.Model, 5)
 
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "Connection Name"
@@ -239,6 +239,10 @@ func createConnectionInputs() []textinput.Model {
 	inputs[3] = textinput.New()
 	inputs[3].Placeholder = "Default schema (postgres, optional) e.g. public"
 	inputs[3].SetWidth(50)
+
+	inputs[4] = textinput.New()
+	inputs[4].Placeholder = "Vault command (optional) e.g. bash /path/creds.sh url prod"
+	inputs[4].SetWidth(50)
 
 	return inputs
 }
@@ -288,7 +292,8 @@ func (m Model) Init() tea.Cmd {
 }
 
 // connFieldCount returns the number of focusable fields in the connection form:
-// Name, URL, Provider, ReadOnly toggle.
+// the text inputs (Name, URL, Provider, Schema, Vault Command) plus the
+// ReadOnly toggle.
 func (m Model) connFieldCount() int {
 	return len(m.ConnInputs) + 1
 }
@@ -316,6 +321,7 @@ func (m *Model) populateConnInputs(conn models.Connection) {
 	m.ConnInputs[1].SetValue(conn.URL)
 	m.ConnInputs[2].SetValue(conn.Provider)
 	m.ConnInputs[3].SetValue(conn.DefaultSchema)
+	m.ConnInputs[4].SetValue(conn.VaultCommand)
 	m.ConnFocusIdx = 0
 	m.ConnReadOnly = conn.ReadOnly
 	m.SSHEnabled = conn.UseSSH
@@ -354,6 +360,7 @@ func (m *Model) convertCurrentInputsToConnection(inputs []textinput.Model, actio
 		Provider:      provider,
 		DBName:        dbName,
 		DefaultSchema: strings.TrimSpace(inputs[3].Value()),
+		VaultCommand:  strings.TrimSpace(inputs[4].Value()),
 		ReadOnly:      m.ConnReadOnly,
 		UseSSH:        m.SSHEnabled,
 	}
