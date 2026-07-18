@@ -348,3 +348,21 @@ func TestQueryTabs_CtrlDigitJumps(t *testing.T) {
 		t.Errorf("ctrl+9 with 3 tabs should be a no-op, active=%d", m.QueryTabActive)
 	}
 }
+
+func TestQueryTabs_CtrlBracketSwitchesTabs(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1")
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl})
+	m = res.(Model)
+
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: '[', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.QueryTabActive != 0 {
+		t.Fatalf("ctrl+[ should go to prev tab, active=%d", m.QueryTabActive)
+	}
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: ']', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.QueryTabActive != 1 {
+		t.Fatalf("ctrl+] should go to next tab, active=%d", m.QueryTabActive)
+	}
+}

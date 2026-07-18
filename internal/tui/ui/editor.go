@@ -268,9 +268,11 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openSavedQueries()
 	case "ctrl+t":
 		return m.newQueryTab()
-	case "ctrl+pgdown":
+	// ctrl+]/ctrl+[ need kitty disambiguation (legacy encodes ctrl+[ as esc);
+	// the pg chords stay as aliases for full-size keyboards.
+	case "ctrl+]", "ctrl+pgdown":
 		return m.switchQueryTab(+1)
-	case "ctrl+pgup":
+	case "ctrl+[", "ctrl+pgup":
 		return m.switchQueryTab(-1)
 	case "ctrl+w":
 		return m.closeQueryTab()
@@ -783,7 +785,7 @@ func (m Model) editorFooter(width int) string {
 		kb = append(kb,
 			kbd{"ctrl+enter", "run stmt (ctrl+r)"}, kbd{"ctrl+shift+enter", "run all"},
 			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
-			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+pgup/pgdn", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
+			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+]/[", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
 			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+b", "schema"}, kbd{"ctrl+z", "undo"},
 			kbd{"ctrl+s", "save"}, kbd{"ctrl+shift+s", "save as"},
 			kbd{"ctrl+o", "queries"}, kbd{"esc", "back"},

@@ -73,7 +73,7 @@ func (m Model) viewHelp() string {
 			{"ctrl+b", "toggle schema sidebar"},
 			{"enter (sidebar)", "insert table/view name at cursor"},
 			{"ctrl+t / ctrl+w", "new / close query buffer"},
-			{"ctrl+pgdn/pgup", "next / prev query buffer (]/[ from results)"},
+			{"ctrl+] / ctrl+[", "next / prev query buffer (]/[ from results; ctrl+pgdn/pgup too)"},
 			{"ctrl+1..ctrl+9", "jump to query buffer N"},
 			{"ctrl+/", "toggle comment"},
 			{"ctrl+z / ctrl+y", "undo / yank line"},
