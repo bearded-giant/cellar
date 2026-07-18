@@ -26,8 +26,10 @@ type Tab struct {
 }
 
 type State struct {
-	Tabs    []Tab     `json:"tabs"`
-	Updated time.Time `json:"updated"`
+	Tabs []Tab `json:"tabs"`
+	// SidebarHidden inverts the default so the zero value means "shown".
+	SidebarHidden bool      `json:"sidebar_hidden,omitempty"`
+	Updated       time.Time `json:"updated"`
 }
 
 // Empty reports whether every tab is blank (nothing worth persisting).

@@ -17,6 +17,7 @@ func (m Model) openTreeFilter() (tea.Model, tea.Cmd) {
 	ti.Focus()
 	ti.CursorEnd()
 	m.TreeFilterInput = ti
+	m.TreeFilterReturn = m.Screen // the sidebar opens this from the editor too
 	m.Screen = types.ScreenTreeFilter
 	return m, nil
 }
@@ -24,13 +25,13 @@ func (m Model) openTreeFilter() (tea.Model, tea.Cmd) {
 func (m Model) handleTreeFilterScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.TreeFilterReturn
 		return m, nil
 	case "enter":
 		m.Browse.TreeFilter = strings.TrimSpace(m.TreeFilterInput.Value())
 		m.rebuildTree()
 		m.Browse.Cursor = 0
-		m.Screen = types.ScreenBrowse
+		m.Screen = m.TreeFilterReturn
 		m.Focus = types.FocusTree
 		return m, nil
 	}

@@ -69,7 +69,9 @@ func (m Model) viewHelp() string {
 		{"Query workspace (e)", [][2]string{
 			{"ctrl+enter / ctrl+r", "run statement at cursor"},
 			{"ctrl+shift+enter", "run all statements"},
-			{"tab", "cycle editor ⟷ results"},
+			{"tab", "cycle schema → editor → results"},
+			{"ctrl+b", "toggle schema sidebar"},
+			{"enter (sidebar)", "insert table/view name at cursor"},
 			{"ctrl+t / ctrl+w", "new / close query buffer"},
 			{"ctrl+pgdn/pgup", "next / prev query buffer (]/[ from results)"},
 			{"ctrl+1..ctrl+9", "jump to query buffer N"},

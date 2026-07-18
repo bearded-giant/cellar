@@ -15,12 +15,32 @@ import (
 // autocomplete popup (kept constant so the layout never jumps).
 const completionAreaRows = 5
 
+// sidebarWidth is the schema pane width in the editor (0 when hidden); same
+// clamps as the browse tree so the two screens line up.
+func (m Model) sidebarWidth() int {
+	if m.SidebarHidden {
+		return 0
+	}
+	tw := m.Width * 30 / 100
+	if tw < 20 {
+		tw = 20
+	}
+	if tw > 44 {
+		tw = 44
+	}
+	return tw
+}
+
 // queryLayout splits the query workspace vertically: an editor pane on top and
-// a results pane below. Fixed chrome = title + completion band + a breather +
-// footer + status (see viewEditor); the rest is the results grid.
+// a results pane below (both to the right of the schema sidebar when shown).
+// Fixed chrome = title + completion band + a breather + footer + status (see
+// viewEditor); the rest is the results grid.
 func (m Model) queryLayout() (editorW, editorH, resultsH int) {
 	w, h := m.Width, m.Height
 	editorW = w
+	if sw := m.sidebarWidth(); sw > 0 {
+		editorW = w - sw - 1
+	}
 	if editorW < 10 {
 		editorW = 10
 	}
@@ -165,6 +185,61 @@ func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) toggleSidebar() (tea.Model, tea.Cmd) {
+	m.SidebarHidden = !m.SidebarHidden
+	if m.SidebarHidden && m.Focus == types.FocusTree {
+		m.Focus = types.FocusEditor
+	}
+	ew, _, _ := m.queryLayout()
+	m.EditorArea.SetWidth(ew)
+	return m, m.autosaveQueryState() // the pref rides along with the buffers
+}
+
+// handleEditorSidebarKey routes keys while the schema sidebar is focused:
+// enter on a table/view inserts its reference at the editor cursor; everything
+// else (nav, expand, filter, inspect) is the shared browse tree behavior.
+func (m Model) handleEditorSidebarKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "tab", "esc", "q":
+		m.Focus = types.FocusEditor
+		return m, nil
+	case "enter", " ", "space", "right", "l":
+		if n := len(m.Browse.Nodes); n > 0 && m.Browse.Cursor < n {
+			node := m.Browse.Nodes[m.Browse.Cursor]
+			if node.Kind == kindTable || node.Kind == kindView {
+				if s := msg.String(); s == "right" || s == "l" {
+					return m, nil
+				}
+				return m.insertTableRef(node)
+			}
+		}
+	}
+	return m.handleBrowseTreeKey(msg)
+}
+
+// insertTableRef drops the node's reference into the editor at the cursor,
+// quoting each dotted part only when the dialect needs it.
+func (m Model) insertTableRef(node treeNode) (tea.Model, tea.Cmd) {
+	if node.Table == "" {
+		return m, nil
+	}
+	ref := node.Table
+	if m.ActiveDriver != nil {
+		parts := strings.Split(node.Table, ".")
+		for i, p := range parts {
+			if needsQuoting(p) {
+				parts[i] = m.ActiveDriver.FormatReference(p)
+			}
+		}
+		ref = strings.Join(parts, ".")
+	}
+	m.EditorArea.pushUndo()
+	m.EditorArea.insert(ref)
+	m.Focus = types.FocusEditor
+	m.syncEditorHeight()
+	return m, nil
+}
+
 func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.PeekOpen { // the floating peek owns input until closed
 		return m.handlePeekKey(msg)
@@ -226,12 +301,26 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5",
 		"ctrl+6", "ctrl+7", "ctrl+8", "ctrl+9":
 		return m.jumpQueryTab(int(msg.Key().Code - '1'))
+	case "ctrl+b":
+		return m.toggleSidebar()
+	}
+
+	// schema sidebar focused: tree nav + insert-at-cursor.
+	if m.Focus == types.FocusTree {
+		return m.handleEditorSidebarKey(msg)
 	}
 
 	// results pane focused: single-key grid affordances + back/cycle.
 	if m.Focus == types.FocusGrid {
 		switch msg.String() {
-		case "tab", "esc": // esc backs up one level: results -> editor text
+		case "tab": // cycle onward: results -> sidebar (when shown) -> editor
+			if !m.SidebarHidden {
+				m.Focus = types.FocusTree
+				return m, nil
+			}
+			m.Focus = types.FocusEditor
+			return m, nil
+		case "esc": // esc backs up one level: results -> editor text
 			m.Focus = types.FocusEditor
 			return m, nil
 		case "q":
@@ -537,7 +626,12 @@ func (m Model) editorDirty() bool {
 func (m Model) viewEditor() string {
 	w, h := m.Width, m.Height
 	m.syncEditorHeight() // grow/shrink the pane to the query + results state
-	rule := dimStyle.Render(strings.Repeat("─", max(w, 1)))
+	sw := m.sidebarWidth()
+	rw := w
+	if sw > 0 {
+		rw = max(w-sw-1, 10)
+	}
+	rule := dimStyle.Render(strings.Repeat("─", max(rw, 1)))
 
 	title := accentStyle.Render("SQL Query")
 	if m.SavedName != "" {
@@ -550,40 +644,53 @@ func (m Model) viewEditor() string {
 	if m.CurrentConn != nil {
 		title += dimStyle.Render("  ·  " + m.CurrentConn.Name)
 	}
-	if m.Focus == types.FocusGrid {
-		title += dimStyle.Render("   results — tab to edit")
-	} else {
+	switch m.Focus {
+	case types.FocusGrid:
+		title += dimStyle.Render("   results — tab to schema/editor")
+	case types.FocusTree:
+		title += dimStyle.Render("   schema — enter inserts, tab to edit")
+	default:
 		title += dimStyle.Render("   editing — tab to results")
 	}
 
 	// top: blank, header, [query tab bar], blank, editor, completion band, rule,
 	// blank, status, blank, rule, blank
 	top := []string{"", title}
-	if tb := m.queryTabBar(w); tb != "" {
+	if tb := m.queryTabBar(rw); tb != "" {
 		top = append(top, tb)
 	}
 	top = append(top, "")
 	top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
-	top = append(top, m.renderCompletions(w, completionAreaRows)...)
+	top = append(top, m.renderCompletions(rw, completionAreaRows)...)
 	top = append(top, rule, "", m.queryStatusLine())
 
 	// footer pinned to the bottom: blank, rule, blank, keybinds
-	foot := []string{"", rule, "", m.editorFooter()}
+	foot := []string{"", rule, "", m.editorFooter(rw)}
 
 	// results fill the gap so the footer sits at the bottom of the window
 	resultsH := h - len(top) - len(foot)
 	if resultsH < 1 {
 		resultsH = 1
 	}
-	results := m.renderGridLines(w, resultsH, false)
+	results := m.renderGridLines(rw, resultsH, false)
 	for len(results) < resultsH {
 		results = append(results, "")
 	}
 	results = results[:resultsH]
 
-	all := append(top, results...)
-	all = append(all, foot...)
-	return strings.Join(all, "\n")
+	right := append(top, results...)
+	right = append(right, foot...)
+	if sw == 0 {
+		return strings.Join(right, "\n")
+	}
+
+	tree := fitHeight(m.renderTreeLines(sw, len(right)), sw, len(right))
+	sep := dimStyle.Render("│")
+	rows := make([]string, len(right))
+	for i := range right {
+		rows[i] = tree[i] + sep + right[i]
+	}
+	return strings.Join(rows, "\n")
 }
 
 func (m Model) renderCompletions(width, rows int) []string {
@@ -614,23 +721,30 @@ func (m Model) renderCompletions(width, rows int) []string {
 	return out
 }
 
-func (m Model) editorFooter() string {
-	// help leads so it survives a narrow-terminal clip; ctrl+g works in both panes.
+func (m Model) editorFooter(width int) string {
+	// help leads so it survives a narrow-terminal clip; ctrl+g works in all panes.
 	kb := []kbd{{"ctrl+g", "help"}}
-	if m.Focus == types.FocusGrid {
+	switch m.Focus {
+	case types.FocusGrid:
 		kb = append(kb,
 			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v/V", "peek/cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
 			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"]/[", "query tab"}, kbd{"tab/esc", "editor"}, kbd{"q", "back"},
 		)
-	} else {
+	case types.FocusTree:
+		kb = append(kb,
+			kbd{"↑/↓", "nav"}, kbd{"enter", "insert name"}, kbd{"→/←", "expand/collapse"},
+			kbd{"/", "search"}, kbd{"i", "inspect"}, kbd{"ctrl+b", "hide schema"},
+			kbd{"tab/esc", "editor"},
+		)
+	default:
 		kb = append(kb,
 			kbd{"ctrl+enter", "run stmt (ctrl+r)"}, kbd{"ctrl+shift+enter", "run all"},
 			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
 			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+pgup/pgdn", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
-			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+z", "undo"},
+			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+b", "schema"}, kbd{"ctrl+z", "undo"},
 			kbd{"ctrl+s", "save"}, kbd{"ctrl+shift+s", "save as"},
 			kbd{"ctrl+o", "queries"}, kbd{"esc", "back"},
 		)
 	}
-	return renderKeyHints(kb, m.Width)
+	return renderKeyHints(kb, width)
 }

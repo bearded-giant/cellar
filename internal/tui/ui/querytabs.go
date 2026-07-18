@@ -125,6 +125,7 @@ func (m Model) queryStateSnapshot() state.State {
 	m.ensureQueryTabs()
 	m.syncActiveQueryTab()
 	var st state.State
+	st.SidebarHidden = m.SidebarHidden
 	for i, t := range m.QueryTabs {
 		st.Tabs = append(st.Tabs, state.Tab{
 			Name:      t.Name,
@@ -192,6 +193,7 @@ func (m Model) handleQueryStateLoadedMsg(msg types.QueryStateLoadedMsg) (tea.Mod
 	if m.Screen == types.ScreenEditor {
 		return m, nil // editor already open: don't clobber live buffers
 	}
+	m.SidebarHidden = msg.State.SidebarHidden
 	m.QueryTabs = nil
 	active := 0
 	for i, t := range msg.State.Tabs {

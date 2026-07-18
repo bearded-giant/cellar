@@ -130,6 +130,14 @@ type Model struct {
 	InspTab    int
 	InspScroll int
 
+	// SidebarHidden hides the editor's schema tree pane (ctrl+b); zero value =
+	// shown. Persisted per connection with the query buffers.
+	SidebarHidden bool
+
+	// TreeFilterReturn is where the tree-filter modal goes back to — browse, or
+	// the editor when opened from its schema sidebar.
+	TreeFilterReturn types.Screen
+
 	Width  int
 	Height int
 
