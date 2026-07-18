@@ -281,6 +281,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// ctrl+enter needs the kitty keyboard protocol (wezterm et al.); legacy
 	// terminals deliver it as plain enter, so ctrl+r stays the fallback bind.
 	case "ctrl+enter", "ctrl+r":
+		if m.QueryRunning { // single global query slot — a second run would orphan the first's cancel handle
+			m.StatusMsg = "Query already running — esc cancels"
+			return m, nil
+		}
 		m.EditorContent = m.EditorArea.Value()
 		// run only the statement under the cursor (';'-delimited); single-statement
 		// buffers return the whole text unchanged.
@@ -299,6 +303,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Spinner.Tick,
 		)
 	case "ctrl+shift+enter": // run every ';'-delimited statement in order (notebook)
+		if m.QueryRunning {
+			m.StatusMsg = "Query already running — esc cancels"
+			return m, nil
+		}
 		m.EditorContent = m.EditorArea.Value()
 		stmts := sqlmeta.SplitStatements(m.EditorContent)
 		if len(stmts) == 0 {
@@ -543,7 +551,7 @@ func (m *Model) acceptCompletion() {
 	newText := string(r[:start]) + insert + string(r[off:])
 	m.EditorArea.pushUndo()
 	m.EditorArea.SetValue(newText)
-	m.EditorArea.CursorEnd()
+	m.EditorArea.setCursorOffset(start + len([]rune(insert)))
 	m.dismissCompletions()
 }
 
@@ -570,12 +578,28 @@ func needsQuoting(name string) bool {
 }
 
 func (m Model) handleQueryExecutedMsg(msg types.QueryExecutedMsg) (tea.Model, tea.Cmd) {
-	m.Browse.GridLoading = false
+	wasRunning := m.QueryRunning
 	m.QueryRunning = false
-	// results render in the query workspace, below the editor (which stays focused
-	// so the query can be tweaked and re-run).
-	m.Screen = types.ScreenEditor
-	m.Focus = types.FocusEditor
+	// a result landing after disconnect/reconnect belongs to a dead session —
+	// applying it would drop the user into a ghost editor (reset EditorArea
+	// panics on the first keystroke) or clobber the new session's state
+	if !wasRunning || m.ActiveDriver == nil {
+		return m, nil
+	}
+	// only claim the display from inside the query workspace or a modal opened
+	// over it; hijacking Screen/Focus from anywhere else kills open prompts or
+	// yanks the user out of a browse table
+	inEditor := m.Screen == types.ScreenEditor
+	overEditor := m.GridReturnScreen == types.ScreenEditor &&
+		m.Screen != types.ScreenBrowse && m.Screen != types.ScreenConnections
+	if !inEditor && !overEditor {
+		m.StatusMsg = "Query finished — result discarded (left the query workspace)"
+		return m, nil
+	}
+	m.Browse.GridLoading = false
+	if inEditor {
+		m.Focus = types.FocusEditor
+	}
 
 	m.Browse.Table = ""
 	m.Browse.TableDB = ""
@@ -660,7 +684,9 @@ func isCancelledErr(err error) bool {
 		return true
 	}
 	s := err.Error()
-	return strings.Contains(s, "context canceled") || strings.Contains(s, "interrupted")
+	// "interrupted (9)" is modernc/sqlite's SQLITE_INTERRUPT; a bare
+	// "interrupted" substring would match user identifiers in error text
+	return strings.Contains(s, "context canceled") || strings.Contains(s, "interrupted (9)")
 }
 
 // editorDirty reports whether the bound saved query has unsaved edits.

@@ -160,8 +160,9 @@ func TestInspector_BrowseKeyGuard(t *testing.T) {
 func TestInspector_ScrollClamp(t *testing.T) {
 	m := inspectorModel()
 	res, _ := m.handleMetaLoadedMsg(types.MetaLoadedMsg{
-		Kind: int(0),
-		Rows: [][]string{{"name"}, {"a"}, {"b"}, {"c"}},
+		Kind:  int(0),
+		Table: "widgets",
+		Rows:  [][]string{{"name"}, {"a"}, {"b"}, {"c"}},
 	})
 	m = res.(Model)
 	m.InspScroll = 999

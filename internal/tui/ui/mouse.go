@@ -10,6 +10,25 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.Screen != types.ScreenBrowse {
 		return m, nil
 	}
+	// a floating popup owns the mouse: wheel scrolls it, clicks are ignored —
+	// otherwise events would silently move the pane cursors underneath it
+	if m.PeekOpen || m.InspOpen {
+		if wheel, ok := msg.(tea.MouseWheelMsg); ok {
+			delta := 0
+			switch wheel.Button {
+			case tea.MouseWheelUp:
+				delta = -1
+			case tea.MouseWheelDown:
+				delta = 1
+			}
+			if m.PeekOpen {
+				m.PeekScroll = max(m.PeekScroll+delta, 0)
+			} else {
+				m.InspScroll = max(m.InspScroll+delta, 0)
+			}
+		}
+		return m, nil
+	}
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
 		switch msg.Button {

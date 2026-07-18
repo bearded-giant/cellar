@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/bearded-giant/cellar/drivers"
 	"testing"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
@@ -10,6 +11,9 @@ import (
 func TestQueryResult_ClientPaging(t *testing.T) {
 	m := browseModel()
 	m.Browse.Limit = 100
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
+	m.Screen = types.ScreenEditor
 
 	// build a 250-row result (+ header)
 	rows := [][]string{{"id"}}

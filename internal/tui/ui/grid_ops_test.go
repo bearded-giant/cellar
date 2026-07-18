@@ -49,8 +49,9 @@ func TestMetaLoaded_FillsInspectorTab(t *testing.T) {
 	res, _ := m.openInspector("db", "users", "users", false)
 	m = res.(Model)
 	res, _ = m.handleMetaLoadedMsg(types.MetaLoadedMsg{
-		Kind: int(0), // columns
-		Rows: [][]string{{"name", "type"}, {"id", "INTEGER"}},
+		Kind:  int(0), // columns
+		Table: "users",
+		Rows:  [][]string{{"name", "type"}, {"id", "INTEGER"}},
 	})
 	m = res.(Model)
 	tab := m.InspTabs[inspTableColumns]

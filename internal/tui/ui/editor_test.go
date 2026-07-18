@@ -9,12 +9,17 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bearded-giant/cellar/drivers"
+
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
 func TestQueryExecuted_SelectFillsGrid(t *testing.T) {
 	m := browseModel()
 	m.Browse.Table = "widgets" // pretend a table was open; query result must clear it
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
+	m.Screen = types.ScreenEditor
 	res, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{
 		IsSelect: true,
 		Rows:     [][]string{{"id", "name"}, {"1", "alpha"}},
@@ -37,6 +42,9 @@ func TestQueryExecuted_SelectFillsGrid(t *testing.T) {
 
 func TestQueryExecuted_DMLSetsStatusNoGrid(t *testing.T) {
 	m := browseModel()
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
+	m.Screen = types.ScreenEditor
 	res, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{IsSelect: false, Info: "2 rows affected"})
 	m = res.(Model)
 	if m.Browse.Columns != nil {
@@ -52,6 +60,9 @@ func TestQueryExecuted_DMLSetsStatusNoGrid(t *testing.T) {
 
 func TestQueryExecuted_ErrShowsGridErr(t *testing.T) {
 	m := browseModel()
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
+	m.Screen = types.ScreenEditor
 	res, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: errFake})
 	m = res.(Model)
 	if m.Browse.GridErr == "" {
@@ -601,6 +612,8 @@ func TestQueryCancelled_ErrClassification(t *testing.T) {
 	m.Width, m.Height = 100, 30
 	res, _ := m.openEditor()
 	m = res.(Model)
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
 
 	res2, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: context.Canceled})
 	m = res2.(Model)
@@ -608,12 +621,14 @@ func TestQueryCancelled_ErrClassification(t *testing.T) {
 		t.Errorf("cancel classified as error: gridErr=%q status=%q", m.Browse.GridErr, m.StatusMsg)
 	}
 
+	m.QueryRunning = true
 	res2, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: errors.New("interrupted (9)")})
 	m = res2.(Model)
 	if m.StatusMsg != "Query cancelled" {
 		t.Errorf("sqlite interrupt not classified: %q", m.StatusMsg)
 	}
 
+	m.QueryRunning = true
 	res2, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{Err: errors.New("syntax error")})
 	m = res2.(Model)
 	if m.Browse.GridErr == "" {
@@ -626,6 +641,8 @@ func TestQueryTruncated_StatusNote(t *testing.T) {
 	m.Width, m.Height = 100, 30
 	res, _ := m.openEditor()
 	m = res.(Model)
+	m.ActiveDriver = &drivers.SQLite{}
+	m.QueryRunning = true
 
 	res2, _ := m.handleQueryExecutedMsg(types.QueryExecutedMsg{
 		IsSelect: true, Truncated: true,
@@ -634,5 +651,84 @@ func TestQueryTruncated_StatusNote(t *testing.T) {
 	m = res2.(Model)
 	if !strings.Contains(m.StatusMsg, "capped") || !strings.Contains(m.StatusMsg, "first 2") {
 		t.Errorf("truncation status = %q", m.StatusMsg)
+	}
+}
+
+func TestQueryExecuted_AfterDisconnectIsDropped(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	m.ActiveDriver = &drivers.SQLite{}
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.QueryRunning = true
+
+	res, _ = m.disconnectBrowse()
+	m = res.(Model)
+
+	res, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{
+		IsSelect: true, Rows: [][]string{{"id"}, {"1"}},
+	})
+	m = res.(Model)
+	if m.Screen == types.ScreenEditor {
+		t.Fatal("stale result must not hijack the screen after disconnect")
+	}
+	// the reset editor must survive a keystroke (nil-lines panic regression)
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("keystroke after stale result panicked: %v", r)
+		}
+	}()
+	res, _ = m.openEditor()
+	m = res.(Model)
+	m2, _ := m.handleEditorScreen(keyMsg('a'))
+	_ = m2
+}
+
+func TestQueryExecuted_ModalOverEditorSurvives(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	m.ActiveDriver = &drivers.SQLite{}
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	m = res.(Model)
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl}) // save prompt opens
+	m = res.(Model)
+	if m.Screen != types.ScreenSaveQuery {
+		t.Fatalf("precondition: save prompt open, got %v", m.Screen)
+	}
+
+	res, _ = m.handleQueryExecutedMsg(types.QueryExecutedMsg{
+		IsSelect: true, Rows: [][]string{{"id"}, {"1"}}, Total: 1,
+	})
+	m = res.(Model)
+	if m.Screen != types.ScreenSaveQuery {
+		t.Error("query result must not kill an open modal")
+	}
+	if len(m.Browse.Rows) != 1 {
+		t.Error("result should still land in the grid behind the modal")
+	}
+}
+
+func TestRunGate_BlocksConcurrentRun(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	m.ActiveDriver = &drivers.SQLite{}
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.EditorArea.SetValue("select 1")
+	res, cmd := m.handleEditorScreen(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if cmd == nil || !m.QueryRunning {
+		t.Fatal("precondition: first run started")
+	}
+	res, cmd = m.handleEditorScreen(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if cmd != nil {
+		t.Error("second run while one is in flight must be gated")
+	}
+	if !strings.Contains(m.StatusMsg, "already running") {
+		t.Errorf("status = %q", m.StatusMsg)
 	}
 }

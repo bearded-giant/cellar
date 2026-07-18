@@ -22,14 +22,28 @@ var readOnlyAllowedKeywords = []string{
 	"CREATE TEMP VIEW", "CREATE TEMPORARY VIEW",
 }
 
-// IsQueryMutation checks if a SQL query is a mutation operation
+var (
+	sqlLineComment  = regexp.MustCompile(`--[^\n]*`)
+	sqlBlockComment = regexp.MustCompile(`/\*[\s\S]*?\*/`)
+	// literals and quoted identifiers are blanked so their contents can't trip
+	// (or hide from) the keyword scan
+	sqlSingleQuoted = regexp.MustCompile(`'(?:[^']|'')*'`)
+	sqlDoubleQuoted = regexp.MustCompile(`"(?:[^"]|"")*"`)
+	sqlBacktickID   = regexp.MustCompile("`(?:[^`]|``)*`")
+)
+
+// IsQueryMutation checks if a SQL query is a mutation operation. Blocked
+// keywords are matched anywhere in the statement (word-bounded, outside
+// strings/comments) — a prefix check alone misses WITH-wrapped DML like
+// "WITH d AS (DELETE ...) SELECT ..." and "EXPLAIN ANALYZE DELETE ...",
+// which drivers execute for real.
 func IsQueryMutation(query string) bool {
 	upperQuery := strings.TrimSpace(strings.ToUpper(query))
-
-	// remove single-line comments (-- comment)
-	upperQuery = regexp.MustCompile(`--[^\n]*`).ReplaceAllString(upperQuery, "")
-	// remove multi-line comments (/* comment */)
-	upperQuery = regexp.MustCompile(`/\*[\s\S]*?\*/`).ReplaceAllString(upperQuery, "")
+	upperQuery = sqlLineComment.ReplaceAllString(upperQuery, "")
+	upperQuery = sqlBlockComment.ReplaceAllString(upperQuery, "")
+	upperQuery = sqlSingleQuoted.ReplaceAllString(upperQuery, "''")
+	upperQuery = sqlDoubleQuoted.ReplaceAllString(upperQuery, `""`)
+	upperQuery = sqlBacktickID.ReplaceAllString(upperQuery, "``")
 	upperQuery = strings.TrimSpace(upperQuery)
 
 	// check if query starts with allowed keywords
@@ -39,16 +53,9 @@ func IsQueryMutation(query string) bool {
 		}
 	}
 
-	// check for blocked mutation keywords
 	for _, blockedKeyword := range readOnlyBlockedKeywords {
-		// check if query starts with the keyword
-		if strings.HasPrefix(upperQuery, blockedKeyword) {
-			return true
-		}
-		// check for WITH clause followed by mutation
-		// an example - "WITH cte AS (SELECT 1) INSERT INTO ..."
-		withPattern := `^WITH\s+.*\s+` + regexp.QuoteMeta(blockedKeyword)
-		if matched, _ := regexp.MatchString(withPattern, upperQuery); matched {
+		pattern := `\b` + strings.ReplaceAll(regexp.QuoteMeta(blockedKeyword), ` `, `\s+`) + `\b`
+		if matched, _ := regexp.MatchString(pattern, upperQuery); matched {
 			return true
 		}
 	}

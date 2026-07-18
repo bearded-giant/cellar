@@ -117,6 +117,8 @@ func (m *Model) resetQueryTabs() {
 	m.SavedName = ""
 	m.SavedBaseline = ""
 	m.EditorArea = sqlEditor{}
+	m.QueryRunning = false
+	m.SavePendingTab = -1
 }
 
 // queryStateSnapshot builds the persistable per-connection state; the active
@@ -152,7 +154,7 @@ func (m Model) PersistQueryState() {
 	if m.CurrentConn == nil {
 		return
 	}
-	if len(m.QueryTabs) == 0 &&
+	if len(m.QueryTabs) == 0 && !m.SidebarHidden &&
 		strings.TrimSpace(m.EditorContent) == "" &&
 		strings.TrimSpace(m.EditorArea.Value()) == "" {
 		return

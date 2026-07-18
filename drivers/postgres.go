@@ -802,8 +802,14 @@ func (db *Postgres) FormatArgForQueryString(arg any) string {
 	}
 }
 
+// pgQuoteIdent quotes an identifier with SQL doubling ("" not Go escapes), so
+// embedded quotes survive a round-trip into runnable DDL.
+func pgQuoteIdent(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
 func (db *Postgres) FormatReference(reference string) string {
-	return fmt.Sprintf("\"%s\"", reference)
+	return pgQuoteIdent(reference)
 }
 
 func (db *Postgres) FormatPlaceholder(index int) string {
@@ -958,7 +964,7 @@ func (db *Postgres) GetTableDDL(database, table string) (string, error) {
 		if err := colRows.Scan(&colName, &colType, &notNull, &defaultVal); err != nil {
 			return "", err
 		}
-		line := fmt.Sprintf("    %q %s", colName, colType)
+		line := fmt.Sprintf("    %s %s", pgQuoteIdent(colName), colType)
 		if notNull {
 			line += " NOT NULL"
 		}
@@ -981,10 +987,10 @@ func (db *Postgres) GetTableDDL(database, table string) (string, error) {
 		return "", err
 	}
 	if err == nil {
-		defs = append(defs, fmt.Sprintf("    CONSTRAINT %q %s", pkName, pkDef))
+		defs = append(defs, fmt.Sprintf("    CONSTRAINT %s %s", pgQuoteIdent(pkName), pkDef))
 	}
 
-	stmts := []string{fmt.Sprintf("CREATE TABLE %q.%q (\n%s\n);", tableSchema, tableName, strings.Join(defs, ",\n"))}
+	stmts := []string{fmt.Sprintf("CREATE TABLE %s.%s (\n%s\n);", pgQuoteIdent(tableSchema), pgQuoteIdent(tableName), strings.Join(defs, ",\n"))}
 
 	fkQuery := "SELECT con.conname, pg_get_constraintdef(con.oid) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'f' AND n.nspname = $1 AND c.relname = $2 ORDER BY con.conname"
 	fkRows, err := conn.Query(fkQuery, tableSchema, tableName)
@@ -998,7 +1004,7 @@ func (db *Postgres) GetTableDDL(database, table string) (string, error) {
 		if err := fkRows.Scan(&fkName, &fkDef); err != nil {
 			return "", err
 		}
-		stmts = append(stmts, fmt.Sprintf("ALTER TABLE %q.%q ADD CONSTRAINT %q %s;", tableSchema, tableName, fkName, fkDef))
+		stmts = append(stmts, fmt.Sprintf("ALTER TABLE %s.%s ADD CONSTRAINT %s %s;", pgQuoteIdent(tableSchema), pgQuoteIdent(tableName), pgQuoteIdent(fkName), fkDef))
 	}
 	if err := fkRows.Err(); err != nil {
 		return "", err

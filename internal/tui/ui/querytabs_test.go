@@ -264,6 +264,7 @@ func TestSaveFlow_NamesTabOnSave(t *testing.T) {
 		t.Errorf("untitled tab must not pre-fill the prompt, got %q", m.SaveNameInput.Value())
 	}
 
+	m.SavePendingTab = m.QueryTabActive
 	res, _ = m.handleSavedQuerySavedMsg(types.SavedQuerySavedMsg{Name: "daily", Query: "select 1"})
 	m = res.(Model)
 	if m.QueryTabs[0].Name != "daily" || m.SavedName != "daily" {

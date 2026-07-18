@@ -251,7 +251,7 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Browse.Cursor = 0
 	case "G", "end":
 		m.Browse.Cursor = max(n-1, 0)
-	case "enter", " ", "right", "l":
+	case "enter", " ", "space", "right", "l": // v2 delivers space as "space"
 		if n == 0 {
 			return m, nil
 		}

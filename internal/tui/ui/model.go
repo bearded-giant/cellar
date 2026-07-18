@@ -137,6 +137,10 @@ type Model struct {
 	// QueryRunning gates the esc-cancels-the-query path and the status spinner.
 	QueryRunning bool
 
+	// SavePendingTab pins an async save to the tab that requested it — the
+	// user may switch tabs before SavedQuerySavedMsg lands. -1 = none.
+	SavePendingTab int
+
 	// TreeFilterReturn is where the tree-filter modal goes back to — browse, or
 	// the editor when opened from its schema sidebar.
 	TreeFilterReturn types.Screen
@@ -172,12 +176,13 @@ func New(cmds *commands.Commands) Model {
 	sp.Spinner = spinner.Dot
 	sp.Style = accentStyle
 	return Model{
-		Cmds:        cmds,
-		Screen:      types.ScreenConnections,
-		Connections: []models.Connection{},
-		ConnInputs:  createConnectionInputs(),
-		SSHInputs:   createSSHInputs(),
-		Spinner:     sp,
+		Cmds:           cmds,
+		Screen:         types.ScreenConnections,
+		Connections:    []models.Connection{},
+		ConnInputs:     createConnectionInputs(),
+		SSHInputs:      createSSHInputs(),
+		Spinner:        sp,
+		SavePendingTab: -1,
 	}
 }
 

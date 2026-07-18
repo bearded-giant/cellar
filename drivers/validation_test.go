@@ -121,3 +121,31 @@ func TestValidateQueryForReadOnly(t *testing.T) {
 		})
 	}
 }
+
+func TestIsQueryMutation_WithWrappedAndExplainAnalyze(t *testing.T) {
+	blocked := []string{
+		`WITH d AS (DELETE FROM users RETURNING id) SELECT count(*) FROM d`,
+		`WITH x AS (SELECT 1) DELETE FROM users`,
+		`EXPLAIN ANALYZE DELETE FROM t`,
+		`explain analyze update t set a=1`,
+	}
+	for _, q := range blocked {
+		if !IsQueryMutation(q) {
+			t.Errorf("must be blocked: %s", q)
+		}
+	}
+	allowed := []string{
+		`SELECT * FROM deleted_records`,
+		`SELECT 'DELETE FROM users' AS note`,
+		`SELECT * FROM "delete"`,
+		"SELECT * FROM `update`",
+		`-- DELETE FROM users
+SELECT 1`,
+		`EXPLAIN SELECT * FROM t`,
+	}
+	for _, q := range allowed {
+		if IsQueryMutation(q) {
+			t.Errorf("false positive: %s", q)
+		}
+	}
+}

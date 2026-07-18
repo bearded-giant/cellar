@@ -19,6 +19,7 @@ func (m Model) openSaveQuery() (tea.Model, tea.Cmd) {
 	m.EditorContent = q
 	// bound to a saved query already: re-save in place, no name prompt
 	if m.SavedName != "" {
+		m.SavePendingTab = m.QueryTabActive
 		return m, m.Cmds.UpdateSavedQuery(m.connIdent(), m.SavedName, q)
 	}
 	return m.promptSaveQuery()
@@ -64,6 +65,7 @@ func (m Model) handleSaveQueryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.Screen = types.ScreenEditor
+		m.SavePendingTab = m.QueryTabActive
 		return m, m.Cmds.SaveQuery(m.connIdent(), name, m.EditorContent)
 	}
 	var cmd tea.Cmd
@@ -72,14 +74,22 @@ func (m Model) handleSaveQueryScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleSavedQuerySavedMsg(msg types.SavedQuerySavedMsg) (tea.Model, tea.Cmd) {
+	target := m.SavePendingTab
+	m.SavePendingTab = -1
 	if msg.Err != nil {
 		m.StatusMsg = "Save failed: " + msg.Err.Error()
 		return m, nil
 	}
-	m.SavedName = msg.Name      // bind the buffer so ctrl+s re-saves in place
-	m.SavedBaseline = msg.Query // clean point for the dirty (*) marker
-	if i := m.QueryTabActive; i >= 0 && i < len(m.QueryTabs) {
-		m.QueryTabs[i].Name = msg.Name // tab name converges with the saved name
+	// bind the tab that REQUESTED the save — the user may have switched tabs
+	// while the write was in flight
+	if target >= 0 && target < len(m.QueryTabs) {
+		m.QueryTabs[target].Name = msg.Name
+		m.QueryTabs[target].SavedName = msg.Name
+		m.QueryTabs[target].SavedBaseline = msg.Query
+	}
+	if target == m.QueryTabActive {
+		m.SavedName = msg.Name      // bind the live mirrors so ctrl+s re-saves in place
+		m.SavedBaseline = msg.Query // clean point for the dirty (*) marker
 	}
 	m.StatusMsg = "Saved query: " + msg.Name
 	return m, nil

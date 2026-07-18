@@ -32,8 +32,12 @@ type State struct {
 	Updated       time.Time `json:"updated"`
 }
 
-// Empty reports whether every tab is blank (nothing worth persisting).
+// Empty reports whether there is nothing worth persisting: every tab blank
+// and no non-default preferences (a hidden sidebar must survive blank buffers).
 func (s State) Empty() bool {
+	if s.SidebarHidden {
+		return false
+	}
 	for _, t := range s.Tabs {
 		if strings.TrimSpace(t.SQL) != "" {
 			return false

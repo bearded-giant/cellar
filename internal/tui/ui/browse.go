@@ -198,6 +198,8 @@ func (m Model) disconnectBrowse() (tea.Model, tea.Cmd) {
 	}
 	m.ActiveDriver = nil
 	m.CurrentConn = nil
+	commands.CancelRunningQuery() // orphaned results would panic the reset editor
+	m.QueryRunning = false
 	m.closePeek() // else a reconnect would float a stale cell
 	m.closeInspector()
 	m.Browse = browseState{}
@@ -292,7 +294,13 @@ func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, te
 	}
 	m.Browse.GridLoading = false
 	if isCancelledErr(msg.Err) {
+		// clear the previous table's rows too — they'd render under the new
+		// table's title and feed y/v/d with stale data
 		m.Browse.GridErr = ""
+		m.Browse.Columns = nil
+		m.Browse.Rows = nil
+		m.Browse.Total = 0
+		m.Browse.RowCursor = 0
 		m.StatusMsg = "Load cancelled"
 		return m, nil
 	}

@@ -78,7 +78,7 @@ func (db *MySQL) GetTables(database string) (map[string][]string, error) {
 		return nil, errors.New("database name is required")
 	}
 
-	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM `%s` WHERE Table_type = 'BASE TABLE'", database))
+	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM %s WHERE Table_type = 'BASE TABLE'", myQuoteIdent(database)))
 	if err != nil {
 		return nil, err
 	}
@@ -497,8 +497,14 @@ func (db *MySQL) GetProvider() string {
 	return db.Provider
 }
 
+// myQuoteIdent doubles embedded backticks so enumerated names cannot break
+// the interpolated SHOW/SELECT statements they land in.
+func myQuoteIdent(name string) string {
+	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
 func (db *MySQL) formatTableName(database, table string) string {
-	return fmt.Sprintf("`%s`.`%s`", database, table)
+	return myQuoteIdent(database) + "." + myQuoteIdent(table)
 }
 
 func (db *MySQL) FormatArg(arg any, colType models.CellValueType) any {
@@ -567,7 +573,7 @@ func (db *MySQL) FormatArgForQueryString(arg any) string {
 }
 
 func (db *MySQL) FormatReference(reference string) string {
-	return fmt.Sprintf("`%s`", reference)
+	return myQuoteIdent(reference)
 }
 
 func (db *MySQL) FormatPlaceholder(_ int) string {
@@ -587,7 +593,7 @@ func (db *MySQL) GetViews(database string) (map[string][]string, error) {
 		return nil, errors.New("database name is required")
 	}
 
-	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM `%s` WHERE Table_type = 'VIEW'", database))
+	rows, err := db.Connection.Query(fmt.Sprintf("SHOW FULL TABLES FROM %s WHERE Table_type = 'VIEW'", myQuoteIdent(database)))
 	if err != nil {
 		return nil, err
 	}

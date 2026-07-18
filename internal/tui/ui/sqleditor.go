@@ -67,6 +67,22 @@ func (e *sqlEditor) CursorEnd() {
 	e.clampScroll()
 }
 
+// setCursorOffset places the cursor at a rune offset into Value() (inverse of
+// cursorOffset); past-the-end clamps to the buffer end.
+func (e *sqlEditor) setCursorOffset(off int) {
+	total := 0
+	for i := range e.lines {
+		l := e.lineLen(i)
+		if off <= total+l {
+			e.row, e.col = i, off-total
+			e.clampScroll()
+			return
+		}
+		total += l + 1
+	}
+	e.CursorEnd()
+}
+
 func (e sqlEditor) lineLen(row int) int { return len([]rune(e.lines[row])) }
 
 // cursorOffset returns the cursor's rune offset into Value() (used by sqlmeta).

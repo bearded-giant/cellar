@@ -122,8 +122,8 @@ func (m Model) inspectorMetaTab(kind commands.MetaKind) int {
 }
 
 func (m Model) handleMetaLoadedMsg(msg types.MetaLoadedMsg) (tea.Model, tea.Cmd) {
-	if !m.InspOpen {
-		return m, nil
+	if !m.InspOpen || msg.Table != m.InspTarget {
+		return m, nil // late response for a previously-inspected object
 	}
 	idx := m.inspectorMetaTab(commands.MetaKind(msg.Kind))
 	if idx < 0 || idx >= len(m.InspTabs) {

@@ -79,9 +79,10 @@ type PrimaryKeyLoadedMsg struct {
 }
 
 type MetaLoadedMsg struct {
-	Kind int
-	Rows [][]string
-	Err  error
+	Kind  int
+	Table string // target identity — late responses must not fill another object's tabs
+	Rows  [][]string
+	Err   error
 }
 
 type ForeignKeysLoadedMsg struct {

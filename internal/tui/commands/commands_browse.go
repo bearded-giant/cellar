@@ -108,7 +108,7 @@ const (
 func (c *Commands) LoadMeta(driver drivers.Driver, db, table string, kind MetaKind) tea.Cmd {
 	return func() tea.Msg {
 		if driver == nil {
-			return types.MetaLoadedMsg{Kind: int(kind)}
+			return types.MetaLoadedMsg{Kind: int(kind), Table: table}
 		}
 		var (
 			rows [][]string
@@ -124,7 +124,7 @@ func (c *Commands) LoadMeta(driver drivers.Driver, db, table string, kind MetaKi
 		case MetaForeignKeys:
 			rows, err = driver.GetForeignKeys(db, table)
 		}
-		return types.MetaLoadedMsg{Kind: int(kind), Rows: rows, Err: err}
+		return types.MetaLoadedMsg{Kind: int(kind), Table: table, Rows: rows, Err: err}
 	}
 }
 
@@ -157,6 +157,11 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 		var last types.QueryExecutedMsg
 		ok := 0
 		for i, q := range stmts {
+			if readOnly { // both branches: WITH-wrapped DML routes as a "select"
+				if err := drivers.ValidateQueryForReadOnly(q); err != nil {
+					return types.QueryExecutedMsg{Query: q, Err: fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)}
+				}
+			}
 			if isSelectQuery(q) {
 				limit := c.queryRowLimit()
 				rows, total, err := driver.ExecuteQuery(ctx, q, limit)
@@ -168,11 +173,6 @@ func (c *Commands) RunQueries(driver drivers.Driver, stmts []string, readOnly bo
 					return last
 				}
 			} else {
-				if readOnly {
-					if err := drivers.ValidateQueryForReadOnly(q); err != nil {
-						return types.QueryExecutedMsg{Query: q, Err: fmt.Errorf("statement %d of %d: %w", i+1, len(stmts), err)}
-					}
-				}
 				info, err := driver.ExecuteDMLStatement(ctx, q)
 				recordHistory(connIdent, q)
 				last = types.QueryExecutedMsg{Query: q, Info: info, Err: err}
@@ -314,17 +314,19 @@ func (c *Commands) RunQuery(driver drivers.Driver, query string, readOnly bool, 
 		}
 		ctx, done := StartQueryContext()
 		defer done()
+		// read-only validation runs on BOTH branches: WITH-wrapped DML and
+		// EXPLAIN ANALYZE <dml> route through the SELECT branch but still write
+		if readOnly {
+			if err := drivers.ValidateQueryForReadOnly(query); err != nil {
+				return types.QueryExecutedMsg{Query: query, Err: err}
+			}
+		}
 		if isSelectQuery(query) {
 			limit := c.queryRowLimit()
 			rows, total, err := driver.ExecuteQuery(ctx, query, limit)
 			rows, total, truncated := capQueryRows(rows, total, limit)
 			recordHistory(connIdent, query)
 			return types.QueryExecutedMsg{Query: query, IsSelect: true, Rows: rows, Total: total, Truncated: truncated, Err: err}
-		}
-		if readOnly {
-			if err := drivers.ValidateQueryForReadOnly(query); err != nil {
-				return types.QueryExecutedMsg{Query: query, Err: err}
-			}
 		}
 		info, err := driver.ExecuteDMLStatement(ctx, query)
 		recordHistory(connIdent, query)

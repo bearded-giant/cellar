@@ -184,9 +184,13 @@ func (m Model) handleBrowseGridKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Browse.RowCursor++
 		}
 	case "left", "h":
-		// at the left edge (or in JSON view) back out to the schema tree
+		// at the left edge (or in JSON view) back out of the grid
 		if m.Browse.ViewJSON || m.Browse.ColCursor == 0 {
-			m.Focus = types.FocusTree
+			if m.Screen == types.ScreenEditor && m.SidebarHidden {
+				m.Focus = types.FocusEditor // never focus an invisible sidebar
+			} else {
+				m.Focus = types.FocusTree
+			}
 			return m, nil
 		}
 		m.Browse.ColCursor--
