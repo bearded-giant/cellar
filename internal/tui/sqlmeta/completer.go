@@ -158,8 +158,9 @@ func extractPrefix(text string, cursorPos int) string {
 
 // extractCompletionContext splits the current word segment at the cursor into a
 // column prefix and an optional table name. For "table.col|" it returns
-// ("col", "table"); for "prefix|" alone it returns ("prefix", ""). cursorPos is
-// a RUNE offset into text.
+// ("col", "table"); for "prefix|" alone it returns ("prefix", ""). Identifier
+// quoting is stripped so `"Cu|` still completes Currency. cursorPos is a RUNE
+// offset into text.
 func extractCompletionContext(text string, cursorPos int) (prefix, tableName string) {
 	runes := []rune(text)
 	if cursorPos <= 0 || cursorPos > len(runes) {
@@ -183,12 +184,32 @@ func extractCompletionContext(text string, cursorPos int) (prefix, tableName str
 	segment := string(runes[start:cursorPos])
 
 	if dotIdx := strings.LastIndex(segment, "."); dotIdx >= 0 {
-		tableName = segment[:dotIdx]
-		prefix = segment[dotIdx+1:]
-		return prefix, tableName
+		return unquoteIdent(segment[dotIdx+1:]), unquoteIdent(segment[:dotIdx])
 	}
 
-	return segment, ""
+	return unquoteIdent(segment), ""
+}
+
+// unquoteIdent strips one layer of SQL identifier quoting — "x", `x`, [x] —
+// tolerating an unterminated open quote (mid-typing).
+func unquoteIdent(s string) string {
+	if s == "" {
+		return s
+	}
+	var closing byte
+	switch s[0] {
+	case '"', '`':
+		closing = s[0]
+	case '[':
+		closing = ']'
+	default:
+		return s
+	}
+	s = s[1:]
+	if n := len(s); n > 0 && s[n-1] == closing {
+		s = s[:n-1]
+	}
+	return s
 }
 
 // resolveAliases scans the query for table alias definitions using the

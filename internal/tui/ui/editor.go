@@ -18,6 +18,10 @@ import (
 // autocomplete popup (kept constant so the layout never jumps).
 const completionAreaRows = 5
 
+// editorSplitPct is the editor pane's share of the editor+results rows, fixed
+// so the split never jumps as the query grows or results land.
+const editorSplitPct = 55
+
 // sidebarWidth is the schema pane width in the editor (0 when hidden); same
 // clamps as the browse tree so the two screens line up.
 func (m Model) sidebarWidth() int {
@@ -36,54 +40,60 @@ func (m Model) sidebarWidth() int {
 
 // queryLayout splits the query workspace vertically: an editor pane on top and
 // a results pane below (both to the right of the schema sidebar when shown).
-// Fixed chrome = title + completion band + a breather + footer + status (see
-// viewEditor); the rest is the results grid.
 func (m Model) queryLayout() (editorW, editorH, resultsH int) {
-	w, h := m.Width, m.Height
-	editorW = w
+	editorW = m.Width
 	if sw := m.sidebarWidth(); sw > 0 {
-		editorW = w - sw - 1
+		editorW = m.Width - sw - 1
 	}
 	if editorW < 10 {
 		editorW = 10
 	}
-	editorH = m.editorHeight(len(m.EditorArea.lines))
-	resultsH = h - editorH - completionAreaRows - 4 // title, breather, footer, status
-	if resultsH < 3 {
-		resultsH = 3
+	editorH = m.editorHeight()
+	resultsH = m.workspaceRows() - editorH
+	if resultsH < 0 {
+		resultsH = 0
 	}
 	return editorW, editorH, resultsH
 }
 
-// editorHeight sizes the editor pane to the query so large pastes stay visible:
-// it grows with the line count, capped generously while editing and to a third
-// of the window once a query has run so the results pane keeps room.
-func (m Model) editorHeight(lines int) int {
-	maxH := m.Height - 18 // ~chrome + a few results rows while editing
-	if len(m.Browse.QueryRows) > 0 || m.Browse.GridErr != "" {
-		maxH = m.Height / 3
+// workspaceRows is what's left for editor+results after viewEditor's fixed
+// chrome (blanks, title, tab bar, completion band, rules, status, footer).
+func (m Model) workspaceRows() int {
+	chrome := 15
+	if len(m.QueryTabs) > 0 {
+		chrome++ // tab bar row
 	}
-	if maxH < 4 {
-		maxH = 4
+	rows := m.Height - chrome
+	if rows < 7 {
+		rows = 7
 	}
-	eh := lines
+	return rows
+}
+
+// editorHeight gives the editor its fixed editorSplitPct share; ctrl+x zoom
+// hands the focused pane the whole split (results zoom hides the editor).
+func (m Model) editorHeight() int {
+	rows := m.workspaceRows()
+	if m.PaneZoomed {
+		if m.Focus == types.FocusGrid {
+			return 0
+		}
+		return rows
+	}
+	eh := rows * editorSplitPct / 100
 	if eh < 4 {
 		eh = 4
-	}
-	if eh > maxH {
-		eh = maxH
 	}
 	return eh
 }
 
 func (m *Model) syncEditorHeight() {
-	m.EditorArea.SetHeight(m.editorHeight(len(m.EditorArea.lines)))
+	m.EditorArea.SetHeight(m.editorHeight())
 }
 
 func (m Model) newEditorArea(content string) sqlEditor {
-	ew, _, _ := m.queryLayout()
-	lines := strings.Count(content, "\n") + 1
-	return newEditor(content, ew, m.editorHeight(lines))
+	ew, eh, _ := m.queryLayout()
+	return newEditor(content, ew, eh)
 }
 
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
@@ -92,6 +102,7 @@ func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.Completer = m.buildCompleter()
 	m.dismissCompletions()
 	m.EditorColsLoaded = map[string]bool{}
+	m.PaneZoomed = false
 	m.Focus = types.FocusEditor
 	m.Screen = types.ScreenEditor
 	return m, tea.Batch(m.EditorArea.Focus(), m.ensureRefColumns())
@@ -327,6 +338,10 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.jumpQueryTab(int(msg.Key().Code - '1'))
 	case "ctrl+b":
 		return m.toggleSidebar()
+	case "ctrl+x": // tmux-style zoom; follows focus, so tab flips which pane is full
+		m.PaneZoomed = !m.PaneZoomed
+		m.syncEditorHeight()
+		return m, nil
 	}
 
 	// schema sidebar focused: tree nav + insert-at-cursor.
@@ -541,6 +556,11 @@ func (m *Model) acceptCompletion() {
 		off = len(r)
 	}
 	start := off - len([]rune(currentPrefix(text, off)))
+	// a typed opening quote ("Cu<tab>) belongs to the word being replaced —
+	// consume it, the insert below re-quotes for the dialect when needed
+	if start > 0 && (r[start-1] == '"' || r[start-1] == '`' || r[start-1] == '[') {
+		start--
+	}
 	insert := item.Text
 	// quote case-sensitive / special identifiers for the dialect (Postgres
 	// "Product", MySQL `Product`); plain snake_case stays bare.
@@ -723,6 +743,10 @@ func (m Model) viewEditor() string {
 	default:
 		title += dimStyle.Render("   editing — tab to results")
 	}
+	if m.PaneZoomed {
+		title += dimStyle.Render("  ·  zoomed (ctrl+x)")
+	}
+	zoomResults := m.PaneZoomed && m.Focus == types.FocusGrid
 
 	// top: blank, header, [query tab bar], blank, editor, completion band, rule,
 	// blank, status, blank, rule, blank
@@ -731,8 +755,10 @@ func (m Model) viewEditor() string {
 		top = append(top, tb)
 	}
 	top = append(top, "")
-	top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
-	top = append(top, m.renderCompletions(rw, completionAreaRows)...)
+	if !zoomResults {
+		top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
+		top = append(top, m.renderCompletions(rw, completionAreaRows)...)
+	}
 	top = append(top, rule, "", m.queryStatusLine())
 
 	// footer pinned to the bottom: blank, rule, blank, keybinds
@@ -740,14 +766,17 @@ func (m Model) viewEditor() string {
 
 	// results fill the gap so the footer sits at the bottom of the window
 	resultsH := h - len(top) - len(foot)
-	if resultsH < 1 {
-		resultsH = 1
+	if resultsH < 0 {
+		resultsH = 0
 	}
-	results := m.renderGridLines(rw, resultsH, false)
-	for len(results) < resultsH {
-		results = append(results, "")
+	var results []string
+	if resultsH > 0 {
+		results = m.renderGridLines(rw, resultsH, false)
+		for len(results) < resultsH {
+			results = append(results, "")
+		}
+		results = results[:resultsH]
 	}
-	results = results[:resultsH]
 
 	right := append(top, results...)
 	right = append(right, foot...)
@@ -799,7 +828,7 @@ func (m Model) editorFooter(width int) string {
 	case types.FocusGrid:
 		kb = append(kb,
 			kbd{"↑/↓", "scroll"}, kbd{"n/p", "page"}, kbd{"v/V", "peek/cell"}, kbd{"w", "wide"}, kbd{"J", "json"},
-			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"]/[", "query tab"}, kbd{"tab/esc", "editor"}, kbd{"q", "back"},
+			kbd{"x", "export"}, kbd{"y", "copy"}, kbd{"ctrl+x", "zoom"}, kbd{"]/[", "query tab"}, kbd{"tab/esc", "editor"}, kbd{"q", "back"},
 		)
 	case types.FocusTree:
 		kb = append(kb,
@@ -812,7 +841,7 @@ func (m Model) editorFooter(width int) string {
 			kbd{"ctrl+enter", "run stmt (ctrl+r)"}, kbd{"ctrl+shift+enter", "run all"},
 			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
 			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+]/[", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
-			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+b", "schema"}, kbd{"ctrl+z", "undo"},
+			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+x", "zoom"}, kbd{"ctrl+b", "schema"}, kbd{"ctrl+z", "undo"},
 			kbd{"ctrl+s", "save"}, kbd{"ctrl+shift+s", "save as"},
 			kbd{"ctrl+o", "queries"}, kbd{"esc", "back"},
 		)

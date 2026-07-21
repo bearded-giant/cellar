@@ -95,6 +95,7 @@ func (m Model) helpLines() []string {
 			{"ctrl+enter / ctrl+r", "run statement at cursor"},
 			{"ctrl+shift+enter", "run all statements"},
 			{"tab", "cycle schema → editor → results"},
+			{"ctrl+x", "zoom focused pane (editor / results, tmux-style)"},
 			{"ctrl+b", "toggle schema sidebar"},
 			{"enter (sidebar)", "insert table/view name at cursor"},
 			{"ctrl+t / ctrl+w", "new / close query buffer"},

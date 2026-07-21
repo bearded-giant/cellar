@@ -7,7 +7,8 @@ import (
 func TestReferencedTables(t *testing.T) {
 	cases := map[string][]string{
 		`select * from Product where x = 1`:                   {"Product"},
-		`select * from "public"."Order" o join Item i on i.x`: {`"public"."Order"`, "Item"},
+		`select * from "public"."Order" o join Item i on i.x`: {"public.Order", "Item"},
+		"select * from `Currency` c":                          {"Currency"},
 		`update widgets set a = 1`:                            {"widgets"},
 		`select 1`:                                            nil,
 	}
@@ -101,6 +102,41 @@ func TestComplete_Columns(t *testing.T) {
 	colItems := a.Complete(text, cursor)
 	if !containsText(colItems, "name") {
 		t.Errorf("Complete(%q, %d) did not surface column name; got %+v", text, cursor, colItems)
+	}
+}
+
+func TestComplete_InsideQuotedIdentifier(t *testing.T) {
+	a := NewAutocompleter()
+	a.SetTables([]string{"Currency", "users"})
+	a.SetColumns("Currency", []string{"name", "code"})
+
+	// mid-typing an opening quote: `select * from "Cu|`
+	text := `select * from "Cu`
+	items := a.Complete(text, len([]rune(text)))
+	if !containsText(items, "Currency") {
+		t.Errorf("Complete(%q) did not surface Currency; got %+v", text, items)
+	}
+
+	// backtick dialect too
+	text = "select * from `Cu"
+	items = a.Complete(text, len([]rune(text)))
+	if !containsText(items, "Currency") {
+		t.Errorf("Complete(%q) did not surface Currency; got %+v", text, items)
+	}
+
+	// a completed quoted table still hints its columns downstream
+	text = `select * from "Currency" where na`
+	items = a.Complete(text, len([]rune(text)))
+	if !containsText(items, "name") {
+		t.Errorf("Complete(%q) did not surface column name; got %+v", text, items)
+	}
+
+	// quoted alias segment: `"Currency".co|`
+	text = `select "Currency".co from "Currency"`
+	cursor := len([]rune(`select "Currency".co`))
+	items = a.Complete(text, cursor)
+	if !containsText(items, "code") {
+		t.Errorf("Complete(%q, %d) did not surface column code; got %+v", text, cursor, items)
 	}
 }
 

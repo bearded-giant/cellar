@@ -128,6 +128,7 @@ Press `?` or `ctrl+g` anywhere for the full keymap. The essentials:
 | `ctrl+shift+enter` | run all statements |
 | `esc` | cancel the running query / dismiss popup / leave |
 | `ctrl+b` | toggle schema sidebar |
+| `ctrl+x` | zoom the focused pane (tmux-style) — `tab` flips which pane is full |
 | `ctrl+t` / `ctrl+w` | new / close query buffer |
 | `ctrl+]`/`ctrl+[`, `ctrl+1..9` | switch / jump query buffer |
 | `ctrl+space` | completion popup (auto-shows at 2+ chars) |

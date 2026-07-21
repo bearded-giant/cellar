@@ -25,13 +25,38 @@ func recordHistory(connIdent, query string) {
 var selectPrefixes = []string{"select", "with", "explain", "show", "describe", "desc"}
 
 func isSelectQuery(query string) bool {
-	q := strings.ToLower(strings.TrimSpace(query))
+	q := strings.ToLower(stripLeadingComments(query))
 	for _, p := range selectPrefixes {
 		if strings.HasPrefix(q, p) {
 			return true
 		}
 	}
 	return false
+}
+
+// stripLeadingComments removes -- and /* */ comments (and whitespace) ahead of
+// the first real token, so a commented statement still classifies by its verb.
+func stripLeadingComments(q string) string {
+	for {
+		q = strings.TrimSpace(q)
+		if strings.HasPrefix(q, "--") {
+			i := strings.IndexByte(q, '\n')
+			if i < 0 {
+				return ""
+			}
+			q = q[i+1:]
+			continue
+		}
+		if strings.HasPrefix(q, "/*") {
+			i := strings.Index(q, "*/")
+			if i < 0 {
+				return ""
+			}
+			q = q[i+2:]
+			continue
+		}
+		return q
+	}
 }
 
 // LoadDatabases lists the databases on the live connection.

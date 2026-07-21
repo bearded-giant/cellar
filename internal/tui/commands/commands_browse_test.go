@@ -178,13 +178,20 @@ func TestBrowse_SQLiteEndToEnd(t *testing.T) {
 }
 
 func TestIsSelectQuery(t *testing.T) {
-	sel := []string{"SELECT 1", "select * from t", "  WITH x AS (...)", "explain analyze", "SHOW TABLES", "describe t", "desc t"}
+	sel := []string{"SELECT 1", "select * from t", "  WITH x AS (...)", "explain analyze", "SHOW TABLES", "describe t", "desc t",
+		"-- note\nselect * from t",
+		"-- 6b8a355d-1812-4d27-b228-700a18f40412\n\nselect * from \"StorefrontUser\" limit 10;",
+		"/* block */ select 1",
+		"/* multi\nline */\n-- and a line comment\nselect 1"}
 	for _, q := range sel {
 		if !isSelectQuery(q) {
 			t.Errorf("isSelectQuery(%q) = false, want true", q)
 		}
 	}
-	dml := []string{"UPDATE t SET x=1", "delete from t", "insert into t values (1)", "CREATE TABLE t (...)", ""}
+	dml := []string{"UPDATE t SET x=1", "delete from t", "insert into t values (1)", "CREATE TABLE t (...)", "",
+		"-- comment only",
+		"/* unterminated select",
+		"-- note\nupdate t set x=1"}
 	for _, q := range dml {
 		if isSelectQuery(q) {
 			t.Errorf("isSelectQuery(%q) = true, want false", q)

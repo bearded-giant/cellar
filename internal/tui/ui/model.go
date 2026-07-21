@@ -137,6 +137,10 @@ type Model struct {
 	// shown. Persisted per connection with the query buffers.
 	SidebarHidden bool
 
+	// PaneZoomed (ctrl+x) gives the focused editor/results pane the whole
+	// vertical split, tmux-style; zoom follows focus. Reset on workspace entry.
+	PaneZoomed bool
+
 	// QueryRunning gates the esc-cancels-the-query path and the status spinner.
 	QueryRunning bool
 

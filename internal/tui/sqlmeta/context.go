@@ -160,15 +160,16 @@ func skipWhitespace(tokens []Token, i *int) {
 }
 
 // readQualifiedName reads a possibly schema/db-qualified name starting at *i,
-// advancing *i past the last consumed token.
+// advancing *i past the last consumed token. Each part is unquoted so
+// `"public"."Order"` matches the schema tree's bare names.
 func readQualifiedName(runes []rune, tokens []Token, i *int) string {
-	name := tokenWord(runes, tokens, *i)
+	name := unquoteIdent(tokenWord(runes, tokens, *i))
 	*i++
 
 	for *i < len(tokens) && tokenWord(runes, tokens, *i) == "." {
 		*i++ // skip dot
 		if *i < len(tokens) && (tokens[*i].Type == Identifier || tokens[*i].Type == Keyword) {
-			name += "." + tokenWord(runes, tokens, *i)
+			name += "." + unquoteIdent(tokenWord(runes, tokens, *i))
 			*i++
 		} else {
 			break
@@ -280,7 +281,7 @@ loop:
 				skipWhitespace(tokens, i)
 			}
 			if *i < len(tokens) && (tokens[*i].Type == Identifier || tokens[*i].Type == Keyword) {
-				alias := tokenWord(runes, tokens, *i)
+				alias := unquoteIdent(tokenWord(runes, tokens, *i))
 				refs = append(refs, tableRef{name: alias, alias: alias, depth: baseDepth, pos: tokens[*i].Start})
 				*i++
 			}
@@ -306,7 +307,7 @@ loop:
 					*i++
 					skipWhitespace(tokens, i)
 					if *i < len(tokens) && (tokens[*i].Type == Identifier || tokens[*i].Type == Keyword) {
-						alias = tokenWord(runes, tokens, *i)
+						alias = unquoteIdent(tokenWord(runes, tokens, *i))
 						*i++
 					}
 				} else if (nextTok.Type == Identifier || nextTok.Type == Keyword) &&
@@ -315,7 +316,7 @@ loop:
 					*i++
 					skipWhitespace(tokens, i)
 					if *i >= len(tokens) || isAliasFollower(tokenWord(runes, tokens, *i)) {
-						alias = nextWord
+						alias = unquoteIdent(nextWord)
 					} else {
 						*i = save
 					}
@@ -364,7 +365,7 @@ func readCTEs(runes []rune, tokens []Token, i *int, ctx *sqlContext) {
 		if tok.Type != Identifier && tok.Type != Keyword && tok.Type != Function {
 			break
 		}
-		name := slice(runes, tok)
+		name := unquoteIdent(slice(runes, tok))
 		*i++
 
 		skipWhitespace(tokens, i)

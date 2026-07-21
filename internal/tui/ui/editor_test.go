@@ -11,6 +11,8 @@ import (
 
 	"github.com/bearded-giant/cellar/drivers"
 
+	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
+
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
 
@@ -135,6 +137,34 @@ func TestEditor_AcceptCompletion(t *testing.T) {
 	}
 	if m.CompVisible {
 		t.Error("popup should hide after accepting")
+	}
+}
+
+func TestEditor_AcceptCompletionInsideQuote(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	res, _ := m.openEditor()
+	m = res.(Model)
+	m.ActiveDriver = &drivers.Postgres{}
+	ac := sqlmeta.NewAutocompleter()
+	ac.SetTables([]string{"Currency"})
+	m.Completer = ac
+
+	m.EditorArea.SetValue(`select * from "Cu`)
+	m.EditorArea.CursorEnd()
+	m.refreshCompletions()
+	if !m.CompVisible || len(m.Completions) == 0 {
+		t.Fatal(`typing "Cu should surface completions`)
+	}
+	for i, it := range m.Completions {
+		if it.Text == "Currency" {
+			m.CompCursor = i
+			break
+		}
+	}
+	m.acceptCompletion()
+	if got, want := m.EditorArea.Value(), `select * from "Currency"`; got != want {
+		t.Errorf("accept inside quote = %q, want %q", got, want)
 	}
 }
 
