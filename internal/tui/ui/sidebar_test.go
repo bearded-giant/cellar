@@ -93,6 +93,35 @@ func TestSidebar_FocusCycle(t *testing.T) {
 	}
 }
 
+func TestSidebar_FocusCycleReverse(t *testing.T) {
+	m := sidebarModel(t)
+	m.Focus = types.FocusEditor
+	backtab := tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+
+	res, _ := m.handleEditorScreen(backtab) // editor -> sidebar
+	m = res.(Model)
+	if m.Focus != types.FocusTree {
+		t.Fatalf("editor shift+tab -> %v, want tree", m.Focus)
+	}
+	res, _ = m.handleEditorScreen(backtab) // sidebar -> results
+	m = res.(Model)
+	if m.Focus != types.FocusGrid {
+		t.Fatalf("tree shift+tab -> %v, want grid", m.Focus)
+	}
+	res, _ = m.handleEditorScreen(backtab) // results -> editor
+	m = res.(Model)
+	if m.Focus != types.FocusEditor {
+		t.Fatalf("grid shift+tab -> %v, want editor", m.Focus)
+	}
+
+	m.SidebarHidden = true
+	res, _ = m.handleEditorScreen(backtab) // hidden sidebar: editor -> results
+	m = res.(Model)
+	if m.Focus != types.FocusGrid {
+		t.Errorf("hidden-sidebar editor shift+tab -> %v, want grid", m.Focus)
+	}
+}
+
 func TestSidebar_EnterInsertsQuotedRef(t *testing.T) {
 	m := sidebarModel(t)
 	m.ActiveDriver = &drivers.Postgres{}

@@ -189,6 +189,17 @@ func (m Model) buildCompleter() *sqlmeta.Autocompleter {
 	return ac
 }
 
+// focusBackFromEditor is shift+tab from the editor pane: sidebar when shown,
+// else straight to results.
+func (m Model) focusBackFromEditor() (tea.Model, tea.Cmd) {
+	if !m.SidebarHidden {
+		m.Focus = types.FocusTree
+		return m, nil
+	}
+	m.Focus = types.FocusGrid
+	return m, nil
+}
+
 // leaveQueryWorkspace exits the editor+results view back to the tree/grid,
 // preserving the query text (re-entered via `e`).
 func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
@@ -216,6 +227,9 @@ func (m Model) handleEditorSidebarKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "tab", "esc", "q":
 		m.Focus = types.FocusEditor
+		return m, nil
+	case "shift+tab": // reverse cycle: sidebar -> results
+		m.Focus = types.FocusGrid
 		return m, nil
 	case "enter", " ", "space", "right", "l":
 		if n := len(m.Browse.Nodes); n > 0 && m.Browse.Cursor < n {
@@ -359,6 +373,9 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.Focus = types.FocusEditor
 			return m, nil
+		case "shift+tab": // reverse cycle: results -> editor
+			m.Focus = types.FocusEditor
+			return m, nil
 		case "esc": // esc backs up one level: results -> editor text
 			m.Focus = types.FocusEditor
 			return m, nil
@@ -423,6 +440,9 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.dismissCompletions() // passive: tab keeps its pane-cycle job
 			m.Focus = types.FocusGrid
 			return m, nil
+		case "shift+tab": // never accepts — always dismiss + reverse cycle
+			m.dismissCompletions()
+			return m.focusBackFromEditor()
 		case "esc":
 			m.suppressCompletions()
 			return m, nil
@@ -432,6 +452,8 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "tab": // no popup: move down to the results pane
 		m.Focus = types.FocusGrid
 		return m, nil
+	case "shift+tab": // reverse cycle: editor -> sidebar (results when hidden)
+		return m.focusBackFromEditor()
 	case "esc": // back one level: leave the workspace to the tree
 		return m.leaveQueryWorkspace()
 	// ctrl+/ arrives as the ctrl+_ byte in legacy terminals (kitty sends the name)

@@ -94,7 +94,7 @@ func (m Model) helpLines() []string {
 		{"Query workspace (e)", [][2]string{
 			{"ctrl+enter / ctrl+r", "run statement at cursor"},
 			{"ctrl+shift+enter", "run all statements"},
-			{"tab", "cycle schema → editor → results"},
+			{"tab / shift+tab", "cycle schema → editor → results (shift reverses)"},
 			{"ctrl+x", "zoom focused pane (editor / results, tmux-style)"},
 			{"ctrl+b", "toggle schema sidebar"},
 			{"enter (sidebar)", "insert table/view name at cursor"},
