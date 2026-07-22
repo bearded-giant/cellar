@@ -215,14 +215,8 @@ func (c *Config) SaveConnections(connections []models.Connection) error {
 // env expansion) so existing ${env:…} placeholders survive the round-trip. Used
 // by the non-interactive `--add-connection` import path.
 func UpsertConnection(path string, conn models.Connection) error {
-	cfg := defaultConfig()
-	cfg.ConfigFile = path
-
-	if data, err := os.ReadFile(path); err == nil {
-		if err := toml.Unmarshal(data, cfg); err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
+	cfg, err := loadGlobal(path)
+	if err != nil {
 		return err
 	}
 

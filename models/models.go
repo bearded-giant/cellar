@@ -12,6 +12,9 @@ type AppConfig struct {
 	EnterOpensJSONViewer         bool
 	// QueryRowLimit caps editor SELECT fetches; 0 = default (5000), -1 = unlimited.
 	QueryRowLimit int
+	// BackupDir is where `cellar export` writes archives when no path is given
+	// ("" = current directory). Supports a leading ~/.
+	BackupDir string
 }
 
 type Connection struct {

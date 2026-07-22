@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -65,6 +67,44 @@ func TestSplit_ViewHeightStableAcrossZoom(t *testing.T) {
 	m.Focus = types.FocusGrid
 	if got := lineCount(m.viewEditor()); got != base {
 		t.Errorf("results-zoom view %d lines, want %d", got, base)
+	}
+}
+
+func TestTintBG_ReappliesAfterResetAndPads(t *testing.T) {
+	in := []string{dimStyle.Render("ab") + "cd"}
+	out := tintBG(in, 10)
+	if !strings.HasPrefix(out[0], focusBGSeq) {
+		t.Error("tinted line must open with the focus bg")
+	}
+	if !strings.Contains(out[0], focusBGSeq+"cd") && !strings.Contains(out[0], "m"+focusBGSeq) {
+		t.Errorf("bg must be re-applied after the inner reset: %q", out[0])
+	}
+	if got := lipgloss.Width(out[0]); got != 10 {
+		t.Errorf("tinted width = %d, want 10", got)
+	}
+	if !strings.HasSuffix(out[0], "\x1b[0m") {
+		t.Error("tinted line must close with a reset")
+	}
+}
+
+func TestFocusTintFollowsFocus(t *testing.T) {
+	m := sidebarModel(t)
+	for _, f := range []types.Focus{types.FocusEditor, types.FocusGrid, types.FocusTree} {
+		m.Focus = f
+		if !strings.Contains(m.viewEditor(), focusBGSeq) {
+			t.Errorf("focus %v: view missing the focus bg tint", f)
+		}
+	}
+}
+
+func TestFocusTintOnBrowseScreen(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 30
+	for _, f := range []types.Focus{types.FocusTree, types.FocusGrid} {
+		m.Focus = f
+		if !strings.Contains(m.viewBrowse(), focusBGSeq) {
+			t.Errorf("browse focus %v: view missing the focus bg tint", f)
+		}
 	}
 }
 

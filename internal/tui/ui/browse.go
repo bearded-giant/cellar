@@ -359,6 +359,12 @@ func (m Model) viewBrowse() string {
 
 	tree := fitHeight(m.renderTreeLines(treeW, bodyH), treeW, bodyH)
 	grid := fitHeight(m.renderGridLines(gridW, bodyH, true), gridW, bodyH)
+	switch m.Focus {
+	case types.FocusTree:
+		tree = tintBG(tree, treeW)
+	case types.FocusGrid:
+		grid = tintBG(grid, gridW)
+	}
 	sep := dimStyle.Render("│")
 
 	rows := make([]string, 0, bodyH)

@@ -1,6 +1,10 @@
 package ui
 
-import "charm.land/lipgloss/v2"
+import (
+	"strings"
+
+	"charm.land/lipgloss/v2"
+)
 
 var (
 	titleStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).MarginBottom(1)
@@ -39,6 +43,28 @@ var (
 				Padding(0, 1).
 				MarginBottom(0)
 )
+
+// focusBGSeq lifts the focused pane's background one shade — #232841, a
+// desaturated navy that reads as "elevated surface" on dark themes without
+// washing out dim foregrounds the way the ANSI-256 grays do.
+const focusBGSeq = "\x1b[48;2;35;40;65m"
+
+// tintBG paints lines with the focus background. Pane content carries its own
+// styled runs whose resets would kill a wrapper background mid-line, so the
+// sequence is re-applied after every inner reset; lines are padded to width so
+// the pane reads as one block.
+func tintBG(lines []string, width int) []string {
+	out := make([]string, len(lines))
+	for i, ln := range lines {
+		body := strings.ReplaceAll(ln, "\x1b[0m", "\x1b[0m"+focusBGSeq)
+		body = strings.ReplaceAll(body, "\x1b[m", "\x1b[m"+focusBGSeq)
+		if pad := width - lipgloss.Width(ln); pad > 0 {
+			body += strings.Repeat(" ", pad)
+		}
+		out[i] = focusBGSeq + body + "\x1b[0m"
+	}
+	return out
+}
 
 // focusedLabelStyle highlights a form label when its field has focus.
 func focusedLabelStyle(focused bool) lipgloss.Style {

@@ -23,6 +23,8 @@ type Tab struct {
 	SQL       string `json:"sql"`
 	Active    bool   `json:"active,omitempty"`
 	SavedName string `json:"saved_name,omitempty"`
+	CursorRow int    `json:"cursor_row,omitempty"`
+	CursorCol int    `json:"cursor_col,omitempty"`
 }
 
 type State struct {

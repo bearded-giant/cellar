@@ -99,6 +99,10 @@ func (m Model) newEditorArea(content string) sqlEditor {
 func (m Model) openEditor() (tea.Model, tea.Cmd) {
 	m.ensureQueryTabs()
 	m.EditorArea = m.newEditorArea(m.EditorContent)
+	if m.QueryTabActive < len(m.QueryTabs) {
+		t := m.QueryTabs[m.QueryTabActive]
+		m.EditorArea.setCursor(t.Row, t.Col)
+	}
 	m.Completer = m.buildCompleter()
 	m.dismissCompletions()
 	m.EditorColsLoaded = map[string]bool{}
@@ -203,7 +207,8 @@ func (m Model) focusBackFromEditor() (tea.Model, tea.Cmd) {
 // leaveQueryWorkspace exits the editor+results view back to the tree/grid,
 // preserving the query text (re-entered via `e`).
 func (m Model) leaveQueryWorkspace() (tea.Model, tea.Cmd) {
-	m.EditorContent = m.EditorArea.Value()
+	m.ensureQueryTabs()
+	m.syncActiveQueryTab() // content + cursor, while the editor is still live
 	m.dismissCompletions()
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
@@ -778,7 +783,11 @@ func (m Model) viewEditor() string {
 	}
 	top = append(top, "")
 	if !zoomResults {
-		top = append(top, strings.Split(m.EditorArea.View(), "\n")...)
+		edLines := strings.Split(m.EditorArea.View(), "\n")
+		if m.Focus == types.FocusEditor {
+			edLines = tintBG(edLines, rw)
+		}
+		top = append(top, edLines...)
 		top = append(top, m.renderCompletions(rw, completionAreaRows)...)
 	}
 	top = append(top, rule, "", m.queryStatusLine())
@@ -798,6 +807,9 @@ func (m Model) viewEditor() string {
 			results = append(results, "")
 		}
 		results = results[:resultsH]
+		if m.Focus == types.FocusGrid {
+			results = tintBG(results, rw)
+		}
 	}
 
 	right := append(top, results...)
@@ -807,6 +819,9 @@ func (m Model) viewEditor() string {
 	}
 
 	tree := fitHeight(m.renderTreeLines(sw, len(right)), sw, len(right))
+	if m.Focus == types.FocusTree {
+		tree = tintBG(tree, sw)
+	}
 	sep := dimStyle.Render("│")
 	rows := make([]string, len(right))
 	for i := range right {

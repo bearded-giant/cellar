@@ -21,6 +21,7 @@ type queryTab struct {
 	Content       string
 	SavedName     string
 	SavedBaseline string
+	Row, Col      int // cursor position, restored on tab switch / reopen
 }
 
 // ensureQueryTabs seeds the tab set from the live editor fields on first use.
@@ -41,13 +42,17 @@ func (m *Model) ensureQueryTabs() {
 
 // syncActiveQueryTab writes the live editor fields back into the snapshot slot.
 func (m *Model) syncActiveQueryTab() {
-	if m.Screen == types.ScreenEditor {
-		m.EditorContent = m.EditorArea.Value()
-	}
 	if m.QueryTabActive < 0 || m.QueryTabActive >= len(m.QueryTabs) {
+		if m.Screen == types.ScreenEditor {
+			m.EditorContent = m.EditorArea.Value()
+		}
 		return
 	}
 	t := &m.QueryTabs[m.QueryTabActive]
+	if m.Screen == types.ScreenEditor {
+		m.EditorContent = m.EditorArea.Value()
+		t.Row, t.Col = m.EditorArea.row, m.EditorArea.col
+	}
 	t.Content = m.EditorContent
 	t.SavedName = m.SavedName
 	t.SavedBaseline = m.SavedBaseline
@@ -61,6 +66,7 @@ func (m *Model) loadQueryTab(i int) {
 	m.SavedName = t.SavedName
 	m.SavedBaseline = t.SavedBaseline
 	m.EditorArea = m.newEditorArea(t.Content)
+	m.EditorArea.setCursor(t.Row, t.Col)
 	m.EditorArea.Focus()
 	m.dismissCompletions()
 	m.Focus = types.FocusEditor
@@ -134,6 +140,8 @@ func (m Model) queryStateSnapshot() state.State {
 			SQL:       t.Content,
 			Active:    i == m.QueryTabActive,
 			SavedName: t.SavedName,
+			CursorRow: t.Row,
+			CursorCol: t.Col,
 		})
 	}
 	return st
@@ -208,6 +216,8 @@ func (m Model) handleQueryStateLoadedMsg(msg types.QueryStateLoadedMsg) (tea.Mod
 			SavedName: t.SavedName,
 			// restored buffer starts clean against its binding
 			SavedBaseline: t.SQL,
+			Row:           t.CursorRow,
+			Col:           t.CursorCol,
 		})
 	}
 	m.QueryTabActive = active

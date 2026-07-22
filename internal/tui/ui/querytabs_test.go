@@ -367,3 +367,39 @@ func TestQueryTabs_CtrlBracketSwitchesTabs(t *testing.T) {
 		t.Fatalf("ctrl+] should go to next tab, active=%d", m.QueryTabActive)
 	}
 }
+
+func TestQueryTabs_CursorRestoredOnSwitch(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("select 1\nfrom t\nwhere x")
+	m.EditorArea.setCursor(1, 3)
+
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: 't', Mod: tea.ModCtrl}) // new tab
+	m = res.(Model)
+	if m.EditorArea.row != 0 || m.EditorArea.col != 0 {
+		t.Fatalf("new tab cursor = %d,%d, want 0,0", m.EditorArea.row, m.EditorArea.col)
+	}
+
+	res, _ = m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyPgUp, Mod: tea.ModCtrl}) // back to tab 0
+	m = res.(Model)
+	if m.EditorArea.row != 1 || m.EditorArea.col != 3 {
+		t.Errorf("restored cursor = %d,%d, want 1,3", m.EditorArea.row, m.EditorArea.col)
+	}
+
+	if st := m.queryStateSnapshot(); st.Tabs[0].CursorRow != 1 || st.Tabs[0].CursorCol != 3 {
+		t.Errorf("snapshot cursor = %d,%d, want 1,3", st.Tabs[0].CursorRow, st.Tabs[0].CursorCol)
+	}
+}
+
+func TestQueryTabs_CursorSurvivesLeaveAndReopen(t *testing.T) {
+	m := editorModel(t)
+	m.EditorArea.SetValue("a\nbb\nccc")
+	m.EditorArea.setCursor(2, 1)
+
+	res, _ := m.handleEditorScreen(tea.KeyPressMsg{Code: tea.KeyEsc}) // leave workspace
+	m = res.(Model)
+	res, _ = m.openEditor()
+	m = res.(Model)
+	if m.EditorArea.row != 2 || m.EditorArea.col != 1 {
+		t.Errorf("reopen cursor = %d,%d, want 2,1", m.EditorArea.row, m.EditorArea.col)
+	}
+}

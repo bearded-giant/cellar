@@ -26,6 +26,17 @@ func roSuffix(ro bool) string {
 }
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "export", "import":
+			runBackupCommand(os.Args[1:])
+			return
+		case "config":
+			runConfigCommand(os.Args[1:])
+			return
+		}
+	}
+
 	fs := flag.NewFlagSet("cellar", flag.ContinueOnError)
 	showVersion := fs.Bool("version", false, "Print version and exit")
 	configPath := fs.String("config", "", "Path to config.toml (defaults to XDG config dir)")
@@ -37,7 +48,10 @@ func main() {
 	connVault := fs.String("vault-command", "", "Command whose stdout resolves the connection URL at connect time (with --add-connection)")
 	connRO := fs.Bool("read-only", false, "Mark the connection read-only (with --add-connection)")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: cellar [flags]\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: cellar [flags]\n")
+		fmt.Fprintf(os.Stderr, "       cellar export [out.tar.gz]   back up connections, saved queries, buffers, history\n")
+		fmt.Fprintf(os.Stderr, "       cellar import <backup.tar.gz> restore a backup (current config kept aside)\n")
+		fmt.Fprintf(os.Stderr, "       cellar config list|get|set   read or write [application] settings (e.g. BackupDir)\n\n")
 		fmt.Fprintf(os.Stderr, "A Bubble Tea database client.\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n")
 		fmt.Fprintf(os.Stderr, "      --version              Print version and exit\n")

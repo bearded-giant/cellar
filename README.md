@@ -148,6 +148,14 @@ Everything lives under `[application]` in `~/.config/cellar/config.toml`. The on
 
 A per-repo `.cellar.toml` in your working directory replaces the global connection list wholesale — useful for project-scoped credentials.
 
+You can read and write `[application]` settings from the CLI without opening the file: `cellar config list` shows everything, `cellar config get QueryRowLimit` reads one, and `cellar config set BackupDir ~/cellar-backups` writes one back (keys are case-insensitive, connections and other settings are preserved).
+
+## Backup and restore
+
+`cellar export` archives your whole config dir — connections, saved queries, query buffers, and history — into a timestamped `tar.gz`. It lands in `BackupDir` if you've set one (see above), else the current directory, and you can pass an explicit path instead (`cellar export ~/some/backup.tar.gz`). Mind where you put it: the archive contains your connection credentials.
+
+`cellar import <backup.tar.gz>` restores one. It never merges — your current config dir is moved aside to `cellar.pre-import-<timestamp>` first, so a restore is always reversible. Delete the aside copy once you're happy.
+
 ## Credits
 
 Inspired by [jorgerojas26/lazysql](https://github.com/jorgerojas26/lazysql). Built on [Bubble Tea](https://github.com/charmbracelet/bubbletea) and [Lip Gloss](https://github.com/charmbracelet/lipgloss).

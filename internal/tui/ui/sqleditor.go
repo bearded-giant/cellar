@@ -34,8 +34,24 @@ type editorSnapshot struct {
 func newEditor(content string, w, h int) sqlEditor {
 	e := sqlEditor{width: w, height: h}
 	e.SetValue(content)
-	e.CursorEnd()
 	return e
+}
+
+// setCursor places the cursor at row/col, clamped to the buffer.
+func (e *sqlEditor) setCursor(row, col int) {
+	if row < 0 {
+		row = 0
+	}
+	if row >= len(e.lines) {
+		row = len(e.lines) - 1
+	}
+	e.row = row
+	if col < 0 {
+		col = 0
+	}
+	e.col = col
+	e.clampCol()
+	e.clampScroll()
 }
 
 func (e sqlEditor) Value() string { return strings.Join(e.lines, "\n") }
