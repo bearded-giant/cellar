@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -112,6 +113,71 @@ func TestVisibleWindow(t *testing.T) {
 			t.Errorf("visibleWindow(%d,%d,%d) = (%d,%d), want (%d,%d)",
 				c.total, c.cursor, c.height, s, e, c.wantStart, c.wantEnd)
 		}
+	}
+}
+
+func TestClampTop(t *testing.T) {
+	cases := []struct {
+		name                  string
+		top, cursor, total, h int
+		want                  int
+	}{
+		{"fits: pinned to zero", 0, 3, 5, 10, 0},
+		{"cursor pushes bottom down", 0, 12, 100, 10, 3},
+		// sticky: at the bottom, moving the cursor up leaves the window put
+		// (list pinned) — cursor roams the visible rows, top stays.
+		{"scroll up stays put", 90, 95, 100, 10, 90},
+		{"scroll up to window top edge holds", 90, 90, 100, 10, 90},
+		// only once the cursor crosses above the top does the list scroll up.
+		{"cursor above window pulls list up", 90, 88, 100, 10, 88},
+		{"clamp past end", 95, 99, 100, 10, 90},
+		{"negative top floored", -5, 0, 100, 10, 0},
+	}
+	for _, c := range cases {
+		if got := clampTop(c.top, c.cursor, c.total, c.h); got != c.want {
+			t.Errorf("%s: clampTop(%d,%d,%d,%d) = %d, want %d",
+				c.name, c.top, c.cursor, c.total, c.h, got, c.want)
+		}
+	}
+}
+
+// after scrolling deep then applying a tree filter (which resets the cursor to
+// the top), the sticky scroll offset must reset too — else the first keypress
+// scrolls the list off the top row. Regression for the stale-TreeTop ordering bug.
+func TestTree_FilterApplyResetsScroll(t *testing.T) {
+	m := browseModel()
+	m.Width, m.Height = 100, 20
+	m.Browse.Databases = []string{"app"}
+	m.Browse.Expanded = map[string]bool{"app": true}
+	tables := make([]string, 60)
+	for i := range tables {
+		tables[i] = fmt.Sprintf("t%02d", i)
+	}
+	m.Browse.TablesByDB = map[string]map[string][]string{"app": {"app": tables}}
+	m.rebuildTree() // db + 60 tables
+
+	for i := 0; i < 70; i++ { // scroll to the bottom; TreeTop follows the cursor down
+		res, _ := m.handleBrowseTreeKey(keyMsg('j'))
+		m = res.(Model)
+	}
+	if m.Browse.TreeTop == 0 {
+		t.Fatalf("precondition: expected a deep scroll offset after scrolling to the bottom")
+	}
+
+	res, _ := m.openTreeFilter() // empty filter: keeps all nodes, resets cursor to 0
+	m = res.(Model)
+	res, _ = m.handleTreeFilterScreen(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = res.(Model)
+	if m.Browse.Cursor != 0 || m.Browse.TreeTop != 0 {
+		t.Fatalf("after filter apply: want cursor=0 TreeTop=0, got cursor=%d TreeTop=%d",
+			m.Browse.Cursor, m.Browse.TreeTop)
+	}
+
+	res, _ = m.handleBrowseTreeKey(keyMsg('j')) // first move must not scroll the list
+	m = res.(Model)
+	if m.Browse.Cursor != 1 || m.Browse.TreeTop != 0 {
+		t.Errorf("first down after filter jumped the list: got cursor=%d TreeTop=%d, want cursor=1 TreeTop=0",
+			m.Browse.Cursor, m.Browse.TreeTop)
 	}
 }
 

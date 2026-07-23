@@ -298,7 +298,54 @@ func (m Model) handleBrowseTreeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.Browse.Cursor >= len(m.Browse.Nodes) {
 		m.Browse.Cursor = max(len(m.Browse.Nodes)-1, 0)
 	}
+	m.clampTreeTop()
 	return m, nil
+}
+
+// clampTop keeps a [top, top+height) window valid and covering cursor while
+// otherwise leaving top where it is — the sticky scroll the grid's cursor-
+// anchored visibleWindow can't give: the list stays put and the cursor roams
+// the window until it hits an edge, then the list moves.
+func clampTop(top, cursor, total, height int) int {
+	if height < 1 {
+		height = 1
+	}
+	if top > cursor {
+		top = cursor
+	}
+	if cursor >= top+height {
+		top = cursor - height + 1
+	}
+	if top > total-height {
+		top = total - height
+	}
+	if top < 0 {
+		top = 0
+	}
+	return top
+}
+
+// treeViewportH is the schema tree's visible node-row count in the current
+// screen context (editor sidebar vs browse split); the render window and the
+// key handler clamp Browse.TreeTop against it so they agree on what's shown.
+func (m Model) treeViewportH() int {
+	h := m.Height
+	if m.Screen != types.ScreenEditor {
+		_, _, h = m.browseLayout()
+	}
+	h-- // schema title line
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// clampTreeTop reconciles the sticky scroll offset with the current cursor.
+// Call it after any path that moves Browse.Cursor outside rebuildTree — or
+// that moves it *after* rebuildTree already clamped against the old cursor —
+// else a stale TreeTop makes the list jump on the next keypress.
+func (m *Model) clampTreeTop() {
+	m.Browse.TreeTop = clampTop(m.Browse.TreeTop, m.Browse.Cursor, len(m.Browse.Nodes), m.treeViewportH())
 }
 
 func treeIcon(n treeNode) string {
@@ -334,7 +381,9 @@ func (m Model) renderTreeLines(width, height int) []string {
 	if bodyH < 1 {
 		bodyH = 1
 	}
-	start, end := visibleWindow(len(m.Browse.Nodes), m.Browse.Cursor, bodyH)
+	total := len(m.Browse.Nodes)
+	start := clampTop(m.Browse.TreeTop, m.Browse.Cursor, total, bodyH)
+	end := min(start+bodyH, total)
 	for i := start; i < end; i++ {
 		node := m.Browse.Nodes[i]
 		txt := "  " + strings.Repeat("  ", node.Depth) + treeIcon(node) + node.Label

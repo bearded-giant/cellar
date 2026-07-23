@@ -33,8 +33,9 @@ type browseState struct {
 	ViewsByDB  map[string]map[string][]string // db -> group(schema) -> views
 	Expanded   map[string]bool                // node key -> expanded
 
-	Nodes  []treeNode // flattened visible set, rebuilt on tree change
-	Cursor int        // index into Nodes
+	Nodes   []treeNode // flattened visible set, rebuilt on tree change
+	Cursor  int        // index into Nodes
+	TreeTop int        // sticky scroll offset: first visible node row
 
 	TableDB string // database arg for the loaded table
 	Table   string // schema-qualified ref passed to the driver
@@ -119,6 +120,7 @@ func (m *Model) rebuildTree() {
 	if m.Browse.Cursor >= len(m.Browse.Nodes) {
 		m.Browse.Cursor = max(len(m.Browse.Nodes)-1, 0)
 	}
+	m.clampTreeTop()
 }
 
 // refreshJSONView recomputes the cached JSON lines when in JSON view mode.
@@ -298,6 +300,7 @@ func (m *Model) expandDefaultSchema(db string) {
 			break
 		}
 	}
+	m.clampTreeTop() // cursor moved after rebuildTree's clamp
 }
 
 func (m Model) handleRecordsLoadedMsg(msg types.RecordsLoadedMsg) (tea.Model, tea.Cmd) {

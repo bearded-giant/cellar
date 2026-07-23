@@ -71,6 +71,7 @@ func (m Model) mouseScroll(dir int) (tea.Model, tea.Cmd) {
 	} else if dir > 0 && m.Browse.Cursor < len(m.Browse.Nodes)-1 {
 		m.Browse.Cursor++
 	}
+	m.clampTreeTop()
 	return m, nil
 }
 
@@ -86,11 +87,12 @@ func (m Model) mouseClick(x, y int) (tea.Model, tea.Cmd) {
 	}
 
 	if x < treeW { // tree pane: line 0 = "Schema", nodes windowed below
-		start, _ := visibleWindow(len(m.Browse.Nodes), m.Browse.Cursor, bodyH-1)
+		start := clampTop(m.Browse.TreeTop, m.Browse.Cursor, len(m.Browse.Nodes), bodyH-1)
 		idx := start + (y - 1)
 		if y >= 1 && idx >= 0 && idx < len(m.Browse.Nodes) {
 			m.Focus = types.FocusTree
 			m.Browse.Cursor = idx
+			m.clampTreeTop()
 		}
 		return m, nil
 	}

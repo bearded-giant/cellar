@@ -11,11 +11,9 @@ import (
 
 func (m Model) openTreeFilter() (tea.Model, tea.Cmd) {
 	ti := textinput.New()
-	ti.SetValue(m.Browse.TreeFilter)
 	ti.Placeholder = "filter schema/tables"
 	ti.SetWidth(40)
 	ti.Focus()
-	ti.CursorEnd()
 	m.TreeFilterInput = ti
 	m.TreeFilterReturn = m.Screen // the sidebar opens this from the editor too
 	m.Screen = types.ScreenTreeFilter
@@ -29,8 +27,8 @@ func (m Model) handleTreeFilterScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter":
 		m.Browse.TreeFilter = strings.TrimSpace(m.TreeFilterInput.Value())
+		m.Browse.Cursor = 0 // reset before rebuildTree so its clamp resets TreeTop too
 		m.rebuildTree()
-		m.Browse.Cursor = 0
 		m.Screen = m.TreeFilterReturn
 		m.Focus = types.FocusTree
 		return m, nil
