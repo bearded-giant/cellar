@@ -149,6 +149,11 @@ type Model struct {
 	SettingsErr     string
 	SettingsReturn  types.Screen
 
+	// Command palette (`:`): input, inline error, and the screen to restore.
+	CommandInput  textinput.Model
+	CommandErr    string
+	CommandReturn types.Screen
+
 	// QueryRunning gates the esc-cancels-the-query path and the status spinner.
 	QueryRunning bool
 

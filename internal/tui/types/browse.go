@@ -27,6 +27,13 @@ type BackupDoneMsg struct {
 	Err  error
 }
 
+// BackupRestoredMsg reports a `:import` restore; Aside is where the previous
+// config dir was moved ("" when there was none).
+type BackupRestoredMsg struct {
+	Aside string
+	Err   error
+}
+
 type SavedQuerySavedMsg struct {
 	Name  string
 	Query string

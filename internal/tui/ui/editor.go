@@ -394,6 +394,8 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.openExport()
 		case "y":
 			return m.openYank()
+		case ":":
+			return m.openCommandPalette()
 		case "?":
 			return m.openHelp()
 		}

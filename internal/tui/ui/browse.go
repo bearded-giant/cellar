@@ -155,6 +155,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.openEditor()
 	case ",":
 		return m.openSettings()
+	case ":":
+		return m.openCommandPalette()
 	case "x":
 		return m.openExport()
 	case "y":

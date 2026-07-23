@@ -95,6 +95,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.StatusMsg = "Backup written: " + msg.Path + " (contains credentials)"
 		}
 		return m, nil
+	case types.BackupRestoredMsg:
+		if msg.Err != nil {
+			m.StatusMsg = "Restore failed: " + msg.Err.Error()
+			return m, nil
+		}
+		m.StatusMsg = "Restored — reloading connections"
+		if msg.Aside != "" {
+			m.StatusMsg = "Restored (previous config at " + msg.Aside + ") — reloading connections"
+		}
+		return m, m.Cmds.ReloadConfig()
 	}
 
 	return m, nil
@@ -153,6 +163,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleHelpScreen(msg)
 	case types.ScreenSettings:
 		return m.handleSettingsScreen(msg)
+	case types.ScreenCommand:
+		return m.handleCommandScreen(msg)
 	}
 	return m, nil
 }
@@ -201,6 +213,10 @@ func (m Model) handlePaste(msg tea.PasteMsg) (tea.Model, tea.Cmd) {
 			m.SettingsInput, cmd = m.SettingsInput.Update(msg)
 			return m, cmd
 		}
+	case types.ScreenCommand:
+		var cmd tea.Cmd
+		m.CommandInput, cmd = m.CommandInput.Update(msg)
+		return m, cmd
 	}
 	return m, nil
 }

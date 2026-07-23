@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/bearded-giant/cellar/internal/history"
+	"github.com/bearded-giant/cellar/internal/tui/commands"
 	"github.com/bearded-giant/cellar/internal/tui/config"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 )
@@ -71,7 +72,7 @@ func (m Model) handleSettingsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.SettingsErr = ""
 	case "x": // run `cellar export` from here — path lands in the status bar
 		m.StatusMsg = "Exporting backup…"
-		return m, m.Cmds.ExportBackup()
+		return m, m.Cmds.ExportBackup("")
 	case "enter", " ", "space":
 		it := settingsItems[m.SettingsCursor]
 		if it.isBool {
@@ -91,25 +92,36 @@ func (m Model) handleSettingsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// saveSettingEdit validates + applies the value in memory, persists it to the
-// config file, and live-applies side effects where they're cheap.
-func (m Model) saveSettingEdit(value string) (tea.Model, tea.Cmd) {
-	key := settingsItems[m.SettingsCursor].key
-	name, err := config.ApplyAppSetting(m.Cmds.AppConfig(), key, value)
-	if err != nil {
-		m.SettingsErr = err.Error()
-		return m, nil
+// applySetting validates + applies a setting in memory, persists it to the
+// config file, and live-applies side effects where they're cheap. Shared by
+// the settings screen and the `:set` palette command.
+func applySetting(cmds *commands.Commands, key, value string) (string, error) {
+	if cmds.AppConfig() == nil {
+		return "", fmt.Errorf("no config loaded")
 	}
-	if path := m.Cmds.ConfigPath(); path != "" {
+	name, err := config.ApplyAppSetting(cmds.AppConfig(), key, value)
+	if err != nil {
+		return "", err
+	}
+	if path := cmds.ConfigPath(); path != "" {
 		if _, err := config.SetAppSetting(path, key, value); err != nil {
-			m.SettingsErr = "save failed: " + err.Error()
-			return m, nil
+			return name, fmt.Errorf("save failed: %w", err)
 		}
 	}
 	if name == "MaxQueryHistoryPerConnection" {
 		if n, err := strconv.Atoi(value); err == nil && n > 0 {
 			history.MaxPerConnection = n
 		}
+	}
+	return name, nil
+}
+
+func (m Model) saveSettingEdit(value string) (tea.Model, tea.Cmd) {
+	key := settingsItems[m.SettingsCursor].key
+	name, err := applySetting(m.Cmds, key, value)
+	if err != nil {
+		m.SettingsErr = err.Error()
+		return m, nil
 	}
 	m.SettingsEditing = false
 	m.SettingsErr = ""

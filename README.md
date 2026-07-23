@@ -150,6 +150,8 @@ A per-repo `.cellar.toml` in your working directory replaces the global connecti
 
 You can read and write `[application]` settings from the CLI without opening the file: `cellar config list` shows everything, `cellar config get QueryRowLimit` reads one, and `cellar config set BackupDir ~/cellar-backups` writes one back (keys are case-insensitive, connections and other settings are preserved).
 
+For everything else there's a command palette: press `:` on the connections screen, the browse screen, or the editor's results pane. It takes `backup [path]`, `import <backup.tar.gz>`, `set <key> <value>`, `get <key>`, `settings`, `help`, and `quit` (`q`), with the available commands listed right in the modal. New commands get added to a registry, so features can land there without claiming another keybind.
+
 There's also an in-app settings screen: press `,` on the connections or browse screen. It covers the everyday knobs — `BackupDir`, `DefaultPageSize`, `QueryRowLimit`, `MaxQueryHistoryPerConnection`, `DisableSidebar` — with `enter` to edit (booleans just toggle), saved straight to the config file and applied live where that makes sense. Deeper settings stay in the TOML; the screen tells you where.
 
 ## Backup and restore

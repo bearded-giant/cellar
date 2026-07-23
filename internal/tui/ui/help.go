@@ -119,6 +119,7 @@ func (m Model) helpLines() []string {
 		{"Global", [][2]string{
 			{"?", "toggle this help"},
 			{",", "settings (connections + browse screens)"},
+			{":", "command palette — backup, import, set/get, settings, quit"},
 		}},
 	}
 

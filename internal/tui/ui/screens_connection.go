@@ -76,6 +76,8 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case ",":
 		return m.openSettings()
+	case ":":
+		return m.openCommandPalette()
 	case "a", "n":
 		m.Screen = types.ScreenAddConnection
 		m.resetConnInputs()

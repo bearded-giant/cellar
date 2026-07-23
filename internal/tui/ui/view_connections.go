@@ -65,7 +65,7 @@ func (m Model) viewContent() string {
 		types.ScreenFilter,
 		types.ScreenSaveQuery, types.ScreenSavedQueries,
 		types.ScreenYank, types.ScreenTreeFilter, types.ScreenConnFilter,
-		types.ScreenSettings:
+		types.ScreenSettings, types.ScreenCommand:
 		vPos = lipgloss.Center
 	}
 
@@ -113,6 +113,8 @@ func (m Model) getScreenView() string {
 		return m.viewConnFilter()
 	case types.ScreenSettings:
 		return m.viewSettings()
+	case types.ScreenCommand:
+		return m.viewCommand()
 	default:
 		return m.viewConnections()
 	}
@@ -320,6 +322,7 @@ func (m Model) connFooterHelp() string {
 		{"/", "filter"},
 		{"r", "reload"},
 		{",", "settings"},
+		{":", "command"},
 		{"?", "help"},
 		{"ctrl+c", "quit"},
 	}

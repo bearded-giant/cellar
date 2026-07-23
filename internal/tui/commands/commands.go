@@ -36,15 +36,39 @@ func (c *Commands) ConfigPath() string {
 }
 
 // ExportBackup archives the config dir (same as `cellar export`), honoring the
-// live BackupDir setting.
-func (c *Commands) ExportBackup() tea.Cmd {
+// live BackupDir setting; out overrides the destination when non-empty.
+func (c *Commands) ExportBackup(out string) tea.Cmd {
 	return func() tea.Msg {
 		dir := ""
 		if ac := c.AppConfig(); ac != nil {
 			dir = backup.ExpandHome(ac.BackupDir)
 		}
-		path, err := backup.Export("", dir)
+		path, err := backup.Export(backup.ExpandHome(out), dir)
 		return types.BackupDoneMsg{Path: path, Err: err}
+	}
+}
+
+// ImportBackup restores an export archive (previous config dir is set aside).
+func (c *Commands) ImportBackup(path string) tea.Cmd {
+	return func() tea.Msg {
+		aside, err := backup.Import(backup.ExpandHome(path))
+		return types.BackupRestoredMsg{Aside: aside, Err: err}
+	}
+}
+
+// ReloadConfig re-reads the config file into the live config (after a restore)
+// and emits the fresh connection list.
+func (c *Commands) ReloadConfig() tea.Cmd {
+	return func() tea.Msg {
+		if c.cfg == nil || c.cfg.ConfigFile == "" {
+			return types.ConnectionsLoadedMsg{}
+		}
+		fresh, err := config.LoadConfig(c.cfg.ConfigFile)
+		if err != nil {
+			return types.ConnectionsLoadedMsg{Err: err}
+		}
+		*c.cfg = *fresh
+		return types.ConnectionsLoadedMsg{Connections: c.cfg.Connections}
 	}
 }
 
