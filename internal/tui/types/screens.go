@@ -21,6 +21,7 @@ const (
 	ScreenTreeFilter
 	ScreenHelp
 	ScreenConnFilter
+	ScreenSettings
 )
 
 func (s Screen) String() string {
@@ -43,6 +44,7 @@ func (s Screen) String() string {
 		ScreenTreeFilter:     "Filter Tree",
 		ScreenHelp:           "Help",
 		ScreenConnFilter:     "Filter Connections",
+		ScreenSettings:       "Settings",
 	}
 	if name, ok := names[s]; ok {
 		return name

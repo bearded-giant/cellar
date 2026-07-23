@@ -40,7 +40,7 @@ func (m Model) viewContent() string {
 		return m.viewCellView()
 	}
 	if m.Screen == types.ScreenHelp {
-		return m.renderModal(m.viewHelp())
+		return m.renderModalW(m.viewHelp(), 110) // wide: two padded columns of binds
 	}
 	if m.Connecting {
 		body := m.Spinner.View() + accentStyle.Render(" Connecting") + "\n\n" +
@@ -64,7 +64,8 @@ func (m Model) viewContent() string {
 		types.ScreenExport, types.ScreenHistory,
 		types.ScreenFilter,
 		types.ScreenSaveQuery, types.ScreenSavedQueries,
-		types.ScreenYank, types.ScreenTreeFilter, types.ScreenConnFilter:
+		types.ScreenYank, types.ScreenTreeFilter, types.ScreenConnFilter,
+		types.ScreenSettings:
 		vPos = lipgloss.Center
 	}
 
@@ -110,6 +111,8 @@ func (m Model) getScreenView() string {
 		return m.viewTreeFilter()
 	case types.ScreenConnFilter:
 		return m.viewConnFilter()
+	case types.ScreenSettings:
+		return m.viewSettings()
 	default:
 		return m.viewConnections()
 	}
@@ -316,6 +319,7 @@ func (m Model) connFooterHelp() string {
 		{"d", "delete"},
 		{"/", "filter"},
 		{"r", "reload"},
+		{",", "settings"},
 		{"?", "help"},
 		{"ctrl+c", "quit"},
 	}

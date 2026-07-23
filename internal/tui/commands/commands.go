@@ -1,8 +1,12 @@
 package commands
 
 import (
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/bearded-giant/cellar/drivers"
+	"github.com/bearded-giant/cellar/internal/backup"
 	"github.com/bearded-giant/cellar/internal/tui/config"
+	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/models"
 )
 
@@ -12,6 +16,36 @@ import (
 type Commands struct {
 	cfg       *config.Config
 	DriverFor func(provider string) drivers.Driver
+}
+
+// AppConfig exposes the live in-memory app settings (nil when no config was
+// loaded) so the settings screen edits the same values queries read.
+func (c *Commands) AppConfig() *models.AppConfig {
+	if c.cfg == nil {
+		return nil
+	}
+	return c.cfg.AppConfig
+}
+
+// ConfigPath is the global config file backing this session ("" in tests).
+func (c *Commands) ConfigPath() string {
+	if c.cfg == nil {
+		return ""
+	}
+	return c.cfg.ConfigFile
+}
+
+// ExportBackup archives the config dir (same as `cellar export`), honoring the
+// live BackupDir setting.
+func (c *Commands) ExportBackup() tea.Cmd {
+	return func() tea.Msg {
+		dir := ""
+		if ac := c.AppConfig(); ac != nil {
+			dir = backup.ExpandHome(ac.BackupDir)
+		}
+		path, err := backup.Export("", dir)
+		return types.BackupDoneMsg{Path: path, Err: err}
+	}
 }
 
 func defaultDriverFor(provider string) drivers.Driver {

@@ -118,14 +118,22 @@ func (m Model) helpLines() []string {
 		}},
 		{"Global", [][2]string{
 			{"?", "toggle this help"},
+			{",", "settings (connections + browse screens)"},
 		}},
 	}
 
+	// key column sized to the longest bind so nothing truncates
+	keyW := 0
+	for _, g := range groups {
+		for _, r := range g.rows {
+			keyW = max(keyW, len([]rune(r[0])))
+		}
+	}
 	var lines []string
 	for _, g := range groups {
 		lines = append(lines, "", keyStyle.Render(g.title))
 		for _, r := range g.rows {
-			lines = append(lines, "  "+normalStyle.Render(padRunes(r[0], 18))+dimStyle.Render(r[1]))
+			lines = append(lines, "  "+normalStyle.Render(padRunes(r[0], keyW+3))+dimStyle.Render(r[1]))
 		}
 	}
 	return lines

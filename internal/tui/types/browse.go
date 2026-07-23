@@ -21,6 +21,12 @@ type QueryStateSavedMsg struct {
 	Err error
 }
 
+// BackupDoneMsg reports a settings-screen backup export.
+type BackupDoneMsg struct {
+	Path string
+	Err  error
+}
+
 type SavedQuerySavedMsg struct {
 	Name  string
 	Query string

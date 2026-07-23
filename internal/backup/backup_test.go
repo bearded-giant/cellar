@@ -1,4 +1,4 @@
-package main
+package backup
 
 import (
 	"archive/tar"
@@ -40,7 +40,7 @@ func TestBackupRoundTrip(t *testing.T) {
 	dir := seedConfig(t, root)
 
 	out := filepath.Join(t.TempDir(), "backup.tar.gz")
-	got, err := exportBackup(out)
+	got, err := Export(out, "")
 	if err != nil {
 		t.Fatalf("export: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestBackupRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	aside, err := importBackup(out)
+	aside, err := Import(out)
 	if err != nil {
 		t.Fatalf("import: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestImportRejectsTraversal(t *testing.T) {
 	gz.Close()
 	f.Close()
 
-	if _, err := importBackup(hostile); err == nil || !strings.Contains(err.Error(), "suspicious") {
+	if _, err := Import(hostile); err == nil || !strings.Contains(err.Error(), "suspicious") {
 		t.Errorf("hostile path must be rejected, got err=%v", err)
 	}
 }
@@ -126,7 +126,7 @@ func TestConfigSetGetAndBackupDirExport(t *testing.T) {
 		t.Fatalf("config lost connections on settings write:\n%s", b)
 	}
 
-	out, err := exportBackup("")
+	out, err := Export("", ExpandHome(v))
 	if err != nil {
 		t.Fatalf("export: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestConfigSetGetAndBackupDirExport(t *testing.T) {
 
 func TestExportNothingToBackUp(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	if _, err := exportBackup(""); err == nil {
+	if _, err := Export("", ""); err == nil {
 		t.Error("export with no config dir must error")
 	}
 }

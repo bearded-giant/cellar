@@ -21,12 +21,9 @@ type Config struct {
 func defaultConfig() *Config {
 	return &Config{
 		AppConfig: &models.AppConfig{
-			DefaultPageSize:              300,
-			SidebarOverlay:               false,
+			// matches ui's browsePageSize so an absent config changes nothing
+			DefaultPageSize:              100,
 			MaxQueryHistoryPerConnection: 50,
-			TreeWidth:                    30,
-			JSONViewerWordWrap:           false,
-			EnterOpensJSONViewer:         false,
 		},
 	}
 }

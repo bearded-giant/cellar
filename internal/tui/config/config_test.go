@@ -55,7 +55,6 @@ func TestSaveConnections_RoundTrip(t *testing.T) {
 		AppConfig: &models.AppConfig{
 			DefaultPageSize:              300,
 			MaxQueryHistoryPerConnection: 100,
-			TreeWidth:                    30,
 		},
 	}
 
@@ -195,4 +194,28 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestLoadConfig_IgnoresRemovedLegacyKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	legacy := `[application]
+DefaultPageSize = 200
+TreeWidth = 30
+SidebarOverlay = true
+JSONViewerWordWrap = true
+EnterOpensJSONViewer = true
+
+[[database]]
+name = "prod"
+`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("legacy keys must not break load: %v", err)
+	}
+	if cfg.AppConfig.DefaultPageSize != 200 || len(cfg.Connections) != 1 {
+		t.Errorf("live settings/connections must survive: %+v", cfg.AppConfig)
+	}
 }

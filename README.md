@@ -150,9 +150,11 @@ A per-repo `.cellar.toml` in your working directory replaces the global connecti
 
 You can read and write `[application]` settings from the CLI without opening the file: `cellar config list` shows everything, `cellar config get QueryRowLimit` reads one, and `cellar config set BackupDir ~/cellar-backups` writes one back (keys are case-insensitive, connections and other settings are preserved).
 
+There's also an in-app settings screen: press `,` on the connections or browse screen. It covers the everyday knobs — `BackupDir`, `DefaultPageSize`, `QueryRowLimit`, `MaxQueryHistoryPerConnection`, `DisableSidebar` — with `enter` to edit (booleans just toggle), saved straight to the config file and applied live where that makes sense. Deeper settings stay in the TOML; the screen tells you where.
+
 ## Backup and restore
 
-`cellar export` archives your whole config dir — connections, saved queries, query buffers, and history — into a timestamped `tar.gz`. It lands in `BackupDir` if you've set one (see above), else the current directory, and you can pass an explicit path instead (`cellar export ~/some/backup.tar.gz`). Mind where you put it: the archive contains your connection credentials.
+`cellar export` archives your whole config dir — connections, saved queries, query buffers, and history — into a timestamped `tar.gz`. It lands in `BackupDir` if you've set one (see above), else the current directory, and you can pass an explicit path instead (`cellar export ~/some/backup.tar.gz`). The same export is one keypress in the app: `x` on the settings screen (`,`). Mind where you put it: the archive contains your connection credentials.
 
 `cellar import <backup.tar.gz>` restores one. It never merges — your current config dir is moved aside to `cellar.pre-import-<timestamp>` first, so a restore is always reversible. Delete the aside copy once you're happy.
 

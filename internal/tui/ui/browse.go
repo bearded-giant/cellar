@@ -12,6 +12,15 @@ import (
 
 const browsePageSize = 100
 
+// pageSize is the browse-grid page length: DefaultPageSize from config when
+// set, else the built-in default.
+func (m Model) pageSize() int {
+	if ac := m.Cmds.AppConfig(); ac != nil && ac.DefaultPageSize > 0 {
+		return ac.DefaultPageSize
+	}
+	return browsePageSize
+}
+
 // browseState holds everything the in-app browser needs for one live
 // connection: the lazily-loaded schema tree and the current results page.
 type browseState struct {
@@ -78,7 +87,7 @@ func (m *Model) initBrowse(driver drivers.Driver) {
 		TablesByDB: map[string]map[string][]string{},
 		ViewsByDB:  map[string]map[string][]string{},
 		Expanded:   map[string]bool{},
-		Limit:      browsePageSize,
+		Limit:      m.pageSize(),
 	}
 	m.Tabs = []browseState{m.Browse}
 	m.TabActive = 0
@@ -144,6 +153,8 @@ func (m Model) handleBrowseScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.confirmDisconnect()
 	case "e":
 		return m.openEditor()
+	case ",":
+		return m.openSettings()
 	case "x":
 		return m.openExport()
 	case "y":

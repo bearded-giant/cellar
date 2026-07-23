@@ -141,6 +141,14 @@ type Model struct {
 	// vertical split, tmux-style; zoom follows focus. Reset on workspace entry.
 	PaneZoomed bool
 
+	// Settings screen (`,`): cursor into settingsItems, inline edit state, and
+	// the screen to return to on esc.
+	SettingsCursor  int
+	SettingsEditing bool
+	SettingsInput   textinput.Model
+	SettingsErr     string
+	SettingsReturn  types.Screen
+
 	// QueryRunning gates the esc-cancels-the-query path and the status spinner.
 	QueryRunning bool
 

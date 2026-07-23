@@ -5,11 +5,7 @@ import "time"
 type AppConfig struct {
 	DefaultPageSize              int
 	DisableSidebar               bool
-	SidebarOverlay               bool
 	MaxQueryHistoryPerConnection int
-	TreeWidth                    int
-	JSONViewerWordWrap           bool
-	EnterOpensJSONViewer         bool
 	// QueryRowLimit caps editor SELECT fetches; 0 = default (5000), -1 = unlimited.
 	QueryRowLimit int
 	// BackupDir is where `cellar export` writes archives when no path is given

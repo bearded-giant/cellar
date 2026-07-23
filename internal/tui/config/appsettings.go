@@ -52,14 +52,11 @@ func GetAppSetting(path, key string) (name, value string, err error) {
 	return name, fmt.Sprint(f.Interface()), nil
 }
 
-// SetAppSetting parses value into the setting's type and writes the config
-// back (connections and other settings preserved).
-func SetAppSetting(path, key, value string) (string, error) {
-	cfg, err := loadGlobal(path)
-	if err != nil {
-		return "", err
-	}
-	f, name, err := appField(cfg.AppConfig, key)
+// ApplyAppSetting parses value into the setting's type and sets it on app
+// in place (no file I/O) — shared by SetAppSetting and the settings screen's
+// live-apply.
+func ApplyAppSetting(app *models.AppConfig, key, value string) (string, error) {
+	f, name, err := appField(app, key)
 	if err != nil {
 		return "", err
 	}
@@ -80,6 +77,29 @@ func SetAppSetting(path, key, value string) (string, error) {
 		f.SetBool(b)
 	default:
 		return "", fmt.Errorf("setting %s has unsupported type %s", name, f.Kind())
+	}
+	return name, nil
+}
+
+// AppValue formats a setting's current in-memory value.
+func AppValue(app *models.AppConfig, key string) (string, error) {
+	f, _, err := appField(app, key)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(f.Interface()), nil
+}
+
+// SetAppSetting parses value into the setting's type and writes the config
+// back (connections and other settings preserved).
+func SetAppSetting(path, key, value string) (string, error) {
+	cfg, err := loadGlobal(path)
+	if err != nil {
+		return "", err
+	}
+	name, err := ApplyAppSetting(cfg.AppConfig, key, value)
+	if err != nil {
+		return "", err
 	}
 	cfg.LocalConfigFile = "" // always the global file
 	return name, cfg.SaveConnections(cfg.Connections)

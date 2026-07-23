@@ -88,6 +88,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleQueryStateLoadedMsg(msg)
 	case types.QueryStateSavedMsg:
 		return m.handleQueryStateSavedMsg(msg)
+	case types.BackupDoneMsg:
+		if msg.Err != nil {
+			m.StatusMsg = "Backup failed: " + msg.Err.Error()
+		} else {
+			m.StatusMsg = "Backup written: " + msg.Path + " (contains credentials)"
+		}
+		return m, nil
 	}
 
 	return m, nil
@@ -144,6 +151,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleConnFilterScreen(msg)
 	case types.ScreenHelp:
 		return m.handleHelpScreen(msg)
+	case types.ScreenSettings:
+		return m.handleSettingsScreen(msg)
 	}
 	return m, nil
 }
@@ -186,6 +195,12 @@ func (m Model) handlePaste(msg tea.PasteMsg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.SaveNameInput, cmd = m.SaveNameInput.Update(msg)
 		return m, cmd
+	case types.ScreenSettings:
+		if m.SettingsEditing {
+			var cmd tea.Cmd
+			m.SettingsInput, cmd = m.SettingsInput.Update(msg)
+			return m, cmd
+		}
 	}
 	return m, nil
 }
@@ -286,6 +301,11 @@ func (m Model) handleConnectedMsg(msg types.ConnectedMsg) (tea.Model, tea.Cmd) {
 	m.CurrentConn = &stored
 
 	m.initBrowse(msg.Driver)
+	// config default; the connection's persisted query state overrides it when
+	// QueryStateLoadedMsg lands
+	if ac := m.Cmds.AppConfig(); ac != nil {
+		m.SidebarHidden = ac.DisableSidebar
+	}
 	m.Screen = types.ScreenBrowse
 	m.Focus = types.FocusTree
 	m.StatusMsg = "Connected — " + msg.Connection.Name

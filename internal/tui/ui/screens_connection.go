@@ -74,6 +74,8 @@ func (m Model) handleConnectionsScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Screen = types.ScreenTestConnection
 			return m, m.Cmds.TestConnection(conn)
 		}
+	case ",":
+		return m.openSettings()
 	case "a", "n":
 		m.Screen = types.ScreenAddConnection
 		m.resetConnInputs()
