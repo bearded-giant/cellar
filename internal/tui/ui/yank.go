@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/bearded-giant/cellar/internal/tui/sqlmeta"
 	"github.com/bearded-giant/cellar/internal/tui/types"
 	"github.com/bearded-giant/cellar/lib"
 )
@@ -53,6 +54,12 @@ func (m Model) yankRow() string {
 		cells[c] = displayCell(m.cellValue(m.Browse.RowCursor, c))
 	}
 	return strings.Join(cells, "\t")
+}
+
+// yankStatement is the editor's ctrl+y payload: the whole ';'-delimited
+// statement under the cursor, exactly the span ctrl+enter would run.
+func (m Model) yankStatement() string {
+	return strings.TrimSpace(sqlmeta.StatementAt(m.EditorArea.Value(), m.EditorArea.cursorOffset()))
 }
 
 func (m Model) viewYank() string {

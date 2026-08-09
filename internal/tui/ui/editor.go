@@ -469,7 +469,21 @@ func (m Model) handleEditorScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.EditorArea.toggleCommentSpan(start, end)
 		m.refreshCompletions()
 		return m, nil
-	case "ctrl+y": // yank the cursor line to the clipboard
+	// yank the whole statement under the cursor — the same span ctrl+enter runs
+	case "ctrl+y":
+		stmt := m.yankStatement()
+		if stmt == "" {
+			m.StatusMsg = "Nothing to yank"
+			return m, nil
+		}
+		if err := lib.NewClipboard().Write(stmt); err != nil {
+			m.StatusMsg = "Copy failed: " + err.Error()
+		} else {
+			m.StatusMsg = fmt.Sprintf("Yanked statement (%d lines) to clipboard", strings.Count(stmt, "\n")+1)
+		}
+		return m, nil
+	// ctrl+shift+y needs kitty disambiguation; alt+y is the legacy fallback
+	case "ctrl+shift+y", "alt+y": // just the cursor line
 		if err := lib.NewClipboard().Write(m.EditorArea.currentLine()); err != nil {
 			m.StatusMsg = "Copy failed: " + err.Error()
 		} else {
@@ -878,7 +892,7 @@ func (m Model) editorFooter(width int) string {
 	default:
 		kb = append(kb,
 			kbd{"ctrl+enter", "run stmt (ctrl+r)"}, kbd{"ctrl+shift+enter", "run all"},
-			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank"},
+			kbd{"ctrl+/", "comment"}, kbd{"ctrl+y", "yank stmt"},
 			kbd{"ctrl+t/w", "tabs"}, kbd{"ctrl+]/[", "switch tab"}, kbd{"ctrl+1..9", "tab N"},
 			kbd{"ctrl+space", "complete"}, kbd{"tab", "results"}, kbd{"ctrl+x", "zoom"}, kbd{"ctrl+b", "schema"}, kbd{"ctrl+z", "undo"},
 			kbd{"ctrl+s", "save"}, kbd{"ctrl+shift+s", "save as"},

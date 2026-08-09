@@ -83,24 +83,38 @@ func TestCellViewScroll_WrappedLines(t *testing.T) {
 	m := gridModel()
 	m.Width, m.Height = 20, 10
 	m.Screen = types.ScreenCellView
-	m.CellViewLines = []string{strings.Repeat("a", 50), "short"}
+	m.CellViewLines = []string{strings.Repeat("a", 300), "short"}
 
 	wrapped := m.cellViewDisplayLines()
-	if want := 4; len(wrapped) != want { // 50 runes at width 20 = 3 lines + "short"
+	if want := 16; len(wrapped) != want { // 300 runes at width 20 = 15 lines + "short"
 		t.Fatalf("display lines = %d, want %d: %v", len(wrapped), want, wrapped)
 	}
 
-	res, _ := m.handleCellViewScreen(keyMsg('G'))
+	// one j moves the window by one line — the offset is the first visible line
+	res, _ := m.handleCellViewScreen(keyMsg('j'))
 	m = res.(Model)
-	if m.CellViewScroll != len(wrapped)-1 {
-		t.Errorf("G should scroll to last wrapped line %d, got %d", len(wrapped)-1, m.CellViewScroll)
+	if m.CellViewScroll != 1 {
+		t.Errorf("j should scroll to 1, got %d", m.CellViewScroll)
 	}
 
-	m.Width = 60 // re-wrap: 50-rune line now fits, so fewer display lines
+	res, _ = m.handleCellViewScreen(keyMsg('G'))
+	m = res.(Model)
+	want := maxScroll(len(wrapped), m.cellViewBodyHeight())
+	if want == 0 {
+		t.Fatal("content should overflow the viewport")
+	}
+	if m.CellViewScroll != want {
+		t.Errorf("G should scroll to %d, got %d", want, m.CellViewScroll)
+	}
+	if start, end := offsetWindow(len(wrapped), m.CellViewScroll, m.cellViewBodyHeight()); end != len(wrapped) {
+		t.Errorf("G window [%d,%d) should reach the last line %d", start, end, len(wrapped))
+	}
+
+	m.Width = 320 // re-wrap: 300-rune line now fits, so fewer display lines
 	res, _ = m.handleCellViewScreen(keyMsg('j'))
 	m = res.(Model)
-	if last := len(m.cellViewDisplayLines()) - 1; m.CellViewScroll > last {
-		t.Errorf("scroll %d should clamp to new last wrapped line %d after resize", m.CellViewScroll, last)
+	if last := maxScroll(len(m.cellViewDisplayLines()), m.cellViewBodyHeight()); m.CellViewScroll > last {
+		t.Errorf("scroll %d should clamp to new max offset %d after resize", m.CellViewScroll, last)
 	}
 
 	res, _ = m.handleCellViewScreen(keyMsg('g'))
@@ -188,7 +202,7 @@ func TestPeek_ScrollAndClose(t *testing.T) {
 	m := peekModel()
 	res, _ := m.openPeek()
 	m = res.(Model)
-	m.PeekLines = []string{strings.Repeat("a", 500), "tail"}
+	m.PeekLines = []string{strings.Repeat("a", 2000), "tail"}
 
 	res, _ = m.handleBrowseScreen(keyMsg('j'))
 	m = res.(Model)
@@ -197,7 +211,11 @@ func TestPeek_ScrollAndClose(t *testing.T) {
 	}
 	res, _ = m.handleBrowseScreen(keyMsg('G'))
 	m = res.(Model)
-	if want := len(m.peekDisplayLines()) - 1; m.PeekScroll != want {
+	want := maxScroll(len(m.peekDisplayLines()), m.peekBodyHeight())
+	if want == 0 {
+		t.Fatal("content should overflow the peek viewport")
+	}
+	if m.PeekScroll != want {
 		t.Errorf("G should scroll to %d, got %d", want, m.PeekScroll)
 	}
 	res, _ = m.handleBrowseScreen(keyMsg('g'))
@@ -260,20 +278,20 @@ func TestPeek_ResizeRewrapsAndClampsScroll(t *testing.T) {
 	m := peekModel()
 	res, _ := m.openPeek()
 	m = res.(Model)
-	m.PeekLines = []string{strings.Repeat("a", 300)}
+	m.PeekLines = []string{strings.Repeat("a", 3000)}
 
 	res, _ = m.handleBrowseScreen(keyMsg('G'))
 	m = res.(Model)
 	before := m.PeekScroll
 	if before == 0 {
-		t.Fatal("long value should wrap into multiple display lines")
+		t.Fatal("long value should wrap past the peek viewport")
 	}
 
 	m.Width = 200 // re-wrap: wider box, fewer wrapped lines
 	res, _ = m.handleBrowseScreen(keyMsg('j'))
 	m = res.(Model)
-	if last := len(m.peekDisplayLines()) - 1; m.PeekScroll > last {
-		t.Errorf("scroll %d should clamp to new last line %d after resize", m.PeekScroll, last)
+	if last := maxScroll(len(m.peekDisplayLines()), m.peekBodyHeight()); m.PeekScroll > last {
+		t.Errorf("scroll %d should clamp to new max offset %d after resize", m.PeekScroll, last)
 	}
 	if m.PeekScroll >= before {
 		t.Errorf("wider wrap should shrink the scroll range: %d -> %d", before, m.PeekScroll)

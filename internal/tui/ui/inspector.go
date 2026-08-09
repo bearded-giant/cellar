@@ -218,9 +218,9 @@ func (m Model) switchInspectorTab(idx int) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleInspectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	last := len(m.inspectorDisplayLines()) - 1
+	last := maxScroll(len(m.inspectorDisplayLines()), m.inspBodyHeight())
 	if m.InspScroll > last { // resize may have re-wrapped to fewer lines
-		m.InspScroll = max(last, 0)
+		m.InspScroll = last
 	}
 	n := len(m.InspTabs)
 	switch msg.String() {
@@ -253,10 +253,14 @@ func (m Model) handleInspectorKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.InspScroll < last {
 			m.InspScroll++
 		}
+	case "pgdown", "ctrl+d":
+		m.InspScroll = min(m.InspScroll+m.inspBodyHeight(), last)
+	case "pgup", "ctrl+u":
+		m.InspScroll = max(m.InspScroll-m.inspBodyHeight(), 0)
 	case "g", "home":
 		m.InspScroll = 0
 	case "G", "end":
-		m.InspScroll = max(last, 0)
+		m.InspScroll = last
 	}
 	return m, nil
 }
@@ -285,6 +289,12 @@ func (m Model) inspSize() (w, h int) {
 func (m Model) inspWrapWidth() int {
 	w, _ := m.inspSize()
 	return max(w-4, 1)
+}
+
+// inspBodyHeight is the content-row count: border (2) + title + tab bar + footer.
+func (m Model) inspBodyHeight() int {
+	_, h := m.inspSize()
+	return max(h-5, 1)
 }
 
 func (m Model) inspectorDisplayLines() []string {
@@ -323,19 +333,15 @@ func (m Model) inspectorTabBar(innerW int) string {
 }
 
 func (m Model) renderInspector() string {
-	w, h := m.inspSize()
+	w, _ := m.inspSize()
 	innerW := max(w-4, 1)
-	bodyH := max(h-5, 1) // border (2) + title + tab bar + footer
+	bodyH := m.inspBodyHeight()
 	kind := "table"
 	if m.InspIsView {
 		kind = "view"
 	}
 	lines := m.inspectorDisplayLines()
-	scroll := m.InspScroll
-	if last := len(lines) - 1; scroll > last {
-		scroll = max(last, 0)
-	}
-	start, end := visibleWindow(len(lines), scroll, bodyH)
+	start, end := offsetWindow(len(lines), m.InspScroll, bodyH)
 	rows := make([]string, 0, bodyH+3)
 	rows = append(rows, accentStyle.Render(truncateRunes(m.InspLabel+"  ·  "+kind, innerW)))
 	rows = append(rows, m.inspectorTabBar(innerW))
@@ -345,7 +351,7 @@ func (m Model) renderInspector() string {
 	for len(rows) < bodyH+2 {
 		rows = append(rows, strings.Repeat(" ", innerW))
 	}
-	hint := "tab/h/l tabs  1..4 jump  j/k scroll  y copy  esc close"
+	hint := "tab/h/l tabs  1..4 jump  j/k scroll  ctrl+d/u page  y copy  esc close"
 	if len(lines) > bodyH {
 		hint = fmt.Sprintf("%d-%d/%d  ", start+1, end, len(lines)) + hint
 	}

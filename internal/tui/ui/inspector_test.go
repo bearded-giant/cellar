@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -170,6 +171,56 @@ func TestInspector_ScrollClamp(t *testing.T) {
 	m = res.(Model)
 	if last := len(m.inspectorDisplayLines()) - 1; m.InspScroll > last {
 		t.Errorf("scroll %d beyond last line %d", m.InspScroll, last)
+	}
+}
+
+// a wide table's column list must scroll from the very first j — the offset is
+// the first visible line, not a cursor the viewport waits to catch up with.
+func TestInspector_ScrollsFromFirstKey(t *testing.T) {
+	m := inspectorModel()
+	rows := [][]string{{"name"}}
+	for i := range 140 {
+		rows = append(rows, []string{fmt.Sprintf("col_%03d", i)})
+	}
+	res, _ := m.handleMetaLoadedMsg(types.MetaLoadedMsg{Kind: 0, Table: "widgets", Rows: rows})
+	m = res.(Model)
+
+	lines := m.inspectorDisplayLines()
+	bodyH := m.inspBodyHeight()
+	if len(lines) <= bodyH {
+		t.Fatalf("need overflow to test scrolling: %d lines in %d rows", len(lines), bodyH)
+	}
+	firstVisible := func(m Model) string {
+		start, _ := offsetWindow(len(m.inspectorDisplayLines()), m.InspScroll, m.inspBodyHeight())
+		return m.inspectorDisplayLines()[start]
+	}
+	top := firstVisible(m)
+
+	res, _ = m.handleInspectorKey(keyMsg('j'))
+	m = res.(Model)
+	if m.InspScroll != 1 {
+		t.Errorf("one j should scroll to 1, got %d", m.InspScroll)
+	}
+	if firstVisible(m) == top {
+		t.Error("one j must move the visible window")
+	}
+
+	res, _ = m.handleInspectorKey(keyMsg('G'))
+	m = res.(Model)
+	start, end := offsetWindow(len(lines), m.InspScroll, bodyH)
+	if end != len(lines) {
+		t.Errorf("G window [%d,%d) should reach the last of %d lines", start, end, len(lines))
+	}
+	if want := lines[len(lines)-1]; !strings.Contains(want, "col_139") {
+		t.Errorf("last line should be the 140th column, got %q", want)
+	}
+
+	res, _ = m.handleInspectorKey(keyMsg('g'))
+	m = res.(Model)
+	res, _ = m.handleInspectorKey(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	m = res.(Model)
+	if m.InspScroll != bodyH {
+		t.Errorf("ctrl+d should page down by %d, got %d", bodyH, m.InspScroll)
 	}
 }
 

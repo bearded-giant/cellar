@@ -134,7 +134,9 @@ Press `?` or `ctrl+g` anywhere for the full keymap. The essentials:
 | `ctrl+space` | completion popup (auto-shows at 2+ chars) |
 | `ctrl+n` / `ctrl+p` | engage completion — then `↑`/`↓` move, `tab` accepts |
 | `ctrl+/` | toggle comment |
-| `ctrl+z` / `ctrl+y` | undo / yank line |
+| `ctrl+z` | undo |
+| `ctrl+y` | yank the statement under the cursor (same span `ctrl+enter` runs) |
+| `ctrl+shift+y` | yank the cursor line only (`alt+y` in legacy terminals) |
 | `ctrl+s` / `ctrl+shift+s` | save (names an `untitled` buffer) / save as |
 | `ctrl+o` | saved queries + history picker |
 

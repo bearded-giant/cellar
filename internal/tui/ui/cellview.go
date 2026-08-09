@@ -62,6 +62,11 @@ func (m Model) cellViewDisplayLines() []string {
 	return wrapLines(m.CellViewLines, m.cellViewWrapWidth())
 }
 
+// cellViewBodyHeight is the content-row count: title + footer.
+func (m Model) cellViewBodyHeight() int {
+	return max(m.Height-2, 1)
+}
+
 func (m Model) openCellView() (tea.Model, tea.Cmd) {
 	if len(m.Browse.Columns) == 0 {
 		return m, nil
@@ -77,9 +82,9 @@ func (m Model) openCellView() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCellViewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	last := len(m.cellViewDisplayLines()) - 1
+	last := maxScroll(len(m.cellViewDisplayLines()), m.cellViewBodyHeight())
 	if m.CellViewScroll > last { // width may have shrunk/grown the wrapped line count
-		m.CellViewScroll = max(last, 0)
+		m.CellViewScroll = last
 	}
 	switch msg.String() {
 	case "esc", "q", "v":
@@ -99,10 +104,14 @@ func (m Model) handleCellViewScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.CellViewScroll < last {
 			m.CellViewScroll++
 		}
+	case "pgdown", "ctrl+d":
+		m.CellViewScroll = min(m.CellViewScroll+m.cellViewBodyHeight(), last)
+	case "pgup", "ctrl+u":
+		m.CellViewScroll = max(m.CellViewScroll-m.cellViewBodyHeight(), 0)
 	case "g", "home":
 		m.CellViewScroll = 0
 	case "G", "end":
-		m.CellViewScroll = max(last, 0)
+		m.CellViewScroll = last
 	}
 	return m, nil
 }
@@ -142,6 +151,12 @@ func (m Model) peekDisplayLines() []string {
 	return wrapLines(m.PeekLines, m.peekWrapWidth())
 }
 
+// peekBodyHeight is the content-row count: border (2) + title + footer.
+func (m Model) peekBodyHeight() int {
+	_, h := m.peekSize()
+	return max(h-4, 1)
+}
+
 func (m Model) openPeek() (tea.Model, tea.Cmd) {
 	if len(m.Browse.Columns) == 0 {
 		return m, nil
@@ -166,9 +181,9 @@ func (m *Model) closePeek() {
 }
 
 func (m Model) handlePeekKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	last := len(m.peekDisplayLines()) - 1
+	last := maxScroll(len(m.peekDisplayLines()), m.peekBodyHeight())
 	if m.PeekScroll > last { // resize may have re-wrapped to fewer lines
-		m.PeekScroll = max(last, 0)
+		m.PeekScroll = last
 	}
 	switch msg.String() {
 	case "esc", "q", "v":
@@ -189,24 +204,24 @@ func (m Model) handlePeekKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.PeekScroll < last {
 			m.PeekScroll++
 		}
+	case "pgdown", "ctrl+d":
+		m.PeekScroll = min(m.PeekScroll+m.peekBodyHeight(), last)
+	case "pgup", "ctrl+u":
+		m.PeekScroll = max(m.PeekScroll-m.peekBodyHeight(), 0)
 	case "g", "home":
 		m.PeekScroll = 0
 	case "G", "end":
-		m.PeekScroll = max(last, 0)
+		m.PeekScroll = last
 	}
 	return m, nil
 }
 
 func (m Model) renderPeek() string {
-	w, h := m.peekSize()
+	w, _ := m.peekSize()
 	innerW := max(w-4, 1)
-	bodyH := max(h-4, 1) // border (2) + title + footer
+	bodyH := m.peekBodyHeight()
 	lines := m.peekDisplayLines()
-	scroll := m.PeekScroll
-	if last := len(lines) - 1; scroll > last {
-		scroll = max(last, 0)
-	}
-	start, end := visibleWindow(len(lines), scroll, bodyH)
+	start, end := offsetWindow(len(lines), m.PeekScroll, bodyH)
 	rows := make([]string, 0, bodyH+2)
 	rows = append(rows, accentStyle.Render(truncateRunes("Cell: "+m.PeekCol, innerW)))
 	for i := start; i < end; i++ {
@@ -215,7 +230,7 @@ func (m Model) renderPeek() string {
 	for len(rows) < bodyH+1 {
 		rows = append(rows, strings.Repeat(" ", innerW))
 	}
-	hint := "j/k scroll  g/G top/bottom  y copy  esc close"
+	hint := "j/k scroll  ctrl+d/u page  g/G top/bottom  y copy  esc close"
 	if len(lines) > bodyH {
 		hint = fmt.Sprintf("%d-%d/%d  ", start+1, end, len(lines)) + hint
 	}
@@ -237,16 +252,9 @@ func (m Model) viewCellView() string {
 		return strings.Join(m.CellViewLines, "\n")
 	}
 	title := accentStyle.Render("Cell: "+m.CellViewCol) + dimStyle.Render(strings.Repeat(" ", 1))
-	bodyH := h - 2 // title + footer
-	if bodyH < 1 {
-		bodyH = 1
-	}
+	bodyH := m.cellViewBodyHeight()
 	lines := m.cellViewDisplayLines()
-	scroll := m.CellViewScroll
-	if last := len(lines) - 1; scroll > last {
-		scroll = max(last, 0)
-	}
-	start, end := visibleWindow(len(lines), scroll, bodyH)
+	start, end := offsetWindow(len(lines), m.CellViewScroll, bodyH)
 	rows := make([]string, 0, bodyH)
 	for i := start; i < end; i++ {
 		rows = append(rows, normalStyle.Render(padRunes(lines[i], w)))

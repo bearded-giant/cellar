@@ -105,6 +105,22 @@ func visibleWindow(total, cursor, height int) (start, end int) {
 	return start, end
 }
 
+// offsetWindow returns [start,end) for a viewport of `height` rows scrolled by
+// `offset` lines. Offset-anchored, unlike visibleWindow: the first line of the
+// window IS the offset, so every step of the offset moves the view.
+func offsetWindow(total, offset, height int) (start, end int) {
+	if height < 1 {
+		height = 1
+	}
+	start = min(max(offset, 0), maxScroll(total, height))
+	return start, min(start+height, total)
+}
+
+// maxScroll is the largest offset that still fills the viewport.
+func maxScroll(total, height int) int {
+	return max(total-max(height, 1), 0)
+}
+
 // visibleColsForCursor returns the [start,end) column range that fits in
 // `avail` cells and is guaranteed to include `cursor`. It packs columns right
 // of the cursor first, then fills any remaining width to the left.
